@@ -72,29 +72,31 @@ def main():
                 break
             
         print("rank %d opening file %s"%(rank,fname))
-        f=open(fname,"r")
+        try:
+            f=open(fname,"r")
+            sii=n.fromfile(f,count=1,dtype=n.int64)
+            z=n.fromfile(f,count=n_samples,dtype=n.complex64)
+            f.close()
 
-        sii=n.fromfile(f,count=1,dtype=n.int64)
-        z=n.fromfile(f,count=n_samples,dtype=n.complex64)
-        f.close()
-
-        print("rank %d deleting %s"%(rank,fname))
-        cmd="rm %s"%(str(fname))
-        os.system(cmd)
+            print("rank %d deleting %s"%(rank,fname))
+            cmd="rm %s"%(str(fname))
+            os.system(cmd)
         
-        Z=fft(wf*z)
-        z=ifft(Z/(n.abs(Z)+1e-9))
+            Z=fft(wf*z)
+            z=ifft(Z/(n.abs(Z)+1e-9))
 
-        mf_p = n.zeros(n_samples,dtype=n.float32)
-        mf_cr = n.zeros(n_samples,dtype=n.float32)
+            mf_p = n.zeros(n_samples,dtype=n.float32)
+            mf_cr = n.zeros(n_samples,dtype=n.float32)
         
-        for cri in range(len(crs)):
+            for cri in range(len(crs)):
             
-            mf=power(n.fft.fftshift(fft(wf*chirps[cri]*z)))
+                mf=power(n.fft.fftshift(fft(wf*chirps[cri]*z)))
 
-            idx=n.where(mf > mf_p)[0]
-            mf_p[idx]=mf[idx]
-            mf_cr[idx]=crs[cri]
+                idx=n.where(mf > mf_p)[0]
+                mf_p[idx]=mf[idx]
+                mf_cr[idx]=crs[cri]
+        except:
+            print("problem reading file %s"%(fname))
 
         det_p=[]
         det_cr=[]
