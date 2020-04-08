@@ -11,22 +11,15 @@ freq=n.array([])
 t0s=n.array([])
 crs=n.array([])
 
-
-#                header.tofile(fo)
- #               pf.tofile(fo)
-  #              cf.tofile(fo)
-   #             ff.tofile(fo)
-    #            if0.tofile(fo)
-     #           fo.flush()
-
-
 for f in fl:
     print(f)
+    # this is the file format:  h = header, should be 0
+    # p is matched filter output
     a=n.fromfile(f,dtype=[("h",n.float64),("p",n.float64),("cf",n.float64),("ff",n.float64),("i",n.int64)])
+    print(a)
     gidx=n.where(a["i"] > 0)[0]
     freq=n.concatenate((freq,a["ff"][gidx]))
     t0s=n.concatenate((t0s,a["i"][gidx]))
-    print(a["i"])
     crs=n.concatenate((crs,a["cf"][gidx]))
                       
 cru=n.unique(crs)
