@@ -17,11 +17,9 @@ def power(x):
 
 def fft(x):
     return(pyfftw.interfaces.numpy_fft.fft(x,planner_effort='FFTW_ESTIMATE'))
-#    return(scipy.fftpack.fft(x))
 
 def ifft(x):
     return(pyfftw.interfaces.numpy_fft.ifft(x,planner_effort='FFTW_ESTIMATE'))    
-#    return(scipy.fftpack.ifft(x))
 
 comm=MPI.COMM_WORLD
 size=comm.Get_size()
@@ -31,11 +29,10 @@ print(comm.Get_rank())
 
 def chirpf(L,f0=-25e3,cr=160e3,sr=50e3):
     """
-    Generate a chirp.
+    Generate a chirp. This is used for matched filtering
     """
     tv=n.arange(L,dtype=n.float64)/sr
     dphase=0.5*tv**2*cr*2*n.pi
-
     chirp=n.exp(1j*n.mod(dphase,2*n.pi))*n.exp(1j*2*n.pi*f0*tv)
     return(chirp)
 
@@ -44,25 +41,29 @@ def main():
     sr=20e6
     cf=10e6
     fvec=n.fft.fftshift(n.fft.fftfreq(n_samples,d=1/sr))+cf
+    # search for these chirp-rates (Hz/s)
     crs=[50e3,100e3,125e3,500.0084e3,550e3]
     chirps=[]
     wf=ss.hann(n_samples)
     done=-1
     for cr in crs:
         chirps.append(n.array(wf*n.conj(chirpf(n_samples,f0=0.0,cr=cr,sr=sr)),dtype=n.complex64))
-    
- #   fos=[]
+
+    # open file to store results
     fo=open("mf_p_%d_%d.bin"%(rank,int(time.time())),"w")
-#    ho=h5py.File("chirp_mf_%d_%d.h5"%(rank,int(time.time())),"w")
 
     while True:
         cput0=time.time()
         nums=[]
         fl=glob.glob("/dev/shm/*.bin")
         fl.sort()
-        if len(fl)< 10:
-            time.sleep(1)
-            continue
+        # wait until we have enough data
+        while len(fl)< 10:
+            fl=glob.glob("/dev/shm/*.bin")
+            fl.sort()
+            time.sleep(1)         
+
+        # divide files to different threads
         fname=""
         for i in range(size,len(fl)):
             num=int(re.search(".*-(.*).bin",fl[i]).group(1))
@@ -81,19 +82,21 @@ def main():
             print("rank %d deleting %s"%(rank,fname))
             cmd="rm %s"%(str(fname))
             os.system(cmd)
-        
+
+            # whiten noise
             Z=fft(wf*z)
             z=ifft(Z/(n.abs(Z)+1e-9))
 
+            # matched filter output
             mf_p = n.zeros(n_samples,dtype=n.float32)
             mf_cr = n.zeros(n_samples,dtype=n.float32)
         
             for cri in range(len(crs)):
-            
                 mf=power(n.fft.fftshift(fft(wf*chirps[cri]*z)))
-
                 idx=n.where(mf > mf_p)[0]
+                # find peak match function at each point
                 mf_p[idx]=mf[idx]
+                # record chirp-rate that produces the highest matched filter output
                 mf_cr[idx]=crs[cri]
         except:
             print("problem reading file %s"%(fname))
@@ -120,17 +123,11 @@ def main():
                 if0=n.int64(sii)
                 header=n.float64(0.0)
                 header.tofile(fo)
-                pf.tofile(fo)
-                cf.tofile(fo)
-                ff.tofile(fo)
-                if0.tofile(fo)
+                pf.tofile(fo)   # matched filter output value
+                cf.tofile(fo)   # chirp-rate
+                ff.tofile(fo)   # center frequency
+                if0.tofile(fo)  # time of detection (samples since 1970)
                 fo.flush()
-            
-#            ho["%d/p"%(sii)]=det_p
- #           ho["%d/cr"%(sii)]=det_cr
-  #          ho["%d/f0"%(sii)]=det_f0
-   #         ho["%d/i0"%(sii)]=sii
-    #        ho.flush()
                 
         cput1=time.time()
         cpudt=(cput1-cput0)*1e3
