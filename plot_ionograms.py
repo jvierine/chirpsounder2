@@ -18,7 +18,9 @@ def plot_ionogram(conf,f):
         S[i,:]=(S[i,:]-noise)/noise
     S[S<0]=1e-3
     dB=n.transpose(10.0*n.log10(S))
-
+    
+    print("Plotting %s rate %1.2f (kHz/s) t0 %1.5f (unix)"%(f,ho["rate"].value/1e3,ho["t0"].value))
+    
     # assume that t0 is at the start of a standard unix second
     # therefore, the propagation time is anything added to a full second
     t0=ho["t0"].value
@@ -28,12 +30,14 @@ def plot_ionogram(conf,f):
     plt.pcolormesh(freqs,dr+2*ranges/1e3,dB,vmin=0,vmax=20.0)
     cb=plt.colorbar()
     cb.set_label("SNR (dB)")
-    plt.title("Chirp-rate %1.2f kHz/s t0=%1.3f (unix s)"%(ho["rate"].value,n.floor(ho["t0"].value)))
+    plt.title("Chirp-rate %1.2f kHz/s t0=%1.5f (unix s)"%(ho["rate"].value/1e3,ho["t0"].value))
     plt.xlabel("Frequency (MHz)")
     plt.ylabel("One-way range offset (km)")
     plt.ylim([-1000+dr,1000+dr])
     plt.tight_layout()
     plt.savefig("%s/lfm_ionogram-%1.2f.png"%(conf.output_dir,t0))
+    plt.close()
+    plt.clf()
     ho.close()
 
 
