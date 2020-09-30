@@ -40,7 +40,6 @@ def plot_ionogram(conf,f):
 if __name__ == "__main__":
     conf=cc.chirp_config()
     fl=glob.glob("%s/lfm*.h5"%(conf.output_dir))
-    print(fl)
     for f in fl:
         plot_ionogram(conf,f)
     

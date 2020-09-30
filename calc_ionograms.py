@@ -14,7 +14,7 @@ import chirp_config as cc
 import pyfftw
 import matplotlib.pyplot as plt
 import time
-
+import os
 comm=MPI.COMM_WORLD
 size=comm.Get_size()
 rank=comm.Get_rank()
@@ -155,7 +155,7 @@ if __name__ == "__main__":
     
     d=drf.DigitalRFReader(conf.data_dir)
     
-    fl=glob.glob("%s/par-500*.h5"%(conf.output_dir))
+    fl=glob.glob("%s/par-*.h5"%(conf.output_dir))
     n_ionograms=len(fl)
     # mpi scan through dataset
     for ionogram_idx in range(rank,n_ionograms,size):
@@ -165,6 +165,8 @@ if __name__ == "__main__":
         i0=long(t0*conf.sample_rate)
         print("calculating i0=%d chirp_rate=%1.2f kHz/s t0=%1.2f"%(i0,chirp_rate/1e3,t0))
         h.close()
+        # remove file, because we're now done with it.
+        os.system("rm %s"%(fl[ionogram_idx]))
         analyze_chirp(conf,
                       t0,
                       d,
