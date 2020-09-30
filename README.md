@@ -9,6 +9,7 @@ The software consists of several parts:
  - plot_ionograms.py # plot calculated ionograms
 
 
+<!--
 # Examples
 
 <img src="./examples/chirpdet0.png" width="60%"/>
@@ -16,3 +17,4 @@ The software consists of several parts:
 <img src="./examples/chirpdet1.png" width="60%"/>
 
 <img src="./examples/chirpdet2.png" width="60%"/>
+-->
