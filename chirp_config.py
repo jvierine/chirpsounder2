@@ -8,14 +8,15 @@ class chirp_config:
                  n_samples_per_block=2500000,
                  sample_rate=25000000.0,
                  center_freq=12.5e6,
+                 maximum_analysis_frequency=25e6,
                  chirp_rates=[50e3,100e3,125e3,500.0084e3],
                  minimum_frequency_spacing=0.2e6,
-                 threshold_snr=15.0,
+                 threshold_snr=13.0,
                  max_simultaneous_detections=5,
                  save_bandwidth=20e3,    # how much bandwidth do we store around detected peak
                  range_resolution=1000.0,    
                  frequency_resolution=100000.0,
-                 step=10, # analyze even step blocks to speed up detection
+                 step=5, # analyze even step blocks to speed up detection
                  output_dir="chirp_out"):
 
         self.n_samples_per_block=n_samples_per_block
@@ -27,6 +28,7 @@ class chirp_config:
         self.data_dir=data_dir
         self.channel=channel
         self.step=step
+        self.maximum_analysis_frequency=maximum_analysis_frequency
         os.system("mkdir -p %s"%(output_dir))
         self.output_dir=output_dir
         # the minimum distance in frequency between detections

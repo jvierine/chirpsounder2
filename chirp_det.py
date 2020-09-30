@@ -150,6 +150,6 @@ class chirp_matched_filter_bank:
         cput1=time.time()
 
         data_dt=(n_samps/float(self.conf.sample_rate))
-        debug0("speed %1.2f x realtime"%( data_dt/(cput1-cput0) ))
+
         return(snrs,chirp_rates,frequencies)
         

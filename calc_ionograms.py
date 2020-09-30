@@ -84,6 +84,8 @@ def analyze_chirp(conf,
 
     sr=conf.sample_rate
     cf=conf.center_freq
+    
+    # todo. they probably should be chirp-rate dependent
     dr=conf.range_resolution
     df=conf.frequency_resolution
     
@@ -128,7 +130,7 @@ def analyze_chirp(conf,
         cput1=time.time()
 
         analysis_time_step = float(dec*fftlen*overlap)/sr
-        print("rank %03d. %d %s %04d/%04d rate=%1.0f analysis speed %1.2f * realtime"%(comm.rank,i0+idx,ch,fi,n_windows,rate/1e3,size*analysis_time_step/(cput1-cput0)))
+        print("rank %03d. %d %s %04d/%04d rate=%1.0f analysis speed %1.4f * realtime"%(comm.rank,i0+idx,ch,fi,n_windows,rate/1e3,analysis_time_step/(cput1-cput0)))
         
         idx+=int(dec*fftlen*overlap)
         

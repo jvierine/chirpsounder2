@@ -7,17 +7,29 @@ import h5py
 import scipy.constants as c
 import chirp_config as cc
 
-def plot_ionogram(conf,f):
+def plot_ionogram(conf,f,normalize_by_frequency=True):
     ho=h5py.File(f,"r")
     S=ho["S"].value          # ionogram frequency-range
     freqs=ho["freqs"].value  # frequency bins
     ranges=ho["ranges"].value  # range gates
     noise_pwr=ho["noise_pwr"].value
-    for i in range(S.shape[0]):
-        noise=n.median(n.abs(S[i,:]))
-        S[i,:]=(S[i,:]-noise)/noise
-    S[S<0]=1e-3
+
+    if normalize_by_frequency:
+        for i in range(S.shape[0]):
+            noise=n.median(S[i,:])
+            S[i,:]=(S[i,:]-noise)/noise
+        S[S<0]=1e-3
+            
+#    for i in range(S.shape[0]):
+ #       S[i,:]=n.convolve(n.repeat(1.0/5.0,5.0),S[i,:],mode="same")
+#        S[i,:]=(S[i,:]-noise)/noise
+
+    max_range_idx=n.argmax(n.max(S,axis=0))
+    
     dB=n.transpose(10.0*n.log10(S))
+    if normalize_by_frequency == False:
+        dB=dB-n.nanmedian(dB)
+    
     
     print("Plotting %s rate %1.2f (kHz/s) t0 %1.5f (unix)"%(f,ho["rate"].value/1e3,ho["t0"].value))
     
@@ -26,14 +38,16 @@ def plot_ionogram(conf,f):
     t0=ho["t0"].value
     dt=(t0-n.floor(t0))
     dr=dt*c.c/1e3
+    range_gates=dr+2*ranges/1e3
+    r0=range_gates[max_range_idx]
     plt.figure(figsize=(1.5*8,1.5*6))
-    plt.pcolormesh(freqs,dr+2*ranges/1e3,dB,vmin=0,vmax=30.0)
+    plt.pcolormesh(freqs,range_gates,dB,vmin=-3,vmax=30.0,cmap="inferno")
     cb=plt.colorbar()
     cb.set_label("SNR (dB)")
     plt.title("Chirp-rate %1.2f kHz/s t0=%1.5f (unix s)"%(ho["rate"].value/1e3,ho["t0"].value))
     plt.xlabel("Frequency (MHz)")
     plt.ylabel("One-way range offset (km)")
-    plt.ylim([-2000+dr,2000+dr])
+    plt.ylim([dr-1000.0,dr+1000.0])
     plt.tight_layout()
     plt.savefig("%s/lfm_ionogram-%1.2f.png"%(conf.output_dir,t0))
     plt.close()
