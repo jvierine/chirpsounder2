@@ -4,64 +4,43 @@ import numpy as n
 import matplotlib.pyplot as plt
 import glob
 import h5py
+import scipy.constants as c
+import chirp_config as cc
 
-def plot_ionogram(t0=1.60046428e9,dt=0.02,chirp_rate=100e3):
-    fl=glob.glob("%s/*.h5"%(data_dir))
-    fnames=[]
-    chirp_times=[]
-    for f in fl:
-        h=h5py.File(f,"r")
-        if n.abs(h["chirp_rate"].value - chirp_rate) < 1.0:
-            if n.abs(h["chirp_time"].value - t0) < dt:
-                fnames.append(f)
-                chirp_times.append(h["chirp_time"].value)
-        h.close()
-    chirp_times=n.array(chirp_times)
-    ct0=n.mean(chirp_times)
-    print(ct0)
-#    print(fnames)
-    
-    
+def plot_ionogram(conf,f):
+    ho=h5py.File(f,"r")
+    S=ho["S"].value          # ionogram frequency-range
+    freqs=ho["freqs"].value  # frequency bins
+    ranges=ho["ranges"].value  # range gates
+    noise_pwr=ho["noise_pwr"].value
+    for i in range(S.shape[0]):
+        noise=n.median(n.abs(S[i,:]))
+        S[i,:]=(S[i,:]-noise)/noise
+    S[S<0]=1e-3
+    dB=n.transpose(10.0*n.log10(S))
 
-
-def scan_for_chirps(data_dir,dt=0.02):
-    """
-    go through data files and look for unique soundings
-    """
-    fl=glob.glob("%s/*.h5"%(data_dir))
-
-    chirp_rates=[]
-    f0=[]    
-    chirp_times=[]    
-    for f in fl:
-        h=h5py.File(f,"r")
-        chirp_times.append(h["chirp_time"].value)
-        chirp_rates.append(h["chirp_rate"].value)
-        f0.append(h["f0"].value)                
-        h.close()
-
-    chirp_times=n.array(chirp_times)
-    chirp_rates=n.array(chirp_rates)
-    f0=n.array(f0)    
-    plt.plot(chirp_rates,chirp_times,".")
-    plt.show()
-    
-    plt.plot(f0,chirp_rates,".")
-    plt.show()
-    
-    crs=n.unique(chirp_rates)
-    for c in crs:
-        idx=n.where(chirp_rates == c)[0]
-        plt.plot(f0[idx]/1e6,chirp_times[idx],".")
-        plt.title(c)
-        plt.show()
-        
-    
+    # assume that t0 is at the start of a standard unix second
+    # therefore, the propagation time is anything added to a full second
+    t0=ho["t0"].value
+    dt=(t0-n.floor(t0))
+    dr=dt*c.c/1e3
+    plt.figure(figsize=(1.5*8,1.5*6))
+    plt.pcolormesh(freqs,dr+2*ranges/1e3,dB,vmin=0,vmax=20.0)
+    cb=plt.colorbar()
+    cb.set_label("SNR (dB)")
+    plt.title("Chirp-rate %1.2f kHz/s t0=%1.3f (unix s)"%(ho["rate"].value,n.floor(ho["t0"].value)))
+    plt.xlabel("Frequency (MHz)")
+    plt.ylabel("One-way range offset (km)")
+    plt.ylim([-1000+dr,1000+dr])
+    plt.tight_layout()
+    plt.savefig("%s/lfm_ionogram-%1.2f.png"%(conf.output_dir,t0))
+    ho.close()
 
 
 if __name__ == "__main__":
-    data_dir="chirp_out"
-    plot_ionogram()
-#    scan_for_chirps(data_dir)
-
+    conf=cc.chirp_config()
+    fl=glob.glob("%s/lfm*.h5"%(conf.output_dir))
+    print(fl)
+    for f in fl:
+        plot_ionogram(conf,f)
     
