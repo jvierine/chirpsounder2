@@ -7,8 +7,9 @@ import matplotlib.pyplot as plt
 import glob
 import h5py
 
+plot=False
 
-def cluster_times(t,dt=0.1,dt2=0.02,min_det=10):
+def cluster_times(t,dt=0.1,dt2=0.02,min_det=3):
     t0s=dt*n.array(n.unique(n.array(n.round(t/dt),dtype=n.int)),dtype=n.float)
     ct0s=[]
     num_dets=[]
@@ -60,16 +61,20 @@ def scan_for_chirps(data_dir,dt=0.1):
     for c in crs:
         idx=n.where(chirp_rates == c)[0]
         t0s,num_dets=cluster_times(chirp_times[idx],dt)
- #       plt.plot(f0[idx],chirp_times[idx],".")
+        if plot:
+            plt.plot(f0[idx],chirp_times[idx],".")
         
         for ti,t0 in enumerate(t0s):
-  #          plt.axhline(t0,color="red")
+            if plot:
+                plt.axhline(t0,color="red")
             print("Found chirp-rate %1.2f kHz/s t0=%1.4f num_det %d"%(c/1e3,t0,num_dets[ti]))
             #        plt.show()
-            ho=h5py.File("%s/par-%1.2f-%1.2f.h5"%(data_dir,c/1e3,t0),"w")
+            ho=h5py.File("%s/par-%1.4f.h5"%(data_dir,t0),"w")
             ho["chirp_rate"]=c
             ho["t0"]=t0
             ho.close()
+        if plot:
+            plt.show()
        
 
 

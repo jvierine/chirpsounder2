@@ -27,7 +27,7 @@ def plot_ionogram(conf,f):
     dt=(t0-n.floor(t0))
     dr=dt*c.c/1e3
     plt.figure(figsize=(1.5*8,1.5*6))
-    plt.pcolormesh(freqs,dr+2*ranges/1e3,dB,vmin=0,vmax=20.0)
+    plt.pcolormesh(freqs,dr+2*ranges/1e3,dB,vmin=0,vmax=30.0)
     cb=plt.colorbar()
     cb.set_label("SNR (dB)")
     plt.title("Chirp-rate %1.2f kHz/s t0=%1.5f (unix s)"%(ho["rate"].value/1e3,ho["t0"].value))

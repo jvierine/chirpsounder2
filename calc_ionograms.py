@@ -91,7 +91,7 @@ def analyze_chirp(conf,
     ds=get_m_per_Hz(rate)
     fftlen = int(sr_dec*ds/dr/2.0)*2
     range_gates=ds*n.fft.fftshift(n.fft.fftfreq(fftlen,d=dec/sr))
-    dur=sr/rate
+    dur=conf.maximum_analysis_frequency/rate
     overlap = df*sr/(rate*fftlen*dec)
     df = sr_dec/fftlen
     w=ss.hann(fftlen)
@@ -103,7 +103,7 @@ def analyze_chirp(conf,
     t_step=float(float(fftlen*dec*overlap)/float(sr))
     freqs=n.arange(n_windows,dtype=n.float64)*t_step*rate/1e6
     idx=0
-    f00=-cf
+    f00=-cf # start at 0 frequency
 
     for fi in range(n_windows):
         cput0=time.time()
@@ -128,7 +128,7 @@ def analyze_chirp(conf,
         cput1=time.time()
 
         analysis_time_step = float(dec*fftlen*overlap)/sr
-        print("rank %03d. %d %s %04d/%04d rate=%1.0f analysis speed %1.2f x realtime"%(comm.rank,i0+idx,ch,fi,n_windows,rate/1e3,size*analysis_time_step/(cput1-cput0)))
+        print("rank %03d. %d %s %04d/%04d rate=%1.0f analysis speed %1.2f * realtime"%(comm.rank,i0+idx,ch,fi,n_windows,rate/1e3,size*analysis_time_step/(cput1-cput0)))
         
         idx+=int(dec*fftlen*overlap)
         
@@ -155,7 +155,7 @@ if __name__ == "__main__":
     conf=cc.chirp_config()
     
     d=drf.DigitalRFReader(conf.data_dir)
-    
+    # todo: some kind of pooling is needed for a realtime process
     fl=glob.glob("%s/par-*.h5"%(conf.output_dir))
     n_ionograms=len(fl)
     # mpi scan through dataset
@@ -167,7 +167,7 @@ if __name__ == "__main__":
         print("calculating i0=%d chirp_rate=%1.2f kHz/s t0=%1.2f"%(i0,chirp_rate/1e3,t0))
         h.close()
         # remove file, because we're now done with it.
-        os.system("rm %s"%(fl[ionogram_idx]))
+        # os.system("rm %s"%(fl[ionogram_idx]))
         analyze_chirp(conf,
                       t0,
                       d,
