@@ -33,7 +33,7 @@ def plot_ionogram(conf,f):
     plt.title("Chirp-rate %1.2f kHz/s t0=%1.5f (unix s)"%(ho["rate"].value/1e3,ho["t0"].value))
     plt.xlabel("Frequency (MHz)")
     plt.ylabel("One-way range offset (km)")
-    plt.ylim([-1000+dr,1000+dr])
+    plt.ylim([-2000+dr,2000+dr])
     plt.tight_layout()
     plt.savefig("%s/lfm_ionogram-%1.2f.png"%(conf.output_dir,t0))
     plt.close()

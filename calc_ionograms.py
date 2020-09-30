@@ -15,6 +15,7 @@ import pyfftw
 import matplotlib.pyplot as plt
 import time
 import os
+
 comm=MPI.COMM_WORLD
 size=comm.Get_size()
 rank=comm.Get_rank()
