@@ -48,4 +48,6 @@ while true; do rsync -av --remove-source-files --exclude=tmp*
 
 <img src="./chirp_out/lfm_ionogram-1600466394.00.png" width="60%"/>
 
+# Links
 
+You can also use your sound card and HAM radio to detect chirps using the <a href="https://www.andrewsenior.me.uk/chirpview">Chirpview</a>
