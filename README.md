@@ -1,6 +1,8 @@
 # Chirp Sounder 2
 
-This software can be used to detect chirp sounders over the air, and to calculate ionograms. The software relies on digital rf recordings of HF. 
+This software can be used to detect chirp sounders and over-the-horizon radar transmissions over the air, and to calculate ionograms. The software relies on <a href="https://github.com/MITHaystack/digital_rf">Digital RF</a> recordings of HF. 
+
+This is a new implementation of the <a href="https://github.com/jvierine/chirpsounder">GNU Chirp Sounder</a>, GNU Chirp Sounder 2 allows you to automatically find chirps without knowledge of what the timing and chirp-rate is. 
 
 The software consists of several parts:
  - detect_chirps.py  # this is used to find chirps using a chirp-rate matched filterbank
