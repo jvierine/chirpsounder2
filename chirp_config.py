@@ -14,7 +14,7 @@ class chirp_config:
                  max_simultaneous_detections=5,
                  save_bandwidth=20e3,    # how much bandwidth do we store around detected peak
                  range_resolution=1000.0,    
-                 frequency_resolution=20000.0,
+                 frequency_resolution=100000.0,
                  output_dir="chirp_out"):
 
         self.n_samples_per_block=n_samples_per_block
