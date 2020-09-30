@@ -8,6 +8,15 @@ The software consists of several parts:
  - calc_ionograms.py # this is used to calculate ionograms based on parameters
  - plot_ionograms.py # plot calculated ionograms
 
+Version:
+Tested on Python 2.7.
+
+Usage:
+1) configure config_config.py (make sure you have the right center frequency, sample-rate, data directory, and channel name)
+2) run detect_chirps.py
+3) run find_timings.py
+4) run calc_ionograms.py
+5) run plot_ionograms.py
 
 <!--
 # Examples
