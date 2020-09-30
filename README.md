@@ -50,4 +50,4 @@ while true; do rsync -av --remove-source-files --exclude=tmp*
 
 # Links
 
-You can also use your sound card and HAM radio to detect chirps using the <a href="https://www.andrewsenior.me.uk/chirpview">Chirpview</a>
+You can also use your sound card and HAM radio to detect chirps using the <a href="https://www.andrewsenior.me.uk/chirpview">Chirpview</a> program.
