@@ -8,7 +8,7 @@ class chirp_config:
                  n_samples_per_block=2500000,
                  sample_rate=25000000.0,
                  center_freq=12.5e6,
-                 chirp_rates=[50e3,100e3,125e3,500.0084e3,550e3],
+                 chirp_rates=[50e3,100e3,125e3,500.0084e3],
                  minimum_frequency_spacing=0.2e6,
                  threshold_snr=15.0,
                  max_simultaneous_detections=5,
