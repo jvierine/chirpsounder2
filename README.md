@@ -1,6 +1,8 @@
 # Chirp Sounder 2
 
-This software can be used to detect chirp sounders over the air, and to calculate ionograms. The software relies on digital rf recordings of HF. 
+This software can be used to detect chirp sounders and over-the-horizon radar transmissions over the air, and to calculate ionograms. The software relies on <a href="https://github.com/MITHaystack/digital_rf">Digital RF</a> recordings of HF. 
+
+This is a new implementation of the <a href="https://github.com/jvierine/chirpsounder">GNU Chirp Sounder</a>, GNU Chirp Sounder 2 allows you to automatically find chirps without knowledge of what the timing and chirp-rate is. 
 
 The software consists of several parts:
  - detect_chirps.py  # this is used to find chirps using a chirp-rate matched filterbank
@@ -12,11 +14,25 @@ Version:
 Tested on Python 2.7.
 
 Usage:
-1) configure config_config.py (make sure you have the right center frequency, sample-rate, data directory, and channel name)
-2) run detect_chirps.py
-3) run find_timings.py
-4) run calc_ionograms.py
-5) run plot_ionograms.py
+1) Make a data capture with THOR (comes with <a href="https://github.com/MITHaystack/digital_rf">DigitalRF</a>), a USRP N2x0, a GPSDO, and a broadband HF antenna in a quiet location: 
+
+```
+thor.py -m 192.168.10.3 -d "A:A" -c cha -f 12.5e6 -r 25e6 /dev/shm/hf25 
+```
+
+I use use a RAM disk ring buffer to avoid dropped packets, but this is not necessary. The software will be okay with dropped packets.
+
+```
+# copy digital rf from ram disk to permanent storage:
+while true; do rsync -av --remove-source-files --exclude=tmp*
+--progress /dev/shm/hf25/cha /data_out/hf25/ ; sleep 1 ; done
+```
+
+2) configure config_config.py (make sure you have the right center frequency, sample-rate, data directory, and channel name)
+3) run detect_chirps.py to detect chirps on the recording
+4) run find_timings.py to cluster together multiple detections of the same chirp to create a database of chirp timings
+5) run calc_ionograms.py to generate ionograms based on the timings that were found
+6) run plot_ionograms.py to create plots
 
 # Examples
 
@@ -32,4 +48,6 @@ Usage:
 
 <img src="./chirp_out/lfm_ionogram-1600466394.00.png" width="60%"/>
 
+# Links
 
+You can also use your sound card and HAM radio to detect chirps using the <a href="https://www.andrewsenior.me.uk/chirpview">Chirpview</a> program.
