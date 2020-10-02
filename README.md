@@ -113,21 +113,27 @@ python plot_ionograms.py configuration.ini
 All of these are observed in Northern Norway (Skibotn). I typically see around 100 ionograms per hour in a recording.
 
 US ROTHR (hard to tell which one, as I'm so far away)
+
 <img src="examples/example00.png" width="60%"/>
 
 Sodankylä geophysical observatory vertical sounding ionosonde
+
 <img src="./examples/example01.png" width="60%"/>
 
 US ROTHR (hard to tell which one, as I'm so far away)
+
 <img src="./examples/example02.png" width="60%"/>
 
 Sodankylä geophysical observatory vertical sounding ionosonde
+
 <img src="./examples/example03.png" width="60%"/>
 
 Australian JORN. Very far away! I see many of these at the right time of day. 
+
 <img src="./examples/example04.png" width="60%"/>
 
 US ROTHR (hard to tell which one, as I'm so far away)
+
 <img src="./examples/example05.png" width="60%"/>
 
 ## Links
