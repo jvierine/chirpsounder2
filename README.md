@@ -21,6 +21,8 @@ make
 ```
 There is no packaging or other installation needed. You just run the scripts in place. 
 
+Python packages that are required: pyfftw, numpy, scipy, matplotlib, digital_rf
+
 ## Usage:
 1) Make a data capture with THOR (comes with <a href="https://github.com/MITHaystack/digital_rf">DigitalRF</a>), a USRP N2x0, a GPSDO, and a broadband HF antenna in a quiet location: 
 
@@ -108,17 +110,17 @@ python plot_ionograms.py configuration.ini
 
 ## Examples
 
-<img src="examples/examples00.png" width="60%"/>
+<img src="examples/example00.png" width="60%"/>
 
-<img src="./examples/examples01.png" width="60%"/>
+<img src="./examples/example01.png" width="60%"/>
 
-<img src="./examples/examples02.png" width="60%"/>
+<img src="./examples/example02.png" width="60%"/>
 
-<img src="./examples/examples03.png" width="60%"/>
+<img src="./examples/example03.png" width="60%"/>
 
-<img src="./examples/examples04.png" width="60%"/>
+<img src="./examples/example04.png" width="60%"/>
 
-<img src="./examples/examples05.png" width="60%"/>
+<img src="./examples/example05.png" width="60%"/>
 
 ## Links
 
