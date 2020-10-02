@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <pthread.h>
-
+#include <stdlib.h>
 void complex_mul(complex_float *a, complex_float *res)
 {
   float tmp;
@@ -112,12 +112,13 @@ void *consume_one(void *args)
   return(NULL);
 }
 
-#define N_PROC 8
-void consume(double chirpt, double dt, complex_float *sintab, int tabl, complex_float *in, complex_float *out_buffer, int n_out, int dec, int dec2, double f0, double rate, float *wfun)
+void consume(double chirpt, double dt, complex_float *sintab, int tabl, complex_float *in, complex_float *out_buffer, int n_out, int dec, int dec2, double f0, double rate, float *wfun, int n_threads)
 {
-  pthread_t proc_threads[N_PROC];
-  struct arg_struct a[N_PROC];
-  for(int i=0; i<N_PROC; i++)
+  pthread_t *proc_threads;
+  struct arg_struct *a;
+  a=(struct arg_struct *)malloc(sizeof(struct arg_struct)*n_threads);
+  proc_threads=(pthread_t *)malloc(sizeof(pthread_t)*n_threads);
+  for(int i=0; i<n_threads; i++)
   {
     
     a[i].chirpt=chirpt;
@@ -133,12 +134,12 @@ void consume(double chirpt, double dt, complex_float *sintab, int tabl, complex_
     a[i].rate=rate;
     a[i].wfun=wfun;
     a[i].rank=i;
-    a[i].size=N_PROC;
+    a[i].size=n_threads;
     pthread_create(&proc_threads[i], NULL, consume_one, (void *)&a[i]);
   }
 
 
-  for(int i=0; i<N_PROC; i++)
+  for(int i=0; i<n_threads; i++)
   {
     pthread_join(proc_threads[i],NULL);
   }

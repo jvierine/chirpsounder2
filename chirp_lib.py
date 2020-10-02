@@ -17,7 +17,8 @@ libdc.consume.argtypes =[ ctypes.c_double,
                           ctypes.c_int,
                           ctypes.c_double,
                           ctypes.c_double,
-                          ctypeslib.ndpointer(n.float32,ndim=1,flags='C')]
+                          ctypeslib.ndpointer(n.float32,ndim=1,flags='C'),
+                          ctypes.c_int]
                           
 class chirp_downconvert:
     def __init__(self,
@@ -25,14 +26,17 @@ class chirp_downconvert:
                  f0=-12.5e6,
                  rate=100e3,
                  dec=2500,
+                 filter_len=2,
+                 n_threads=4,
                  dt=1.0/25e6):
         
         # let's add a windowed low pass filter to make this nearly perfect.
 
         # normalized cutoff freq
+        self.n_threads=n_threads
         self.om0=2.0*n.pi/float(dec)
-        self.dec2=2*dec
-        self.m=n.array(n.arange(2*dec)-dec,dtype=n.float32)
+        self.dec2=filter_len*dec
+        self.m=n.array(n.arange(filter_len*dec)-dec,dtype=n.float32)
         # windowed low pass filter
         self.wfun=n.array(ss.hann(len(self.m))*n.sin(self.om0*(self.m+1e-6))/(n.pi*(self.m+1e-6)),dtype=n.float32)
         # the window function could be twice the decimation rate
@@ -44,6 +48,7 @@ class chirp_downconvert:
         self.rate=rate
         self.dec=dec
         self.dt=dt
+        self.filter_len=filter_len
         
     def consume(self,
                  z_in,
@@ -63,7 +68,8 @@ class chirp_downconvert:
                       self.dec2,
                       self.f0,
                       self.rate,
-                      self.wfun)
+                      self.wfun,
+                      self.n_threads)
 
         self.chirpt+=float(n_out*self.dec)*self.dt
 

@@ -15,6 +15,7 @@ import pyfftw
 import matplotlib.pyplot as plt
 import time
 import os
+import sys
 
 # c library
 import chirp_lib as cl
@@ -103,7 +104,8 @@ def chirp_downconvert(conf,
     cdc=cl.chirp_downconvert(f0=-cf,
                              rate=rate,
                              dec=dec,
-                             dt=1.0/conf.sample_rate)
+                             dt=1.0/conf.sample_rate,
+                             n_threads=conf.n_downconversion_threads)
 
     zd_len=n_windows*step
     zd=n.zeros(zd_len,dtype=n.complex64)
@@ -142,7 +144,7 @@ def chirp_downconvert(conf,
     range_gates=ds*n.fft.fftshift(n.fft.fftfreq(fftlen,d=1.0/sr_dec))
 
     ridx=n.where(n.abs(range_gates) < conf.max_range_extent)[0]
-    print(len(ridx))
+
     try:
         ho=h5py.File("%s/lfm_ionogram-%1.2f.h5"%(conf.output_dir,t0),"w")
         ho["S"]=S[:,ridx]          # ionogram frequency-range
@@ -161,7 +163,10 @@ def chirp_downconvert(conf,
         
 
 if __name__ == "__main__":
-    conf=cc.chirp_config()
+    if len(sys.argv) == 2:
+        conf=cc.chirp_config(sys.argv[1])
+    else:
+        conf=cc.chirp_config()
     
     d=drf.DigitalRFReader(conf.data_dir)
     

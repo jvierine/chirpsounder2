@@ -15,7 +15,7 @@ import scipy.fftpack
 import pyfftw
 import h5py
 import scipy.constants as c
-
+import datetime
 def power(x):
     return(x.real**2.0 + x.imag**2.0)
 
@@ -34,6 +34,11 @@ def debug1(msg):
     if debug_out1:
         print(msg)
 
+def unix2date(x):
+    return datetime.datetime.utcfromtimestamp(x)
+
+def unix2datestr(x):
+    return(unix2date(x).strftime('%Y-%m-%d %H:%M:%S'))
 
 class chirp_matched_filter_bank:
     def __init__(self,conf):
