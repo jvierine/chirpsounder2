@@ -77,8 +77,6 @@ void *consume_one(void *args)
   int rank=a->rank;
   int size=a->size;
     
-  //  (double chirpt, double dt, complex_float *sintab, int tabl, complex_float *in, complex_float *out_buffer, int n_out, int dec, int dec2, double f0, double rate, float *wfun, int rank, int size)
-  
   /*
     parallel consume
    */
@@ -95,10 +93,7 @@ void *consume_one(void *args)
     chirpt=((double)dec*out_idx)*dt + chirpt0;
     i=out_idx*dec;
     /* 
-       better lpf 
-       we use boxcar filter for efficiency, but use a longer one for better low
-       pass filtering.
-       we could add a window function here if we wanted to!
+       better lpf with a user defined window function (e.g., windowed ideal LPF)
     */
     for(int dec_idx=0; dec_idx<dec2; dec_idx++)
     {
@@ -116,6 +111,7 @@ void *consume_one(void *args)
   pthread_exit(NULL);
   return(NULL);
 }
+
 #define N_PROC 8
 void consume(double chirpt, double dt, complex_float *sintab, int tabl, complex_float *in, complex_float *out_buffer, int n_out, int dec, int dec2, double f0, double rate, float *wfun)
 {
