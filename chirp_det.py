@@ -133,17 +133,11 @@ class chirp_matched_filter_bank:
                 chirp_rates.append(detected_chirp_rate)
                 frequencies.append(f0)
 
-                # we're going to store these frequency bins
-                save_idx=(self.conf.save_freq_idx + mi)%n_samps
-                # this is the portion of the spectrum that we save
-                store_spec = mf[mf_chirp_rate_idx[mi],save_idx]
                 ofname = "%s/chirp-%1.2f-%d.h5"%(self.conf.output_dir,
                                                  detected_chirp_rate/1e3,
                                                  i0)
                 ho=h5py.File(ofname,"w")
-#                ho["spec"]=store_spec
                 ho["f0"]=f0
- #               ho["fvec"]=self.conf.fvec[save_idx]
                 ho["i0"]=i0
                 ho["sample_rate"]=self.conf.sample_rate
                 ho["n_samples"]=n_samps

@@ -8,12 +8,13 @@ import chirp_config as cc
 import digital_rf as drf
 from mpi4py import MPI
 import time
+import sys
+
 comm=MPI.COMM_WORLD
 size=comm.Get_size()
 rank=comm.Get_rank()
 
-def scan_for_chirps():
-    conf=cc.chirp_config()    
+def scan_for_chirps(conf):
     cfb=c.chirp_matched_filter_bank(conf)
     d=drf.DigitalRFReader(conf.data_dir)
     b=d.get_bounds(conf.channel)
@@ -33,5 +34,10 @@ def scan_for_chirps():
         print("speed %1.2f * realtime"%( size*analysis_time/(cput1-cput0) ))
 
 if __name__ == "__main__":
-    scan_for_chirps()
+    if len(sys.argv) == 2:
+        conf=cc.chirp_config(sys.argv[1])
+    else:
+        conf=cc.chirp_config()
+    
+    scan_for_chirps(conf)
     
