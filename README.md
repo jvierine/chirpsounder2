@@ -21,7 +21,7 @@ make
 ```
 There is no packaging or other installation needed. You just run the scripts in place. 
 
-Python packages that are required: pyfftw, numpy, scipy, matplotlib, digital_rf
+Python packages that are required: pyfftw, numpy, scipy, matplotlib, digital_rf, mpi4py, h5py
 
 ## Usage:
 1) Make a data capture with THOR (comes with <a href="https://github.com/MITHaystack/digital_rf">DigitalRF</a>), a USRP N2x0, a GPSDO, and a broadband HF antenna in a quiet location: 
