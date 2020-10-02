@@ -6,8 +6,10 @@ import numpy as n
 import matplotlib.pyplot as plt
 import glob
 import h5py
+import chirp_config as cc
 
-plot=False
+# set to False if you want to disable
+plot=True
 
 def cluster_times(t,dt=0.1,dt2=0.02,min_det=3):
     t0s=dt*n.array(n.unique(n.array(n.round(t/dt),dtype=n.int)),dtype=n.float)
@@ -36,10 +38,11 @@ def cluster_times(t,dt=0.1,dt2=0.02,min_det=3):
 
     return(ct0s,num_dets)
             
-def scan_for_chirps(data_dir,dt=0.1):
+def scan_for_chirps(conf,dt=0.1):
     """
     go through data files and look for unique soundings
     """
+    data_dir=conf.output_dir
     # detection files have names chirp*.h5
     fl=glob.glob("%s/chirp*.h5"%(data_dir))
 
@@ -59,10 +62,12 @@ def scan_for_chirps(data_dir,dt=0.1):
     
     crs=n.unique(chirp_rates)
     for c in crs:
+        print(c)
         idx=n.where(chirp_rates == c)[0]
         t0s,num_dets=cluster_times(chirp_times[idx],dt)
+        tt0=n.min(chirp_times[idx])
         if plot:
-            plt.plot(f0[idx],chirp_times[idx],".")
+            plt.plot(f0[idx]/1e6,chirp_times[idx],".")
         
         for ti,t0 in enumerate(t0s):
             if plot:
@@ -74,12 +79,16 @@ def scan_for_chirps(data_dir,dt=0.1):
             ho["t0"]=t0
             ho.close()
         if plot:
+            plt.xlabel("Frequency (MHz)")
+            plt.ylabel("Time (unix)")
+            plt.xlim([0,conf.maximum_analysis_frequency/1e6])
+            plt.title("Chirp-rate %1.2f kHz/s"%(c/1e3))
             plt.show()
        
 
 
 if __name__ == "__main__":
-    data_dir="chirp_out"
-    scan_for_chirps(data_dir)
+    conf=cc.chirp_config()
+    scan_for_chirps(conf)
 
     

@@ -23,7 +23,9 @@ def scan_for_chirps():
     # mpi scan through dataset
     for block_idx in range(rank,n_blocks,size):
         cput0=time.time()
+        # we may skip over data (step > 1) to speed up detection
         i0=block_idx*conf.n_samples_per_block*conf.step + idx0
+        # read vector from recording
         z=d.read_vector_c81d(i0,conf.n_samples_per_block,conf.channel)
         snrs,chirp_rates,f0s=cfb.seek(z,i0)
         cput1=time.time()

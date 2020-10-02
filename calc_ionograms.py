@@ -122,7 +122,7 @@ def analyze_chirp(conf,
         zd=ss.decimate(dechirp*z,ftype="fir",q=dec)
         
         noise_peak_est=n.max(power(zd))
-        noise_pwr_est=n.median(power(zd))    
+        noise_pwr_est=n.median(power(zd))
         Z=n.fft.fftshift(power(fft(w*zd)))[::-1]
         S[fi,:]=Z
         noise_peak[fi]=noise_peak_est
@@ -134,7 +134,6 @@ def analyze_chirp(conf,
         
         idx+=int(dec*fftlen*overlap)
         
-
     nfloor=n.median(10.0*n.log10(S))
     
     try:
@@ -151,7 +150,6 @@ def analyze_chirp(conf,
         ho.close()
     except:
         print("error writing file")
-    
 
 if __name__ == "__main__":
     conf=cc.chirp_config()

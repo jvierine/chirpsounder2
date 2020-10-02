@@ -3,7 +3,7 @@ import numpy as n
 from ctypes.util import find_library
 from numpy import ctypeslib
 import matplotlib.pyplot as plt
-
+import scipy.signal as ss
 libdc=ctypes.cdll.LoadLibrary("./libdownconvert.so")
 libdc.test.argtypes =[ ctypeslib.ndpointer(n.complex64,ndim=1,flags='C'), ctypes.c_int ]
 libdc.consume.argtypes =[ ctypes.c_double,
@@ -16,7 +16,8 @@ libdc.consume.argtypes =[ ctypes.c_double,
                           ctypes.c_int,
                           ctypes.c_int,
                           ctypes.c_double,
-                          ctypes.c_double ]
+                          ctypes.c_double,
+                          ctypeslib.ndpointer(n.float32,ndim=1,flags='C')]
                           
 class chirp_downconvert:
     def __init__(self,
@@ -24,9 +25,17 @@ class chirp_downconvert:
                  f0=-12.5e6,
                  rate=100e3,
                  dec=2500,
-                 dec2=5000,
                  dt=1.0/25e6):
         
+        # let's add a windowed low pass filter to make this nearly perfect.
+
+        # normalized cutoff freq
+        self.om0=2.0*n.pi/float(dec)
+        self.dec2=2*dec
+        self.m=n.array(n.arange(2*dec)-dec,dtype=n.float32)
+        # windowed low pass filter
+        self.wfun=n.array(ss.hann(len(self.m))*n.sin(self.om0*(self.m+1e-6))/(n.pi*(self.m+1e-6)),dtype=n.float32)
+        # the window function could be twice the decimation rate
         self.chirpt=0.0
         # conjugate sinusoid!
         self.sintab=n.array(n.exp(-1j*2.0*n.pi*n.arange(tab_len)/tab_len),dtype=n.complex64)
@@ -34,7 +43,6 @@ class chirp_downconvert:
         self.f0=f0
         self.rate=rate
         self.dec=dec
-        self.dec2=dec2
         self.dt=dt
         
     def consume(self,
@@ -43,7 +51,7 @@ class chirp_downconvert:
                  n_out):
         #void consume(double chirpt, double dt, complex_float *sintab, int tabl, complex_float *in, complex_float *out_buffer, int n_in, int dec, int dec2, double f0, double rate)
         if (len(z_in)-self.dec2)/self.dec < n_out:
-            print("not enough input samples")
+            print("not enough input samples %d %d %d %d"%(len(z_in),self.dec2,self.dec,n_out))
         libdc.consume(self.chirpt,
                       self.dt,
                       self.sintab,
@@ -54,7 +62,9 @@ class chirp_downconvert:
                       self.dec,
                       self.dec2,
                       self.f0,
-                      self.rate)
+                      self.rate,
+                      self.wfun)
+
         self.chirpt+=float(n_out*self.dec)*self.dt
 
 
@@ -68,11 +78,15 @@ def chirp(L,f0=-12.5e6,cr=100e3,sr=25e6):
     return(chirpv)
         
 if __name__ == "__main__":
-    cdc=chirp_downconvert()
-    
+    cdc=chirp_downconvert(dec=2500)
+    # test. this should downconvert to a DC signal    
     z_in=chirp(L=25000000+5000)
     z_out=n.zeros(1000,dtype=n.complex64)
+    import time
+    cput0=time.time()
     cdc.consume(z_in,z_out,1000)
+    cput1=time.time()
+    print((cput1-cput0)/0.1)
     import matplotlib.pyplot as plt
     plt.plot(z_out.real)
     plt.plot(z_out.imag)

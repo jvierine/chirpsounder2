@@ -26,8 +26,8 @@ void add_and_advance_phasor(double chirpt, complex_float *sintab, int tabl, comp
   int64_t tabll=tabl;
   int64_t idx = (int64_t)(tabl*(f0+0.5*rate*chirpt)*chirpt) % tabl;
   
-  if(idx < 0)
-    idx = tabl+idx;
+  //  if(idx < 0)
+  //  idx = tabl+idx;
       
   tmp = sintab[idx];
   complex_mul(a, &tmp);
@@ -42,10 +42,11 @@ void test(complex_float *sintab, int n)
   }
 }
 
-void consume(double chirpt, double dt, complex_float *sintab, int tabl, complex_float *in, complex_float *out_buffer, int n_out, int dec, int dec2, double f0, double rate)
+void consume(double chirpt, double dt, complex_float *sintab, int tabl, complex_float *in, complex_float *out_buffer, int n_out, int dec, int dec2, double f0, double rate, float *wfun)
 {
   // complex_float *in = (complex_float *) input_items[0];
   complex_float out_sample;
+  complex_float tmp;
   int i;
   double chirpt0;
   chirpt0=chirpt;
@@ -56,11 +57,20 @@ void consume(double chirpt, double dt, complex_float *sintab, int tabl, complex_
     out_sample.re=0.0;out_sample.im=0.0;
     chirpt=((double)dec*out_idx)*dt + chirpt0;
     i=out_idx*dec;
-    /* better lpf */
+    /* 
+       better lpf 
+       we use boxcar filter for efficiency, but use a longer one for better low
+       pass filtering.
+       we could add a window function here if we wanted to!
+    */
     for(int dec_idx=0; dec_idx<dec2; dec_idx++)
     {
       /* dechirp and low-pass filter by averaging */
-      add_and_advance_phasor(chirpt, sintab, tabl, &in[i], &out_sample, f0, rate);
+      /* window function to improve filter peformance */
+      tmp=in[i];
+      tmp.re=tmp.re*wfun[dec_idx];
+      tmp.im=tmp.im*wfun[dec_idx];      
+      add_and_advance_phasor(chirpt, sintab, tabl, &tmp, &out_sample, f0, rate);
       chirpt+=dt;
       i++;      
     }

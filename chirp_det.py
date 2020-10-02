@@ -123,7 +123,7 @@ class chirp_matched_filter_bank:
             if snr_max > self.conf.threshold_snr:
                 # the virtual start time
                 chirp_time = t0 - f0/detected_chirp_rate
-                debug1("found chirp snr %1.2f chirp-rate %1.2f f0 %1.2f chirp_time %1.2f"%(snr_max,detected_chirp_rate/1e3,f0/1e6,chirp_time))
+                debug1("found chirp snr %1.2f chirp-rate %1.2f f0 %1.2f chirp_time %1.4f"%(snr_max,detected_chirp_rate/1e3,f0/1e6,chirp_time))
                 snrs.append(snr_max)
                 chirp_rates.append(detected_chirp_rate)
                 frequencies.append(f0)
