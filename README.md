@@ -89,7 +89,7 @@ n_downconversion_threads=4
 
 3) detect chirps on the recording. can be parallelized with MPI to speed things up if you have lots of CPUs
 ```
-mpirun -np 48 detect_chirps.py configuration.ini
+mpirun -np 8 detect_chirps.py configuration.ini
 ```
 
 4) run find_timings.py to cluster together multiple detections of the same chirp to create a database of chirp timings
