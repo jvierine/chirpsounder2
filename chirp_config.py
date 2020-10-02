@@ -22,6 +22,7 @@ class chirp_config:
                      "frequency_resolution":"50e3",
                      "maximum_analysis_frequency":"25e6",
                      "max_range_extent":"2000e3",
+                     "plot_timings":"false",
                      "n_downconversion_threads":"4"}
 
         if fname != None:
@@ -31,6 +32,7 @@ class chirp_config:
             else:
                 print("configuration file %s doesn't exist. using default values"%(fname))
 
+        self.plot_timings=json.loads(c["config"]["plot_timings"])
         self.data_dir=json.loads(c["config"]["data_dir"])
         self.n_downconversion_threads=json.loads(c["config"]["n_downconversion_threads"])
         self.max_range_extent=json.loads(c["config"]["max_range_extent"])

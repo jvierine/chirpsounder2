@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import glob
 import h5py
 import chirp_config as cc
+import sys
 
 # set to False if you want to disable
 plot=True
@@ -62,15 +63,15 @@ def scan_for_chirps(conf,dt=0.1):
     
     crs=n.unique(chirp_rates)
     for c in crs:
-        print(c)
+#        print(c)
         idx=n.where(chirp_rates == c)[0]
         t0s,num_dets=cluster_times(chirp_times[idx],dt)
         tt0=n.min(chirp_times[idx])
-        if plot:
+        if conf.plot_timings:
             plt.plot(f0[idx]/1e6,chirp_times[idx],".")
         
         for ti,t0 in enumerate(t0s):
-            if plot:
+            if conf.plot_timings:
                 plt.axhline(t0,color="red")
             print("Found chirp-rate %1.2f kHz/s t0=%1.4f num_det %d"%(c/1e3,t0,num_dets[ti]))
             #        plt.show()
@@ -78,7 +79,7 @@ def scan_for_chirps(conf,dt=0.1):
             ho["chirp_rate"]=c
             ho["t0"]=t0
             ho.close()
-        if plot:
+        if conf.plot_timings:
             plt.xlabel("Frequency (MHz)")
             plt.ylabel("Time (unix)")
             plt.xlim([0,conf.maximum_analysis_frequency/1e6])
@@ -88,7 +89,10 @@ def scan_for_chirps(conf,dt=0.1):
 
 
 if __name__ == "__main__":
-    conf=cc.chirp_config()
+    if len(sys.argv) == 2:
+        conf=cc.chirp_config(sys.argv[1])
+    else:
+        conf=cc.chirp_config()
     scan_for_chirps(conf)
 
     
