@@ -108,7 +108,7 @@ python plot_ionograms.py configuration.ini
 
 ## Examples
 
-<img src="./examples/examples00.png" width="60%"/>
+<img src="examples/examples00.png" width="60%"/>
 
 <img src="./examples/examples01.png" width="60%"/>
 
