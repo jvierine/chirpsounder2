@@ -97,7 +97,7 @@ def chirp_downconvert(conf,
     cf=conf.center_freq
     dur=sr/rate
     idx=0
-    step=100
+    step=1000
     n_windows=int(dur*sr/(step*dec))+1
     
     cdc=cl.chirp_downconvert(f0=-cf,
@@ -113,11 +113,14 @@ def chirp_downconvert(conf,
     for fi in range(n_windows):
         cput0=time.time()
         try:
-            z=d.read_vector_c81d(i0+idx,step*dec+2*dec,ch)
+            z=d.read_vector_c81d(i0+idx,step*dec+cdc.filter_len*dec,ch)
         except:
-            z=n.zeros(step*dec+2*dec,dtype=n.complex64)
+            z=n.zeros(step*dec+cdc.filter_len*dec,dtype=n.complex64)
         
         cdc.consume(z,z_out,n_out)
+#        plt.plot(z_out.real)
+ #       plt.plot(z_out.imag)
+  #      plt.show()
         zd[(fi*step):(fi*step+step)]=z_out
 
         cput1=time.time()
@@ -129,18 +132,31 @@ def chirp_downconvert(conf,
     dr=conf.range_resolution
     df=conf.frequency_resolution
     sr_dec = sr/dec
+    ds=get_m_per_Hz(rate)
     fftlen = int(sr_dec*ds/dr/2.0)*2
     fft_step=int((df/rate)*sr_dec)
 
-    S=spectrogram(zd,window=fftlen,step=fft_step,wf=ss.hann(fftlen))
-    for si in range(S.shape[0]):
-        S[si,:]=S[si,:]/n.median(S[si,:])
-    dB=10.0*n.log10(S)
-    dB=dB-n.nanmedian(dB)
-    plt.pcolormesh(n.transpose(dB),vmin=0,vmax=40)
-    plt.colorbar()
-    plt.show()
-    
+    S=spectrogram(n.conj(zd),window=fftlen,step=fft_step,wf=ss.hann(fftlen))
+
+    freqs=rate*n.arange(S.shape[0])*fft_step/sr_dec
+    range_gates=ds*n.fft.fftshift(n.fft.fftfreq(fftlen,d=1.0/sr_dec))
+
+    ridx=n.where(n.abs(range_gates) < conf.max_range_extent)[0]
+    print(len(ridx))
+    try:
+        ho=h5py.File("%s/lfm_ionogram-%1.2f.h5"%(conf.output_dir,t0),"w")
+        ho["S"]=S[:,ridx]          # ionogram frequency-range
+        ho["freqs"]=freqs  # frequency bins
+        ho["rate"]=rate    # chirp-rate
+        ho["ranges"]=range_gates[ridx]
+        ho["t0"]=t0
+        ho["sr"]=float(sr_dec) # ionogram sample-rate
+        ho["ch"]=ch            # channel name
+#        ho["noise_pwr"]=noise_pwr   # noise power for each frequency bin
+ #       ho["noise_peak"]=noise_peak # peak noise power for each frequency bin
+        ho.close()
+    except:
+        print("error writing file")
     
         
 

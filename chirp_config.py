@@ -3,8 +3,8 @@ import os
 
 class chirp_config:
     def __init__(self,
-#                 "/mnt/data/juha/chirp/hf25",
-                 data_dir="/mnt/data/juha/hf25",
+                 data_dir="/mnt/data/juha/chirp/hf25",
+#                 data_dir="/mnt/data/juha/hf25",
                  channel="cha",
                  n_samples_per_block=5000000,
                  sample_rate=25000000.0,
@@ -15,11 +15,13 @@ class chirp_config:
                  threshold_snr=13.0,
                  max_simultaneous_detections=5,
                  save_bandwidth=20e3,    # how much bandwidth do we store around detected peak
-                 range_resolution=1000.0,    
-                 frequency_resolution=100000.0,
+                 range_resolution=2000.0,    
+                 frequency_resolution=50000.0,
+                 max_range_extent=2000e3,  # +/- 2000 km around center
                  step=1, # analyze even step blocks to speed up detection
-                 output_dir="chirp_out_search"):
+                 output_dir="chirp2"):
 
+        self.max_range_extent=max_range_extent
         self.n_samples_per_block=n_samples_per_block
         self.sample_rate=sample_rate
         self.center_freq=center_freq

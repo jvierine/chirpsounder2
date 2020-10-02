@@ -1,6 +1,8 @@
 #include "chirp_downconvert.h"
 #include <stdint.h>
 #include <stdio.h>
+#include <pthread.h>
+
 void complex_mul(complex_float *a, complex_float *res)
 {
   float tmp;
@@ -40,9 +42,46 @@ void test(complex_float *sintab, int n)
     printf("%d %f %f\n",i,sintab[i].re,sintab[i].im);
   }
 }
+struct arg_struct {
+  double chirpt;
+  double dt;
+  complex_float *sintab;
+  int tabl;
+  complex_float *in;
+  complex_float *out_buffer;
+  int n_out;
+  int dec;
+  int dec2;
+  double f0;
+  double rate;
+  float *wfun;
+  int rank;
+  int size;
+};
 
-void consume(double chirpt, double dt, complex_float *sintab, int tabl, complex_float *in, complex_float *out_buffer, int n_out, int dec, int dec2, double f0, double rate, float *wfun)
+void *consume_one(void *args)
 {
+  struct arg_struct *a = args;
+  double chirpt=a->chirpt;
+  double dt=a->dt;
+  complex_float *sintab=a->sintab;
+  complex_float *in=a->in;
+  complex_float *out_buffer=a->out_buffer;
+  int n_out = a->n_out;
+  int tabl = a->tabl;
+  int dec=a->dec;
+  int dec2=a->dec2;
+  double f0=a->f0;
+  double rate=a->rate;
+  float *wfun=a->wfun;
+  int rank=a->rank;
+  int size=a->size;
+    
+  //  (double chirpt, double dt, complex_float *sintab, int tabl, complex_float *in, complex_float *out_buffer, int n_out, int dec, int dec2, double f0, double rate, float *wfun, int rank, int size)
+  
+  /*
+    parallel consume
+   */
   // complex_float *in = (complex_float *) input_items[0];
   complex_float out_sample;
   complex_float tmp;
@@ -50,8 +89,7 @@ void consume(double chirpt, double dt, complex_float *sintab, int tabl, complex_
   double chirpt0;
   chirpt0=chirpt;
 
-  i=0;
-  for(int out_idx=0; out_idx<n_out; out_idx++)
+  for(int out_idx=rank; out_idx<n_out; out_idx+=size)
   {
     out_sample.re=0.0;out_sample.im=0.0;
     chirpt=((double)dec*out_idx)*dt + chirpt0;
@@ -71,8 +109,41 @@ void consume(double chirpt, double dt, complex_float *sintab, int tabl, complex_
       tmp.im=tmp.im*wfun[dec_idx];      
       add_and_advance_phasor(chirpt, sintab, tabl, &tmp, &out_sample, f0, rate);
       chirpt+=dt;
-      i++;      
+      i++;
     }
     out_buffer[out_idx]=out_sample;
+  }
+  pthread_exit(NULL);
+  return(NULL);
+}
+#define N_PROC 8
+void consume(double chirpt, double dt, complex_float *sintab, int tabl, complex_float *in, complex_float *out_buffer, int n_out, int dec, int dec2, double f0, double rate, float *wfun)
+{
+  pthread_t proc_threads[N_PROC];
+  struct arg_struct a[N_PROC];
+  for(int i=0; i<N_PROC; i++)
+  {
+    
+    a[i].chirpt=chirpt;
+    a[i].dt=dt;
+    a[i].sintab=sintab;
+    a[i].tabl=tabl;
+    a[i].in=in;
+    a[i].out_buffer=out_buffer;
+    a[i].n_out=n_out;
+    a[i].dec=dec;
+    a[i].dec2=dec2;
+    a[i].f0=f0;
+    a[i].rate=rate;
+    a[i].wfun=wfun;
+    a[i].rank=i;
+    a[i].size=N_PROC;
+    pthread_create(&proc_threads[i], NULL, consume_one, (void *)&a[i]);
+  }
+
+
+  for(int i=0; i<N_PROC; i++)
+  {
+    pthread_join(proc_threads[i],NULL);
   }
 }
