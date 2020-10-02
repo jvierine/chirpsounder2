@@ -31,7 +31,7 @@ def scan_for_chirps(conf):
         snrs,chirp_rates,f0s=cfb.seek(z,i0)
         cput1=time.time()
         analysis_time=(conf.n_samples_per_block*conf.step)/conf.sample_rate
-        print("speed %1.2f * realtime"%( size*analysis_time/(cput1-cput0) ))
+        print("Analyzing %s speed %1.2f * realtime"%( c.unix2datestr(i0/conf.sample_rate), size*analysis_time/(cput1-cput0) ))
 
 if __name__ == "__main__":
     if len(sys.argv) == 2:
