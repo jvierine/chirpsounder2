@@ -23,11 +23,10 @@ void add_and_advance_phasor(double chirpt, complex_float *sintab, int tabl, comp
   complex_float tmp;
       
   // this is faster
-  int64_t tabll=tabl;
   int64_t idx = (int64_t)(tabl*(f0+0.5*rate*chirpt)*chirpt) % tabl;
   
-  //  if(idx < 0)
-  //  idx = tabl+idx;
+  if(idx < 0)
+    idx = tabl+idx;
       
   tmp = sintab[idx];
   complex_mul(a, &tmp);
