@@ -2,7 +2,7 @@
 
 This software can be used to detect chirp sounders and over-the-horizon radar transmissions over the air, and to calculate ionograms. The software relies on <a href="https://github.com/MITHaystack/digital_rf">Digital RF</a> recordings of HF. 
 
-This is a new implementation of the <a href="https://github.com/jvierine/chirpsounder">GNU Chirp Sounder</a>, GNU Chirp Sounder 2 allows you to automatically find chirps without knowledge of what the timing and chirp-rate is. 
+This is a new implementation of the <a href="https://github.com/jvierine/chirpsounder">GNU Chirp Sounder</a>, GNU Chirp Sounder 2 allows you to automatically find chirps without knowledge of what the timing and chirp-rate is. You can still figure out the true distance if you have a GPSDO, as most sounders start at a full second. 
 
 The software consists of several parts:
  - detect_chirps.py  # this is used to find chirps using a chirp-rate matched filterbank
@@ -110,16 +110,24 @@ python plot_ionograms.py configuration.ini
 
 ## Examples
 
+All of these are observed in Northern Norway (Skibotn). I typically see around 100 ionograms per hour in a recording.
+
+US ROTHR (hard to tell which one, as I'm so far away)
 <img src="examples/example00.png" width="60%"/>
 
+Sodankylä geophysical observatory vertical sounding ionosonde
 <img src="./examples/example01.png" width="60%"/>
 
+US ROTHR (hard to tell which one, as I'm so far away)
 <img src="./examples/example02.png" width="60%"/>
 
+Sodankylä geophysical observatory vertical sounding ionosonde
 <img src="./examples/example03.png" width="60%"/>
 
+Australian JORN. Very far away! I see many of these at the right time of day. 
 <img src="./examples/example04.png" width="60%"/>
 
+US ROTHR (hard to tell which one, as I'm so far away)
 <img src="./examples/example05.png" width="60%"/>
 
 ## Links
