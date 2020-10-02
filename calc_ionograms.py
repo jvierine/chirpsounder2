@@ -15,6 +15,10 @@ import pyfftw
 import matplotlib.pyplot as plt
 import time
 import os
+import sys
+
+# c library
+import chirp_lib as cl
 
 comm=MPI.COMM_WORLD
 size=comm.Get_size()
@@ -63,7 +67,15 @@ def chirp(L,f0=-25e3,cr=160e3,sr=50e3,use_numpy=False):
     else:
         # table lookup based faster version
         chirp=fe.expf(dphase)*fe.expf((2*n.pi*f0)*tv)
+        #   chirp=fe.expf(dphase+(2*n.pi*f0)*tv)#*fe.expf()
     return(chirp)
+
+def spectrogram(x,window=1024,step=512,wf=ss.hann(1024)):
+    n_spec=(len(x)-window)/step
+    S=n.zeros([n_spec,window])
+    for i in range(n_spec):
+        S[i,] = n.abs(n.fft.fftshift(n.fft.fft(wf*x[(i*step):(i*step+window)])))**2.0
+    return(S)
 
 def decimate(x,dec):
     Nout = int(n.floor(len(x)/dec))
@@ -74,89 +86,90 @@ def decimate(x,dec):
         res += x[idx+i]
     return(res/float(dec))
 
-def analyze_chirp(conf,
-                  t0,
-                  d,
-                  i0,                  
-                  ch,
-                  rate,
-                  dec=2500):
+def chirp_downconvert(conf,
+                      t0,
+                      d,
+                      i0,                  
+                      ch,
+                      rate,
+                      dec=2500):
 
     sr=conf.sample_rate
     cf=conf.center_freq
-    
-    # todo. they probably should be chirp-rate dependent
-    dr=conf.range_resolution
-    df=conf.frequency_resolution
-    
-    sr_dec=sr/dec
-    ds=get_m_per_Hz(rate)
-    fftlen = int(sr_dec*ds/dr/2.0)*2
-    range_gates=ds*n.fft.fftshift(n.fft.fftfreq(fftlen,d=dec/sr))
-    dur=conf.maximum_analysis_frequency/rate
-    overlap = df*sr/(rate*fftlen*dec)
-    df = sr_dec/fftlen
-    w=ss.hann(fftlen)
-    n_windows=int(dur*sr_dec/fftlen/overlap)
-    n_ranges=fftlen
-    S=n.zeros([n_windows,n_ranges])
-    noise_pwr=n.zeros(n_windows)
-    noise_peak=n.zeros(n_windows)    
-    t_step=float(float(fftlen*dec*overlap)/float(sr))
-    freqs=n.arange(n_windows,dtype=n.float64)*t_step*rate/1e6
+    dur=sr/rate
     idx=0
-    f00=-cf # start at 0 frequency
+    step=1000
+    n_windows=int(dur*sr/(step*dec))+1
+    
+    cdc=cl.chirp_downconvert(f0=-cf,
+                             rate=rate,
+                             dec=dec,
+                             dt=1.0/conf.sample_rate,
+                             n_threads=conf.n_downconversion_threads)
 
+    zd_len=n_windows*step
+    zd=n.zeros(zd_len,dtype=n.complex64)
+
+    z_out=n.zeros(step,dtype=n.complex64)
+    n_out=step
     for fi in range(n_windows):
         cput0=time.time()
         try:
-            z=d.read_vector_c81d(i0+idx,dec*fftlen,ch)
+            z=d.read_vector_c81d(i0+idx,step*dec+cdc.filter_len*dec,ch)
         except:
-            print("no data")
-            z=n.zeros(dec*fftlen,dtype=n.complex64)
-
-        f0=f00 + rate*idx/sr
-        # this part needs to be implemented on a GPU or with C
-        # it is _slow_
-        dechirp=n.conj(chirp(fftlen*dec,f0=f0,cr=rate,sr=sr))
-        zd=ss.decimate(dechirp*z,ftype="fir",q=dec)
+            z=n.zeros(step*dec+cdc.filter_len*dec,dtype=n.complex64)
         
-        noise_peak_est=n.max(power(zd))
-        noise_pwr_est=n.median(power(zd))
-        Z=n.fft.fftshift(power(fft(w*zd)))[::-1]
-        S[fi,:]=Z
-        noise_peak[fi]=noise_peak_est
-        noise_pwr[fi]=noise_pwr_est
+        cdc.consume(z,z_out,n_out)
+#        plt.plot(z_out.real)
+ #       plt.plot(z_out.imag)
+  #      plt.show()
+        zd[(fi*step):(fi*step+step)]=z_out
+
         cput1=time.time()
+        if fi%100==0:
+            print("%d/%d speed %1.2f * realtime"%(fi,n_windows, (step*dec/sr)/(cput1-cput0)) )
+        
+        idx+=dec*step
 
-        analysis_time_step = float(dec*fftlen*overlap)/sr
-        
-        print("rank %03d. %d %s %04d/%04d rate=%1.0f analysis speed %1.4f * realtime"%(comm.rank,i0+idx,ch,fi,n_windows,rate/1e3,analysis_time_step/(cput1-cput0)))
-        
-        idx+=int(dec*fftlen*overlap)
-        
-    nfloor=n.median(10.0*n.log10(S))
-    
+    dr=conf.range_resolution
+    df=conf.frequency_resolution
+    sr_dec = sr/dec
+    ds=get_m_per_Hz(rate)
+    fftlen = int(sr_dec*ds/dr/2.0)*2
+    fft_step=int((df/rate)*sr_dec)
+
+    S=spectrogram(n.conj(zd),window=fftlen,step=fft_step,wf=ss.hann(fftlen))
+
+    freqs=rate*n.arange(S.shape[0])*fft_step/sr_dec
+    range_gates=ds*n.fft.fftshift(n.fft.fftfreq(fftlen,d=1.0/sr_dec))
+
+    ridx=n.where(n.abs(range_gates) < conf.max_range_extent)[0]
+
     try:
         ho=h5py.File("%s/lfm_ionogram-%1.2f.h5"%(conf.output_dir,t0),"w")
-        ho["S"]=S          # ionogram frequency-range
+        ho["S"]=S[:,ridx]          # ionogram frequency-range
         ho["freqs"]=freqs  # frequency bins
         ho["rate"]=rate    # chirp-rate
-        ho["ranges"]=range_gates
+        ho["ranges"]=range_gates[ridx]
         ho["t0"]=t0
         ho["sr"]=float(sr_dec) # ionogram sample-rate
         ho["ch"]=ch            # channel name
-        ho["noise_pwr"]=noise_pwr   # noise power for each frequency bin
-        ho["noise_peak"]=noise_peak # peak noise power for each frequency bin
+#        ho["noise_pwr"]=noise_pwr   # noise power for each frequency bin
+ #       ho["noise_peak"]=noise_peak # peak noise power for each frequency bin
         ho.close()
     except:
         print("error writing file")
+    
+        
 
 if __name__ == "__main__":
-    conf=cc.chirp_config()
+    if len(sys.argv) == 2:
+        conf=cc.chirp_config(sys.argv[1])
+    else:
+        conf=cc.chirp_config()
     
     d=drf.DigitalRFReader(conf.data_dir)
-    # todo: some kind of pooling is needed for a realtime process
+    
     fl=glob.glob("%s/par-*.h5"%(conf.output_dir))
     n_ionograms=len(fl)
     # mpi scan through dataset
@@ -168,14 +181,14 @@ if __name__ == "__main__":
         print("calculating i0=%d chirp_rate=%1.2f kHz/s t0=%1.2f"%(i0,chirp_rate/1e3,t0))
         h.close()
         # remove file, because we're now done with it.
-        # os.system("rm %s"%(fl[ionogram_idx]))
-        analyze_chirp(conf,
-                      t0,
-                      d,
-                      i0,                  
-                      conf.channel,
-                      chirp_rate,
-                      dec=2500)
+#        os.system("rm %s"%(fl[ionogram_idx]))
+        chirp_downconvert(conf,
+                          t0,
+                          d,
+                          i0,                  
+                          conf.channel,
+                          chirp_rate,
+                          dec=2500)
 
 
 
