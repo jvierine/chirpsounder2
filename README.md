@@ -10,9 +10,6 @@ The software consists of several parts:
  - calc_ionograms.py # this is used to calculate ionograms based on parameters
  - plot_ionograms.py # plot calculated ionograms
 
-Version:
-Tested on Python 2.7.
-
 ## Installation
 
 You need to compile the chirp downconversion library, which is written in C.
@@ -21,16 +18,17 @@ make
 ```
 There is no packaging or other installation needed. You just run the scripts in place. 
 
-Python packages that are required: pyfftw, numpy, scipy, matplotlib, digital_rf, mpi4py, h5py
+Python packages that are required: pyfftw, numpy, scipy, matplotlib, digital_rf, mpi4py, h5py. Tested on Python 2.7. 
+
 
 ## Usage:
-1) Make a data capture with THOR (comes with <a href="https://github.com/MITHaystack/digital_rf">DigitalRF</a>), a USRP N2x0, a GPSDO, and a broadband HF antenna in a quiet location: 
+1) Make a data capture with THOR (comes with <a href="https://github.com/MITHaystack/digital_rf">DigitalRF</a>), a USRP N2x0, a GPSDO, and a broadband HF antenna in a quiet location. I recommend using a 12.5 MHz center frequency and a 25 MHz sampling rate. Here is an example command to kick off a recording: 
 
 ```
 thor.py -m 192.168.10.3 -d "A:A" -c cha -f 12.5e6 -r 25e6 /dev/shm/hf25 
 ```
 
-I use use a RAM disk ring buffer to avoid dropped packets, but this is not necessary. The software will be okay with dropped packets.
+Tip: You can use a RAM disk ring buffer to avoid dropped packets on slower computers and hard disks. This is not necessary, as the chirp analysis will be okay with dropped packets. Here's an example of how you can use rsync to shovel a digital rf recording on the fly from a ram disk to a hard disk.
 
 ```
 # copy digital rf from ram disk to permanent storage:
