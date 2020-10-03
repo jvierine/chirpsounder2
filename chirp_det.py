@@ -16,10 +16,10 @@ fftw=False
 try:
     import pyfftw
     fftw=True
+    print("using pyfftw")
 except:
-    print("couldn't load pyfftw")
+    print("couldn't load pyfftw, reverting to scipy. performance will suffer")
     fftw=False
-        
 
     
 import h5py
@@ -30,13 +30,13 @@ def power(x):
 
 def fft(x):
     if fftw:
-        return(pyfftw.interfaces.numpy_fft.fft(x,planner_effort='FFTW_ESTIMATE'))
+        return(pyfftw.interfaces.numpy_fft.fft(x))#,planner_effort='FFTW_ESTIMATE'))
     else:
         return(scipy.fftpack.fft(x))
 
 def ifft(x):
     if fftw:
-        return(pyfftw.interfaces.numpy_fft.ifft(x,planner_effort='FFTW_ESTIMATE'))
+        return(pyfftw.interfaces.numpy_fft.ifft(x))#,planner_effort='FFTW_ESTIMATE'))
     else:
         return(scipy.fftpack.ifft(x))
 
@@ -63,7 +63,7 @@ class chirp_matched_filter_bank:
         # create chirp signal vectors
         # centered around zero frequency
         self.chirps=[]
-        self.wf=ss.hann(self.conf.n_samples_per_block)
+        self.wf=n.array(ss.hann(self.conf.n_samples_per_block),dtype=n.float32)
         for cr in self.conf.chirp_rates:
             print("creating filter with chirp-rate %1.2f kHz/s"%(cr/1e3))
             chirp_vec=n.array(self.wf*n.conj(self.chirpf(cr=cr)))
