@@ -38,7 +38,7 @@ while true; do rsync -av --remove-source-files --exclude=tmp*
 --progress /dev/shm/hf25/cha /data_out/hf25/ ; sleep 1 ; done
 ```
 
-2) configure by copying the example1.ini configuration file (make sure you have the right center frequency, sample-rate, data directory, and channel name)
+2) configure by copying the example1.ini to e.g., configuration.ini. Edit the file to make sure you have the right center frequency, sample-rate, data directory, and channel name. I've only tested 25 MHz sample-rate and 12.5 MHz center-frequency so far.
 ```
 [config]
 
