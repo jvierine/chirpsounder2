@@ -18,8 +18,7 @@ make
 ```
 There is no packaging or other installation needed. You just run the scripts in place. 
 
-Python packages that are required: pyfftw, numpy, scipy, matplotlib, digital_rf, mpi4py, h5py. Tested on Python 2.7. 
-
+Python packages that are required: pyfftw, numpy, scipy, matplotlib, digital_rf, mpi4py, h5py. Tested on Python 2.7.17 and Python 3.6.9. 
 
 ## Usage:
 1) Make a data capture with THOR (comes with <a href="https://github.com/MITHaystack/digital_rf">DigitalRF</a>), a USRP N2x0, a GPSDO, and a broadband HF antenna in a quiet location. I recommend using a 12.5 MHz center frequency and a 25 MHz sampling rate. Here is an example command to kick off a recording: 
