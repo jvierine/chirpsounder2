@@ -27,7 +27,7 @@ def cluster_times(t,dt=0.1,dt2=0.02,min_det=3):
     num_dets=[]
     for t0 in t0s:
         tidx=n.where(n.abs(t-t0) < dt2)[0]
-        if len(tidx) > min_det:
+        if len(tidx) >= min_det:
             meant=n.mean(t[tidx])
             good=True
             for ct in ct0s:

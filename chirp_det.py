@@ -11,8 +11,17 @@ import time
 import glob
 import re
 import os
-import scipy.fftpack 
-import pyfftw
+import scipy.fftpack
+fftw=False
+try:
+    import pyfftw
+    fftw=True
+except:
+    print("couldn't load pyfftw")
+    fftw=False
+        
+
+    
 import h5py
 import scipy.constants as c
 import datetime
@@ -20,10 +29,17 @@ def power(x):
     return(x.real**2.0 + x.imag**2.0)
 
 def fft(x):
-    return(pyfftw.interfaces.numpy_fft.fft(x,planner_effort='FFTW_ESTIMATE'))
+    if fftw:
+        return(pyfftw.interfaces.numpy_fft.fft(x,planner_effort='FFTW_ESTIMATE'))
+    else:
+        return(scipy.fftpack.fft(x))
 
 def ifft(x):
-    return(pyfftw.interfaces.numpy_fft.ifft(x,planner_effort='FFTW_ESTIMATE'))    
+    if fftw:
+        return(pyfftw.interfaces.numpy_fft.ifft(x,planner_effort='FFTW_ESTIMATE'))
+    else:
+        return(scipy.fftpack.ifft(x))
+
 
 debug_out0=False
 def debug0(msg):

@@ -1,6 +1,10 @@
 import numpy as n
 import os
-import configparser
+try:
+    import configparser
+except ImportError as e:
+    import configparser2 as configparser
+    
 import json
 
 class chirp_config:
@@ -23,6 +27,7 @@ class chirp_config:
                      "maximum_analysis_frequency":"25e6",
                      "max_range_extent":"2000e3",
                      "plot_timings":"false",
+                     "realtime":"false",
                      "n_downconversion_threads":"4"}
 
         if fname != None:
@@ -33,6 +38,7 @@ class chirp_config:
                 print("configuration file %s doesn't exist. using default values"%(fname))
         self.fname=fname
         self.plot_timings=json.loads(c["config"]["plot_timings"])
+        self.realtime=json.loads(c["config"]["realtime"])
         self.data_dir=json.loads(c["config"]["data_dir"])
         self.n_downconversion_threads=json.loads(c["config"]["n_downconversion_threads"])
         self.max_range_extent=json.loads(c["config"]["max_range_extent"])
