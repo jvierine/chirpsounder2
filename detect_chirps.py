@@ -20,7 +20,7 @@ def scan_for_chirps(conf):
     b=d.get_bounds(conf.channel)
     idx0=b[0]
     # todo: not yet suitable for a realtime system on a ringbuffer.
-    n_blocks=(b[1]-idx0)/(conf.n_samples_per_block*conf.step)
+    n_blocks=int((b[1]-idx0)/(conf.n_samples_per_block*conf.step))
     # mpi scan through dataset
     for block_idx in range(rank,n_blocks,size):
         cput0=time.time()

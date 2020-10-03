@@ -71,7 +71,7 @@ def chirp(L,f0=-25e3,cr=160e3,sr=50e3,use_numpy=False):
     return(chirp)
 
 def spectrogram(x,window=1024,step=512,wf=ss.hann(1024)):
-    n_spec=(len(x)-window)/step
+    n_spec=int((len(x)-window)/step)
     S=n.zeros([n_spec,window])
     for i in range(n_spec):
         S[i,] = n.abs(n.fft.fftshift(n.fft.fft(wf*x[(i*step):(i*step+window)])))**2.0
@@ -177,7 +177,7 @@ if __name__ == "__main__":
         h=h5py.File(fl[ionogram_idx],"r")
         chirp_rate=n.copy(h["chirp_rate"].value)
         t0=n.copy(h["t0"].value)
-        i0=long(t0*conf.sample_rate)
+        i0=n.int64(t0*conf.sample_rate)
         print("calculating i0=%d chirp_rate=%1.2f kHz/s t0=%1.2f"%(i0,chirp_rate/1e3,t0))
         h.close()
         # remove file, because we're now done with it.
