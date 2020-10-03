@@ -56,6 +56,9 @@ def unix2date(x):
 def unix2datestr(x):
     return(unix2date(x).strftime('%Y-%m-%d %H:%M:%S'))
 
+def unix2dirname(x):
+    return(unix2date(x).strftime('%Y-%m-%d'))
+
 class chirp_matched_filter_bank:
     def __init__(self,conf):
         self.conf=conf
@@ -149,7 +152,15 @@ class chirp_matched_filter_bank:
                 chirp_rates.append(detected_chirp_rate)
                 frequencies.append(f0)
 
-                ofname = "%s/chirp-%1.2f-%d.h5"%(self.conf.output_dir,
+                dname="%s/%s"%(self.conf.output_dir,unix2dirname(float(i0)/self.conf.sample_rate))
+                
+                if not os.path.exists(dname):
+                    print("creating %s"%(dname))
+                    os.mkdir(dname)
+                    
+
+                # tbd: make an hour directory
+                ofname = "%s/chirp-%1.2f-%d.h5"%(dname,
                                                  detected_chirp_rate/1e3,
                                                  i0)
                 ho=h5py.File(ofname,"w")

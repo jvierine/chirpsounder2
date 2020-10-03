@@ -45,7 +45,7 @@ def scan_for_chirps(conf,dt=0.1):
     """
     data_dir=conf.output_dir
     # detection files have names chirp*.h5
-    fl=glob.glob("%s/chirp*.h5"%(data_dir))
+    fl=glob.glob("%s/*/chirp*.h5"%(data_dir))
 
     chirp_rates=[]
     f0=[]    

@@ -9,6 +9,7 @@ import digital_rf as drf
 from mpi4py import MPI
 import time
 import sys
+import traceback
 
 comm=MPI.COMM_WORLD
 size=comm.Get_size()
@@ -40,6 +41,7 @@ def scan_for_chirps(conf,cfb,block0=None):
                 print("%d/%d Analyzing %s speed %1.2f * realtime"%( rank, size, c.unix2datestr(i0/conf.sample_rate), size*analysis_time/(cput1-cput0) ))
             except:
                 print("error")
+                traceback.print_exc()
     return(block1)
 
 if __name__ == "__main__":
