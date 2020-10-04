@@ -58,4 +58,4 @@ if __name__ == "__main__":
         block1=None
         while True:
             block1=scan_for_chirps(conf,cfb,block1)
-        
+            time.sleep(0.5)

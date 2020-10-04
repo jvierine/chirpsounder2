@@ -21,6 +21,7 @@ class chirp_config:
                      "n_samples_per_block":"5000000",
                      "minimum_frequency_spacing":"0.2e6",
                      "chirp_rates":"[50e3,100e3,125e3,500.0084e3]",
+                     "chirp_rep_times":"[300.0,300.0,300.0,60.0]",
                      "output_dir":'"./chirp2"',
                      "range_resolution":"2e3",
                      "frequency_resolution":"50e3",
@@ -28,6 +29,7 @@ class chirp_config:
                      "max_range_extent":"2000e3",
                      "plot_timings":"false",
                      "realtime":"false",
+                     "decimation":"2500",
                      "n_downconversion_threads":"4"}
 
         if fname != None:
@@ -38,6 +40,8 @@ class chirp_config:
                 print("configuration file %s doesn't exist. using default values"%(fname))
         self.fname=fname
         self.plot_timings=json.loads(c["config"]["plot_timings"])
+        self.decimation=json.loads(c["config"]["decimation"])
+        self.chirp_rep_times=json.loads(c["config"]["chirp_rep_times"])
         self.realtime=json.loads(c["config"]["realtime"])
         self.data_dir=json.loads(c["config"]["data_dir"])
         self.n_downconversion_threads=json.loads(c["config"]["n_downconversion_threads"])

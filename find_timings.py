@@ -8,18 +8,20 @@ import glob
 import h5py
 import chirp_config as cc
 import sys
+import chirp_det as cd
+import os
 
 # set to False if you want to disable
 plot=True
 
-def cluster_times(t,dt=0.1,dt2=0.02,min_det=3):
+def cluster_times(t,dt=0.1,dt2=0.02,min_det=2):
     t0s=dt*n.array(n.unique(n.array(n.round(t/dt),dtype=n.int)),dtype=n.float)
     ct0s=[]
     num_dets=[]
 
     for t0 in t0s:
         tidx=n.where(n.abs(t-t0) < dt)[0]
-        if len(tidx) > min_det:
+        if len(tidx) >= min_det:
             ct0s.append(n.mean(t[tidx]))
 #            num_dets.append(len(tidx))
     t0s=n.unique(ct0s)
@@ -46,20 +48,26 @@ def scan_for_chirps(conf,dt=0.1):
     data_dir=conf.output_dir
     # detection files have names chirp*.h5
     fl=glob.glob("%s/*/chirp*.h5"%(data_dir))
-
+    fl.sort()
     chirp_rates=[]
     f0=[]    
-    chirp_times=[]    
+    chirp_times=[]
+    snrs=[]        
     for f in fl:
         h=h5py.File(f,"r")
         chirp_times.append(h["chirp_time"].value)
         chirp_rates.append(h["chirp_rate"].value)
-        f0.append(h["f0"].value)                
+        f0.append(h["f0"].value)
+        if "snr" in h.keys():
+            snrs.append(h["snr"].value)
+        else:
+            snrs.append(-1.0)
         h.close()
 
     chirp_times=n.array(chirp_times)
     chirp_rates=n.array(chirp_rates)
-    f0=n.array(f0)    
+    f0=n.array(f0)
+    snrs=n.array(snrs)        
     
     crs=n.unique(chirp_rates)
     for c in crs:
@@ -67,24 +75,48 @@ def scan_for_chirps(conf,dt=0.1):
         idx=n.where(chirp_rates == c)[0]
         t0s,num_dets=cluster_times(chirp_times[idx],dt)
         tt0=n.min(chirp_times[idx])
-        if conf.plot_timings:
-            plt.plot(f0[idx]/1e6,chirp_times[idx],".")
+
+        # this might provide some hints to what the distance is
+        offsets=(chirp_times[idx]-n.floor(chirp_times[idx]))
+#        plt.hist(offsets,bins=n.linspace(0,0.1,num=500))
+ #       plt.show()
+        
         
         for ti,t0 in enumerate(t0s):
             if conf.plot_timings:
                 plt.axhline(t0,color="red")
             print("Found chirp-rate %1.2f kHz/s t0=%1.4f num_det %d"%(c/1e3,t0,num_dets[ti]))
-            #        plt.show()
-            ho=h5py.File("%s/par-%1.4f.h5"%(data_dir,t0),"w")
+            dname="%s/%s"%(data_dir,cd.unix2dirname(t0))
+            if not os.path.exists(dname):
+                os.mkdir(dname)
+            ho=h5py.File("%s/par-%1.4f.h5"%(dname,t0),"w")
             ho["chirp_rate"]=c
             ho["t0"]=t0
+            sweep_idx=n.where( (n.abs(chirp_times-t0)<dt) & (n.abs(chirp_rates-c)<0.1) )[0]
+            ho["f0"]=f0[sweep_idx]
+            ho["t0s"]=chirp_times[sweep_idx]
+            ho["snrs"]=snrs[sweep_idx]            
             ho.close()
+        if conf.plot_timings:
+            plt.plot(f0[idx]/1e6,chirp_times[idx],".")
+
         if conf.plot_timings:
             plt.xlabel("Frequency (MHz)")
             plt.ylabel("Time (unix)")
             plt.xlim([0,conf.maximum_analysis_frequency/1e6])
             plt.title("Chirp-rate %1.2f kHz/s"%(c/1e3))
             plt.show()
+
+        
+#        timings=n.mod(chirp_times[idx],225.0)
+#        timings=n.mod(chirp_times[idx],900.0)        
+#        timings=timings[int(0.7*len(timings)):int(len(timings))]
+#        ct0s=chirp_times[idx]
+#        ct0s=ct0s[int(0.7*len(ct0s)):int(len(ct0s))]
+#        plt.plot(ct0s,timings,".")
+#        plt.show()
+#        plt.hist(timings[int((len(timings)/2)):(len(timings))],bins=300)
+#        plt.show()
        
 
 

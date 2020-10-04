@@ -49,7 +49,7 @@ def plot_ionogram(conf,f,normalize_by_frequency=True):
     plt.ylabel("One-way range offset (km)")
     plt.ylim([dr-1000.0,dr+1000.0])
     plt.tight_layout()
-    plt.savefig("%s/lfm_ionogram-%1.2f.png"%(conf.output_dir,t0))
+    plt.savefig("%s/%s/lfm_ionogram-%1.2f.png"%(conf.output_dir,cd.unix2dirname(t0),t0))
     plt.close()
     plt.clf()
     ho.close()
@@ -61,7 +61,7 @@ if __name__ == "__main__":
     else:
         conf=cc.chirp_config()
 
-    fl=glob.glob("%s/lfm*.h5"%(conf.output_dir))
+    fl=glob.glob("%s/*/lfm*.h5"%(conf.output_dir))
     for f in fl:
         plot_ionogram(conf,f)
     

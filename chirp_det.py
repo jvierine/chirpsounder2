@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# data format agnostic generic chirp detector 
+# data format agnostic generic chirp detector
 # juha vierinen 2020
 #
 import numpy as n
@@ -20,11 +20,11 @@ try:
 except:
     print("couldn't load pyfftw, reverting to scipy. performance will suffer")
     fftw=False
-
     
 import h5py
 import scipy.constants as c
 import datetime
+
 def power(x):
     return(x.real**2.0 + x.imag**2.0)
 
@@ -39,7 +39,6 @@ def ifft(x):
         return(pyfftw.interfaces.numpy_fft.ifft(x))#,planner_effort='FFTW_ESTIMATE'))
     else:
         return(scipy.fftpack.ifft(x))
-
 
 debug_out0=False
 def debug0(msg):
@@ -170,6 +169,7 @@ class chirp_matched_filter_bank:
                 ho["n_samples"]=n_samps
                 ho["chirp_time"]=chirp_time
                 ho["chirp_rate"]=detected_chirp_rate
+                ho["snr"]=snr_max
                 debug1("saving %s"%(ofname))
                 ho.close()
             

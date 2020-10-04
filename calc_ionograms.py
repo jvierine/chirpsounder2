@@ -11,6 +11,7 @@ import scipy.signal as ss
 import scipy.constants as c
 import h5py
 import chirp_config as cc
+import chirp_det as cd
 import pyfftw
 import matplotlib.pyplot as plt
 import time
@@ -115,6 +116,13 @@ def chirp_downconvert(conf,
     for fi in range(n_windows):
         cput0=time.time()
         try:
+            if conf.realtime:
+                b=d.get_bounds(ch)
+                while ((i0+idx+step*dec+cdc.filter_len*dec)+int(conf.sample_rate)) > b[1]:
+                    print("waiting for more data")
+                    time.sleep(1)
+                    b=d.get_bounds(ch)
+                    
             z=d.read_vector_c81d(i0+idx,step*dec+cdc.filter_len*dec,ch)
         except:
             z=n.zeros(step*dec+cdc.filter_len*dec,dtype=n.complex64)
@@ -146,7 +154,10 @@ def chirp_downconvert(conf,
     ridx=n.where(n.abs(range_gates) < conf.max_range_extent)[0]
 
     try:
-        ho=h5py.File("%s/lfm_ionogram-%1.2f.h5"%(conf.output_dir,t0),"w")
+        dname="%s/%s"%(conf.output_dir,cd.unix2dirname(t0))
+        if not os.path.exists(dname):
+            os.mkdir(dname)
+        ho=h5py.File("%s/lfm_ionogram-%1.2f.h5"%(dname,t0),"w")
         ho["S"]=S[:,ridx]          # ionogram frequency-range
         ho["freqs"]=freqs  # frequency bins
         ho["rate"]=rate    # chirp-rate
@@ -160,7 +171,57 @@ def chirp_downconvert(conf,
     except:
         print("error writing file")
     
-        
+
+def analyze_all(conf,d):
+    fl=glob.glob("%s/*/par-*.h5"%(conf.output_dir))
+    n_ionograms=len(fl)
+    # mpi scan through the whole dataset
+    for ionogram_idx in range(rank,n_ionograms,size):
+        h=h5py.File(fl[ionogram_idx],"r")
+        chirp_rate=n.copy(h["chirp_rate"].value)
+        t0=n.copy(h["t0"].value)
+        i0=n.int64(t0*conf.sample_rate)
+        print("calculating i0=%d chirp_rate=%1.2f kHz/s t0=%1.2f"%(i0,chirp_rate/1e3,t0))
+        h.close()
+
+        chirp_downconvert(conf,
+                          t0,
+                          d,
+                          i0,                  
+                          conf.channel,
+                          chirp_rate,
+                          dec=2500)
+
+def analyze_realtime(conf,d):
+    """ realtime analysis """
+    ch=conf.channel
+    rep=n.float128(60)
+    chirpt=n.float128(54.0016)
+    last_t0=n.float128(0.0)
+    
+    chirp_rate=500.0084e3
+    while True:
+        b=d.get_bounds(ch)
+        t0=n.floor(n.float128(b[0])/n.float128(conf.sample_rate))
+        t1=n.floor(n.float128(b[1])/n.float128(conf.sample_rate))
+        try_t0=rep*n.floor(t0/rep)+chirpt
+        while (try_t0 < t0) and (try_t0 < last_t0):
+            try_t0+=rep
+        next_t0=float(try_t0)
+        i0=int(try_t0*conf.sample_rate)
+        print("Buffer extent %1.2f-%1.2f launching next chirp at %1.2f"%(b[0]/conf.sample_rate,
+                                                                         b[1]/conf.sample_rate,
+                                                                         next_t0))
+        chirp_downconvert(conf,
+                          next_t0,
+                          d,
+                          i0,                  
+                          conf.channel,
+                          chirp_rate,
+                          dec=conf.decimation)
+        last_t0=try_t0
+    
+
 
 if __name__ == "__main__":
     if len(sys.argv) == 2:
@@ -169,26 +230,11 @@ if __name__ == "__main__":
         conf=cc.chirp_config()
     
     d=drf.DigitalRFReader(conf.data_dir)
-    
-    fl=glob.glob("%s/par-*.h5"%(conf.output_dir))
-    n_ionograms=len(fl)
-    # mpi scan through dataset
-    for ionogram_idx in range(rank,n_ionograms,size):
-        h=h5py.File(fl[ionogram_idx],"r")
-        chirp_rate=n.copy(h["chirp_rate"].value)
-        t0=n.copy(h["t0"].value)
-        i0=n.int64(t0*conf.sample_rate)
-        print("calculating i0=%d chirp_rate=%1.2f kHz/s t0=%1.2f"%(i0,chirp_rate/1e3,t0))
-        h.close()
-        # remove file, because we're now done with it.
-#        os.system("rm %s"%(fl[ionogram_idx]))
-        chirp_downconvert(conf,
-                          t0,
-                          d,
-                          i0,                  
-                          conf.channel,
-                          chirp_rate,
-                          dec=2500)
+
+    if conf.realtime:
+        analyze_realtime(conf,d)
+    else:
+        analyze_all(conf,d)
 
 
 
