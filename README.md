@@ -84,17 +84,17 @@ max_range_extent=2000e3
 n_downconversion_threads=4
 ```
 
-3) detect chirps on the recording. can be parallelized with MPI to speed things up if you have lots of CPUs
+3) Detect chirps on the recording. can be parallelized with MPI to speed things up if you have lots of CPUs and a very fast disk. If you don't have a fast disk, using too many processes may actually reduce performance due to trashing. 
 ```
-mpirun -np 8 python detect_chirps.py configuration.ini
+mpirun -np 4 python detect_chirps.py configuration.ini
 ```
 
-4) run find_timings.py to cluster together multiple detections of the same chirp to create a database of chirp timings
+4) Run find_timings.py to cluster together multiple detections of the same chirp to create a database of chirp timings
 ```
 python find_timings.py configuration.ini
 ```
 
-5) run calc_ionograms.py to generate ionograms based on the timings that were found. Can be paralellized with MPI. Keep in mind that adding a lot of processes may be detrimental to performance, due to the 100 MB/s read requirement. If you have a slow disk, don't use too many processes here! Each MPI process is additionally multi-threaded, with the number of threads configured in the configuration file
+5) Run calc_ionograms.py to generate ionograms based on the timings that were found. Can be paralellized with MPI. Keep in mind that adding a lot of processes may be detrimental to performance, due to the 100 MB/s read requirement. If you have a slow disk, don't use too many processes here! Each MPI process is additionally multi-threaded, with the number of threads configured in the configuration file
 ```
 python calc_ionograms.py configuration.ini
 ```
