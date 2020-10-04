@@ -8,15 +8,23 @@ import scipy.constants as c
 import chirp_config as cc
 import chirp_det as cd
 import sys
+import os
 
 def plot_ionogram(conf,f,normalize_by_frequency=True):
     ho=h5py.File(f,"r")
+    t0=ho["t0"].value    
+
+    img_fname="%s/%s/lfm_ionogram-%1.2f.png"%(conf.output_dir,cd.unix2dirname(t0),t0)
+    if os.path.exists(img_fname):
+        print("Ionogram plot %s already exists. Skipping"%(img_fname))
+        ho.close()
+        return
+    
+    print("Plotting %s rate %1.2f (kHz/s) t0 %1.5f (unix)"%(f,ho["rate"].value/1e3,ho["t0"].value))
     S=ho["S"].value          # ionogram frequency-range
     freqs=ho["freqs"].value  # frequency bins
     ranges=ho["ranges"].value  # range gates
 
-    print("Plotting %s rate %1.2f (kHz/s) t0 %1.5f (unix)"%(f,ho["rate"].value/1e3,ho["t0"].value))
-    
     if normalize_by_frequency:
         for i in range(S.shape[0]):
             noise=n.median(S[i,:])
@@ -35,7 +43,7 @@ def plot_ionogram(conf,f,normalize_by_frequency=True):
     
     # assume that t0 is at the start of a standard unix second
     # therefore, the propagation time is anything added to a full second
-    t0=ho["t0"].value
+
     dt=(t0-n.floor(t0))
     dr=dt*c.c/1e3
     range_gates=dr+2*ranges/1e3

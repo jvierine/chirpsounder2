@@ -196,6 +196,10 @@ def analyze_realtime(conf,d):
     """ 
     Realtime analysis.
     We allocate one MPI process for each sounder to be on the safe side.
+
+    TODO: load chirp timing information dynamically
+          and use a process pool to calculate as many chirp ionograms 
+          as there are computational resources.
     """
     st=conf.sounder_timings[rank]
     
