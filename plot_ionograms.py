@@ -9,6 +9,7 @@ import chirp_config as cc
 import chirp_det as cd
 import sys
 import os
+import time
 
 def plot_ionogram(conf,f,normalize_by_frequency=True):
     ho=h5py.File(f,"r")
@@ -69,7 +70,16 @@ if __name__ == "__main__":
     else:
         conf=cc.chirp_config()
 
-    fl=glob.glob("%s/*/lfm*.h5"%(conf.output_dir))
-    for f in fl:
-        plot_ionogram(conf,f)
-    
+    if conf.realtime:
+        while True:
+            fl=glob.glob("%s/*/lfm*.h5"%(conf.output_dir))
+            for f in fl:
+                plot_ionogram(conf,f)
+            time.sleep(60)
+    else:
+        fl=glob.glob("%s/*/lfm*.h5"%(conf.output_dir))
+        for f in fl:
+            plot_ionogram(conf,f)
+
+                
+            
