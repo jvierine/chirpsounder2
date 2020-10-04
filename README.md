@@ -136,3 +136,5 @@ US ROTHR (hard to tell which one, as I'm so far away)
 ## Links
 
 You can also use your sound card and HAM radio to detect chirps using the <a href="https://www.andrewsenior.me.uk/chirpview">Chirpview</a> program.
+
+University of Twente operates a WebSDR, which is capable of <a href="http://websdr.ewi.utwente.nl:8901/chirps/">tracking known chirp sounders</a>
