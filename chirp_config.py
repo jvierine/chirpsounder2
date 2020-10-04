@@ -30,6 +30,7 @@ class chirp_config:
                      "plot_timings":"false",
                      "realtime":"false",
                      "decimation":"2500",
+                     "sounder_timings":'[{"chirp-rate":500.0084e3,"rep":60.0,"chirpt":54.0016,"id":5}]',
                      "n_downconversion_threads":"4"}
 
         if fname != None:
@@ -40,6 +41,7 @@ class chirp_config:
                 print("configuration file %s doesn't exist. using default values"%(fname))
         self.fname=fname
         self.plot_timings=json.loads(c["config"]["plot_timings"])
+        self.sounder_timings=json.loads(c["config"]["sounder_timings"])
         self.decimation=json.loads(c["config"]["decimation"])
         self.chirp_rep_times=json.loads(c["config"]["chirp_rep_times"])
         self.realtime=json.loads(c["config"]["realtime"])

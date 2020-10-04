@@ -193,14 +193,21 @@ def analyze_all(conf,d):
                           dec=2500)
 
 def analyze_realtime(conf,d):
-    """ realtime analysis """
-    ch=conf.channel
-    rep=n.float128(60)
-    chirpt=n.float128(54.0016)
-    last_t0=n.float128(0.0)
+    """ 
+    Realtime analysis.
+    We allocate one MPI process for each sounder to be on the safe side.
+    """
+    st=conf.sounder_timings[rank]
     
-    chirp_rate=500.0084e3
-    while True:
+    rep=n.float128(st["rep"])
+    chirpt=n.float128(st["chirpt"])
+    last_t0=n.float128(0.0)    
+    chirp_rate=st["chirp-rate"]
+    print("Rank %d analyzing chirp-rate %1.2f kHz/s chirpt %1.2f rep %1.2f"%(rank,chirp_rate/1e3,chirpt,rep))
+    
+    ch=conf.channel
+    while True:    
+        
         b=d.get_bounds(ch)
         t0=n.floor(n.float128(b[0])/n.float128(conf.sample_rate))
         t1=n.floor(n.float128(b[1])/n.float128(conf.sample_rate))
@@ -209,6 +216,7 @@ def analyze_realtime(conf,d):
             try_t0+=rep
         next_t0=float(try_t0)
         i0=int(try_t0*conf.sample_rate)
+        
         print("Buffer extent %1.2f-%1.2f launching next chirp at %1.2f"%(b[0]/conf.sample_rate,
                                                                          b[1]/conf.sample_rate,
                                                                          next_t0))
