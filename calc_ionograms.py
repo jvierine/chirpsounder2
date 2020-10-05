@@ -93,11 +93,15 @@ def chirp_downconvert(conf,
                       i0,                  
                       ch,
                       rate,
-                      dec=2500):
-
+                      dec=2500,
+                      realtime_req=None):
+    cput0=time.time()
+    sleep_time=0.0
     sr=conf.sample_rate
     cf=conf.center_freq
     dur=sr/rate
+    if realtime_req==None:
+        realtime_req=dur
     idx=0
     step=1000
     n_windows=int(dur*sr/(step*dec))+1
@@ -107,20 +111,24 @@ def chirp_downconvert(conf,
                              dec=dec,
                              dt=1.0/conf.sample_rate,
                              n_threads=conf.n_downconversion_threads)
-
+    
     zd_len=n_windows*step
     zd=n.zeros(zd_len,dtype=n.complex64)
-
+    
     z_out=n.zeros(step,dtype=n.complex64)
     n_out=step
+    
     for fi in range(n_windows):
-        cput0=time.time()
+        
         try:
             if conf.realtime:
                 b=d.get_bounds(ch)
                 while ((i0+idx+step*dec+cdc.filter_len*dec)+int(conf.sample_rate)) > b[1]:
-                    print("waiting for more data")
-                    time.sleep(1)
+                    # wait for more data to be acquired
+                    # as the tail of the buffer doesn't have he data we
+                    # need yet
+                    time.sleep(1.0)
+                    sleep_time+=1.0
                     b=d.get_bounds(ch)
                     
             z=d.read_vector_c81d(i0+idx,step*dec+cdc.filter_len*dec,ch)
@@ -128,14 +136,7 @@ def chirp_downconvert(conf,
             z=n.zeros(step*dec+cdc.filter_len*dec,dtype=n.complex64)
         
         cdc.consume(z,z_out,n_out)
-#        plt.plot(z_out.real)
- #       plt.plot(z_out.imag)
-  #      plt.show()
         zd[(fi*step):(fi*step+step)]=z_out
-
-        cput1=time.time()
-        if fi%100==0:
-            print("%d/%d speed %1.2f * realtime"%(fi,n_windows, (step*dec/sr)/(cput1-cput0)) )
         
         idx+=dec*step
 
@@ -165,11 +166,12 @@ def chirp_downconvert(conf,
         ho["t0"]=t0
         ho["sr"]=float(sr_dec) # ionogram sample-rate
         ho["ch"]=ch            # channel name
-#        ho["noise_pwr"]=noise_pwr   # noise power for each frequency bin
- #       ho["noise_peak"]=noise_peak # peak noise power for each frequency bin
         ho.close()
     except:
         print("error writing file")
+    cput1=time.time()
+    cpu_time=cput1-cput0-sleep_time
+    print("Done processed %1.2f s in %1.2f s, speed %1.2f * realtime"%(dur,cpu_time,realtime_req/cpu_time))
     
 
 def analyze_all(conf,d):
@@ -230,6 +232,7 @@ def analyze_realtime(conf,d):
                           i0,                  
                           conf.channel,
                           chirp_rate,
+                          realtime_req=rep,
                           dec=conf.decimation)
         last_t0=try_t0
     
