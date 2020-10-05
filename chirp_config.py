@@ -29,7 +29,7 @@ class chirp_config:
                      "max_range_extent":"2000e3",
                      "plot_timings":"false",
                      "realtime":"false",
-                     "decimation":"2500",
+                     "decimation":"1250",
                      "sounder_timings":'[{"chirp-rate":500.0084e3,"rep":60.0,"chirpt":54.0016,"id":5}]',
                      "n_downconversion_threads":"4"}
 

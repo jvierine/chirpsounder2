@@ -109,14 +109,11 @@ def scan_for_chirps(conf,dt=0.1):
 
         
 #        timings=n.mod(chirp_times[idx],225.0)
-#        timings=n.mod(chirp_times[idx],900.0)        
-#        timings=timings[int(0.7*len(timings)):int(len(timings))]
-#        ct0s=chirp_times[idx]
-#        ct0s=ct0s[int(0.7*len(ct0s)):int(len(ct0s))]
-#        plt.plot(ct0s,timings,".")
-#        plt.show()
-#        plt.hist(timings[int((len(timings)/2)):(len(timings))],bins=300)
-#        plt.show()
+        timings=n.mod(chirp_times[idx],300.0)
+        print(n.unique(n.round(timings*0.2)/0.2))
+        timings=n.mod(chirp_times[idx],300.0)
+        plt.hist(timings,bins=3000)
+        plt.show()
        
 
 
