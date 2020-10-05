@@ -171,7 +171,7 @@ def chirp_downconvert(conf,
         print("error writing file")
     cput1=time.time()
     cpu_time=cput1-cput0-sleep_time
-    print("Done processed %1.2f s in %1.2f s, speed %1.2f * realtime"%(dur,cpu_time,realtime_req/cpu_time))
+    print("Done processed %1.2f s in %1.2f s, speed %1.2f * realtime"%(realtime_req,cpu_time,realtime_req/cpu_time))
     
 
 def analyze_all(conf,d):
