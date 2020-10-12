@@ -1,5 +1,7 @@
 #!/usr/bin/env python
-
+#
+# Plot as quick overview plot of the time-frequency spectrum of the dataset
+#
 import digital_rf as drf
 import numpy as n
 import matplotlib.pyplot as plt
