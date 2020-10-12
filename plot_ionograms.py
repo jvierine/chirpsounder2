@@ -17,7 +17,7 @@ def plot_ionogram(conf,f,normalize_by_frequency=True):
 
     img_fname="%s/%s/lfm_ionogram-%1.2f.png"%(conf.output_dir,cd.unix2dirname(t0),t0)
     if os.path.exists(img_fname):
-        print("Ionogram plot %s already exists. Skipping"%(img_fname))
+        #print("Ionogram plot %s already exists. Skipping"%(img_fname))
         ho.close()
         return
     
@@ -32,10 +32,6 @@ def plot_ionogram(conf,f,normalize_by_frequency=True):
             S[i,:]=(S[i,:]-noise)/noise
         S[S<=0.0]=1e-3
             
-#    for i in range(S.shape[0]):
- #       S[i,:]=n.convolve(n.repeat(1.0/5.0,5.0),S[i,:],mode="same")
-#        S[i,:]=(S[i,:]-noise)/noise
-
     max_range_idx=n.argmax(n.max(S,axis=0))
     
     dB=n.transpose(10.0*n.log10(S))
@@ -73,6 +69,7 @@ if __name__ == "__main__":
     if conf.realtime:
         while True:
             fl=glob.glob("%s/*/lfm*.h5"%(conf.output_dir))
+            fl.sort()
             for f in fl:
                 plot_ionogram(conf,f)
             time.sleep(60)
