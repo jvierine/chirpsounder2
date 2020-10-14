@@ -31,8 +31,12 @@ if __name__ == "__main__":
     for i in range(n_spec):
         print(i)
         for j in range(n_avg):
-            z=d.read_vector_c81d(i0+i*dt+j*n_fft,n_fft,conf.channel)
-            S[:,i]+=n.fft.fftshift(n.abs(cd.fft(wf*z))**2.0)
+            try:
+                z=d.read_vector_c81d(i0+i*dt+j*n_fft,n_fft,conf.channel)
+                S[:,i]+=n.fft.fftshift(n.abs(cd.fft(wf*z))**2.0)
+            except:
+                print("missing data")
+            
         tvec[i]=i*dt/conf.sample_rate
 
     dB=10.0*n.log10(S)
