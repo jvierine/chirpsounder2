@@ -73,6 +73,19 @@ def scan_for_chirps(conf,dt=0.1):
     for c in crs:
 #        print(c)
         idx=n.where(chirp_rates == c)[0]
+        ctimes=chirp_times[idx]
+        h,be=n.histogram(n.mod(n.round(chirp_times[idx]),3600.0),bins=n.arange(3601)-0.5)
+        hidx=n.where(h>100)[0]
+        for hi in hidx:
+
+            chirpt=0.5*(be[hi]+be[hi+1])
+            this_idx=n.where(n.abs(n.mod(ctimes,3600)-chirpt)<0.2)[0]
+            ct_f=n.mean(n.mod(ctimes[this_idx],3600.0))
+            
+            print("%1.4f %d"%(ct_f,h[hi]))
+        
+        plt.hist(n.mod(n.round(chirp_times[idx]),3600.0),bins=(n.arange(361)*10-5))
+        plt.show()
         t0s,num_dets=cluster_times(chirp_times[idx],dt)
         tt0=n.min(chirp_times[idx])
 
@@ -108,12 +121,6 @@ def scan_for_chirps(conf,dt=0.1):
             plt.show()
 
         
-#        timings=n.mod(chirp_times[idx],225.0)
-        timings=n.mod(chirp_times[idx],300.0)
-        print(n.unique(n.round(timings*0.2)/0.2))
-        timings=n.mod(chirp_times[idx],300.0)
-        plt.hist(timings,bins=3000)
-        plt.show()
        
 
 
