@@ -94,7 +94,8 @@ def chirp_downconvert(conf,
                       ch,
                       rate,
                       dec=2500,
-                      realtime_req=None):
+                      realtime_req=None,
+                      cid=0):
     cput0=time.time()
     sleep_time=0.0
     sr=conf.sample_rate
@@ -158,12 +159,13 @@ def chirp_downconvert(conf,
         dname="%s/%s"%(conf.output_dir,cd.unix2dirname(t0))
         if not os.path.exists(dname):
             os.mkdir(dname)
-        ho=h5py.File("%s/lfm_ionogram-%1.2f.h5"%(dname,t0),"w")
+        ho=h5py.File("%s/lfm_ionogram-%03d-%1.2f.h5"%(dname,cid,t0),"w")
         ho["S"]=S[:,ridx]          # ionogram frequency-range
         ho["freqs"]=freqs  # frequency bins
         ho["rate"]=rate    # chirp-rate
         ho["ranges"]=range_gates[ridx]
         ho["t0"]=t0
+        ho["id"]=cid
         ho["sr"]=float(sr_dec) # ionogram sample-rate
         ho["ch"]=ch            # channel name
         ho.close()
@@ -204,37 +206,55 @@ def analyze_realtime(conf,d):
           as there are computational resources.
     """
     st=conf.sounder_timings[rank]
-    
-    rep=n.float128(st["rep"])
-    chirpt=n.float128(st["chirpt"])
-    last_t0=n.float128(0.0)    
-    chirp_rate=st["chirp-rate"]
-    print("Rank %d analyzing chirp-rate %1.2f kHz/s chirpt %1.2f rep %1.2f"%(rank,chirp_rate/1e3,chirpt,rep))
-    
+    n_sounders=len(st)    
     ch=conf.channel
     while True:    
-        
         b=d.get_bounds(ch)
         t0=n.floor(n.float128(b[0])/n.float128(conf.sample_rate))
         t1=n.floor(n.float128(b[1])/n.float128(conf.sample_rate))
-        try_t0=rep*n.floor(t0/rep)+chirpt
-        while (try_t0 < t0) and (try_t0 < last_t0):
-            try_t0+=rep
-        next_t0=float(try_t0)
-        i0=int(try_t0*conf.sample_rate)
-        
+
+        # find the next sounder that can be measured with shortest wait time
+        best_sounder=0
+        best_wait_time=1e6
+        best_t0=0
+        best_id=0
+        for s_idx in range(n_sounders):
+            rep=n.float128(st[s_idx]["rep"])
+            chirpt=n.float128(st[s_idx]["chirpt"])
+            chirp_rate=st[s_idx]["chirp-rate"]
+            cid=st[s_idx]["id"]
+            
+            try_t0=rep*n.floor(t0/rep)+chirpt
+            while try_t0 < t0:
+                try_t0+=rep
+            wait_time = try_t0-t0
+
+            if wait_time < best_wait_time:
+                best_sounder=s_idx
+                best_t0=try_t0
+                best_wait_time=wait_time
+                best_id=cid
+        rep=n.float128(st[best_sounder]["rep"])
+        chirpt=n.float128(st[best_sounder]["chirpt"])
+        chirp_rate=st[best_sounder]["chirp-rate"]
+        next_t0=float(best_t0)
+        print("Rank %d chirp id %d analyzing chirp-rate %1.2f kHz/s chirpt %1.4f rep %1.2f"%(rank,best_id,chirp_rate/1e3,chirpt,rep))
+        i0=int(next_t0*conf.sample_rate)
+        realtime_req=conf.sample_rate/chirp_rate
         print("Buffer extent %1.2f-%1.2f launching next chirp at %1.2f"%(b[0]/conf.sample_rate,
-                                                                         b[1]/conf.sample_rate,
-                                                                         next_t0))
+                                                                               b[1]/conf.sample_rate,
+                                                                               next_t0))
+
         chirp_downconvert(conf,
                           next_t0,
                           d,
                           i0,                  
                           conf.channel,
                           chirp_rate,
-                          realtime_req=rep,
-                          dec=conf.decimation)
-        last_t0=try_t0
+                          realtime_req=realtime_req,
+                          dec=conf.decimation,
+                          cid=best_id)
+
     
 
 

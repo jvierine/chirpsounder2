@@ -13,9 +13,12 @@ import time
 
 def plot_ionogram(conf,f,normalize_by_frequency=True):
     ho=h5py.File(f,"r")
-    t0=ho["t0"].value    
-
-    img_fname="%s/%s/lfm_ionogram-%1.2f.png"%(conf.output_dir,cd.unix2dirname(t0),t0)
+    t0=ho["t0"].value
+    if not "id" in ho.keys():
+        return
+    cid=ho["id"].value  # ionosonde id
+    
+    img_fname="%s/%s/lfm_ionogram-%03d-%1.2f.png"%(conf.output_dir,cd.unix2dirname(t0),cid,t0)
     if os.path.exists(img_fname):
         #print("Ionogram plot %s already exists. Skipping"%(img_fname))
         ho.close()
@@ -25,6 +28,7 @@ def plot_ionogram(conf,f,normalize_by_frequency=True):
     S=ho["S"].value          # ionogram frequency-range
     freqs=ho["freqs"].value  # frequency bins
     ranges=ho["ranges"].value  # range gates
+
 
     if normalize_by_frequency:
         for i in range(S.shape[0]):
@@ -54,7 +58,7 @@ def plot_ionogram(conf,f,normalize_by_frequency=True):
     plt.ylabel("One-way range offset (km)")
     plt.ylim([dr-1000.0,dr+1000.0])
     plt.tight_layout()
-    plt.savefig("%s/%s/lfm_ionogram-%1.2f.png"%(conf.output_dir,cd.unix2dirname(t0),t0))
+    plt.savefig(img_fname)
     plt.close()
     plt.clf()
     ho.close()
