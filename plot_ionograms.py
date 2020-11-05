@@ -13,10 +13,10 @@ import time
 
 def plot_ionogram(conf,f,normalize_by_frequency=True):
     ho=h5py.File(f,"r")
-    t0=ho["t0"].value
+    t0=n.copy(ho[("t0")])
     if not "id" in ho.keys():
         return
-    cid=ho["id"].value  # ionosonde id
+    cid=n.copy(ho[("id")])  # ionosonde id
     
     img_fname="%s/%s/lfm_ionogram-%03d-%1.2f.png"%(conf.output_dir,cd.unix2dirname(t0),cid,t0)
     if os.path.exists(img_fname):
@@ -24,10 +24,10 @@ def plot_ionogram(conf,f,normalize_by_frequency=True):
         ho.close()
         return
     
-    print("Plotting %s rate %1.2f (kHz/s) t0 %1.5f (unix)"%(f,ho["rate"].value/1e3,ho["t0"].value))
-    S=ho["S"].value          # ionogram frequency-range
-    freqs=ho["freqs"].value  # frequency bins
-    ranges=ho["ranges"].value  # range gates
+    print("Plotting %s rate %1.2f (kHz/s) t0 %1.5f (unix)"%(f,n.copy(ho[("rate")])/1e3,n.copy(ho[("t0")])))
+    S=n.copy(ho[("S")])          # ionogram frequency-range
+    freqs=n.copy(ho[("freqs")])  # frequency bins
+    ranges=n.copy(ho[("ranges")])  # range gates
 
 
     if normalize_by_frequency:
@@ -53,7 +53,7 @@ def plot_ionogram(conf,f,normalize_by_frequency=True):
     plt.pcolormesh(freqs/1e6,range_gates,dB,vmin=-3,vmax=30.0,cmap="inferno")
     cb=plt.colorbar()
     cb.set_label("SNR (dB)")
-    plt.title("Chirp-rate %1.2f kHz/s t0=%1.5f (unix s)\n%s (UTC)"%(ho["rate"].value/1e3,ho["t0"].value,cd.unix2datestr(ho["t0"].value)))
+    plt.title("Chirp-rate %1.2f kHz/s t0=%1.5f (unix s)\n%s (UTC)"%(n.copy(ho[("rate")])/1e3,n.copy(ho[("t0")]),cd.unix2datestr(n.copy(ho[("t0")]))))
     plt.xlabel("Frequency (MHz)")
     plt.ylabel("One-way range offset (km)")
     plt.ylim([dr-1000.0,dr+1000.0])
