@@ -47,23 +47,18 @@ def scan_for_chirps(conf,dt=0.1):
     # detection files have names chirp*.h5
 
     if conf.realtime:
-        dir_list = glob.glob("%s/????-??-??"%(data_dir))
-        dir_list.sort()
-        dir_list=dir_list[(len(dir_list)-2):len(dir_list)]
-        if conf.debug_timings:
-            print("Using directories")
-            print(dir_list)
-        fl=[]
-
-        for dir_name in dir_list:
-            # last two days
-            fl0=glob.glob("%s/chirp*.h5"%(dir_name))
-            fl0.sort()
-            for f0 in fl0:
-                fl.append(f0)
+        this_day_dname="%s/%s"%(conf.output_dir,cd.unix2dirname(time.time()))
+        # today
+        fl=glob.glob("%s/chirp*.h5"%(this_day_dname))
         fl.sort()
+        # latest 100 detections
+        if len(fl)>500:
+            fl=fl[(len(fl)-500):len(fl)]
+        if len(fl) == 0:
+            print("no chirp detections yet")
+            return
     else:
-        # look for all
+        # look for all in batch mode
         fl=glob.glob("%s/2*/chirp*.h5"%(data_dir))
         fl.sort()
         
@@ -111,7 +106,9 @@ def scan_for_chirps(conf,dt=0.1):
             
             if not os.path.exists(fname):
                 ho=h5py.File(fname,"w")
-                print("Found chirp-rate %1.2f kHz/s t0=%1.4f num_det %d"%(c/1e3,t0,num_dets[ti]))
+                tnow=time.time()
+                t1=(t0+(conf.center_freq + conf.sample_rate/2.0)/c)
+                print("Found chirp-rate %1.2f kHz/s t0=%1.4f num_det %d started %1.2f s ago %1.2f s left"%(c/1e3,t0,num_dets[ti],tnow-t0,t1-tnow))
                 print("writing file %s"%(fname))
                 ho["chirp_rate"]=c
                 ho["t0"]=t0

@@ -26,11 +26,13 @@ class chirp_config:
                      "range_resolution":"2e3",
                      "frequency_resolution":"50e3",
                      "maximum_analysis_frequency":"25e6",
+                     "minimum_analysis_frequency":"0.0",                     
                      "max_range_extent":"2000e3",
                      "plot_timings":"false",
                      "realtime":"false",
                      "decimation":"1250",
                      "debug_timings":"false",
+                     "serendipitous":"false",
                      "sounder_timings":'[{"chirp-rate":500.0084e3,"rep":60.0,"chirpt":54.0016,"id":5}]',
                      "n_downconversion_threads":"4"}
 
@@ -43,6 +45,7 @@ class chirp_config:
         self.fname=fname
         self.plot_timings=json.loads(c["config"]["plot_timings"])
         self.debug_timings=json.loads(c["config"]["debug_timings"])
+        self.serendipitous=json.loads(c["config"]["serendipitous"])
         self.sounder_timings=json.loads(c["config"]["sounder_timings"])
         self.decimation=json.loads(c["config"]["decimation"])
         self.chirp_rep_times=json.loads(c["config"]["chirp_rep_times"])
@@ -59,6 +62,7 @@ class chirp_config:
         self.channel=json.loads(c["config"]["channel"])
         self.step=json.loads(c["config"]["step"])
         self.maximum_analysis_frequency=json.loads(c["config"]["maximum_analysis_frequency"])
+        self.minimum_analysis_frequency=json.loads(c["config"]["minimum_analysis_frequency"])        
         self.output_dir=json.loads(c["config"]["output_dir"])
 
         try:

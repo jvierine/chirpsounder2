@@ -34,6 +34,7 @@ class chirp_downconvert:
 
         # normalized cutoff freq
         self.n_threads=n_threads
+        # om0
         self.om0=2.0*n.pi/float(dec)
         self.dec2=filter_len*dec
         self.m=n.array(n.arange(filter_len*dec)-dec,dtype=n.float32)
@@ -72,7 +73,10 @@ class chirp_downconvert:
                       self.n_threads)
 
         self.chirpt+=float(n_out*self.dec)*self.dt
-
+    def advance_time(self,
+                     n_samples):
+        self.chirpt+=float(n_samples)*self.dt
+        
 
 def chirp(L,f0=-12.5e6,cr=100e3,sr=25e6):
     """

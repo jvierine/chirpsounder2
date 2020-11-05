@@ -100,13 +100,13 @@ def chirp_downconvert(conf,
     sleep_time=0.0
     sr=conf.sample_rate
     cf=conf.center_freq
-    dur=sr/rate
+    dur=conf.maximum_analysis_frequency/rate
     if realtime_req==None:
         realtime_req=dur
     idx=0
     step=1000
     n_windows=int(dur*sr/(step*dec))+1
-    
+
     cdc=cl.chirp_downconvert(f0=-cf,
                              rate=rate,
                              dec=dec,
@@ -120,7 +120,7 @@ def chirp_downconvert(conf,
     n_out=step
     
     for fi in range(n_windows):
-        
+        missing=False
         try:
             if conf.realtime:
                 b=d.get_bounds(ch)
@@ -134,9 +134,17 @@ def chirp_downconvert(conf,
                     
             z=d.read_vector_c81d(i0+idx,step*dec+cdc.filter_len*dec,ch)
         except:
-            z=n.zeros(step*dec+cdc.filter_len*dec,dtype=n.complex64)
-        
-        cdc.consume(z,z_out,n_out)
+#            z=n.zeros(step*dec+cdc.filter_len*dec,dtype=n.complex64)
+            missing=True
+            
+        # we can skip this heavy step if there is missing data
+        if not missing:
+            cdc.consume(z,z_out,n_out)
+        else:
+            # step chirp time forward
+            cdc.advance_time(dec*step)
+            z_out[:]=0.0
+            
         zd[(fi*step):(fi*step+step)]=z_out
         
         idx+=dec*step
@@ -198,7 +206,7 @@ def analyze_all(conf,d):
 
 def analyze_realtime(conf,d):
     """ 
-    Realtime analysis.
+    Realtime analysis using analytic timing
     We allocate one MPI process for each sounder to be on the safe side.
 
     TODO: load chirp timing information dynamically
@@ -255,6 +263,40 @@ def analyze_realtime(conf,d):
                           dec=conf.decimation,
                           cid=best_id)
 
+
+
+
+def analyze_parfiles(conf,d):
+    """ 
+    Realtime analysis using newly found parameter files.
+    """
+    ch=conf.channel
+    while True:    
+        b=d.get_bounds(ch)
+        t0=n.floor(n.float128(b[0])/n.float128(conf.sample_rate))
+        t1=n.floor(n.float128(b[1])/n.float128(conf.sample_rate))
+
+        # find the next sounder that can be measured
+        dname="%s/%s"%(conf.output_dir,cd.unix2dirname(time.time()))
+        fl=glob.glob("%s/par*.h5"%(dname))
+        fl.sort()
+        ftry=fl[-1]
+        print(ftry)
+        h=h5py.File(ftry,"r")
+        t0=n.copy(h[("t0")])
+        i0=n.int64(t0*conf.sample_rate)
+        chirp_rate=n.copy(h[("chirp_rate")])
+        h.close()
+
+        chirp_downconvert(conf,
+                          t0,
+                          d,
+                          i0,                  
+                          conf.channel,
+                          chirp_rate,
+                          dec=conf.decimation,
+                          cid=0)
+        
     
 
 
@@ -266,9 +308,12 @@ if __name__ == "__main__":
     
     d=drf.DigitalRFReader(conf.data_dir)
 
-    if conf.realtime:
+    # analyze serendpituous par files
+    if conf.serendipitous:
+        analyze_parfiles(conf,d)
+    elif conf.realtime: # analyze analytic timings
         analyze_realtime(conf,d)
-    else:
+    else: # batch analyze
         analyze_all(conf,d)
 
 

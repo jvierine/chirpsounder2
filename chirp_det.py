@@ -159,9 +159,8 @@ class chirp_matched_filter_bank:
                     
 
                 # tbd: make an hour directory
-                ofname = "%s/chirp-%1.2f-%d.h5"%(dname,
-                                                 detected_chirp_rate/1e3,
-                                                 i0)
+                ofname = "%s/chirp-%d.h5"%(dname,
+                                           i0)
                 ho=h5py.File(ofname,"w")
                 ho["f0"]=f0
                 ho["i0"]=i0

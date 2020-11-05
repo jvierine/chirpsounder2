@@ -57,6 +57,7 @@ def plot_ionogram(conf,f,normalize_by_frequency=True):
     plt.xlabel("Frequency (MHz)")
     plt.ylabel("One-way range offset (km)")
     plt.ylim([dr-1000.0,dr+1000.0])
+    plt.xlim([0,conf.maximum_analysis_frequency/1e6])
     plt.tight_layout()
     plt.savefig(img_fname)
     plt.close()
@@ -76,7 +77,7 @@ if __name__ == "__main__":
             fl.sort()
             for f in fl:
                 plot_ionogram(conf,f)
-            time.sleep(60)
+            time.sleep(10)
     else:
         fl=glob.glob("%s/*/lfm*.h5"%(conf.output_dir))
         for f in fl:
