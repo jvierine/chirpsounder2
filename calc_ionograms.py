@@ -173,7 +173,7 @@ def chirp_downconvert(conf,
         print("error writing file")
     cput1=time.time()
     cpu_time=cput1-cput0-sleep_time
-    print("Done processed %1.2f s in %1.2f s, speed %1.2f * realtime"%(realtime_req,cpu_time,realtime_req/cpu_time))
+    print("Done processed %1.2f s in %1.2f s, speed %1.2f * realtime"%(realtime_req,cpu_time,size*realtime_req/cpu_time))
     
 
 def analyze_all(conf,d):
@@ -182,8 +182,8 @@ def analyze_all(conf,d):
     # mpi scan through the whole dataset
     for ionogram_idx in range(rank,n_ionograms,size):
         h=h5py.File(fl[ionogram_idx],"r")
-        chirp_rate=n.copy(h["chirp_rate"].value)
-        t0=n.copy(h["t0"].value)
+        chirp_rate=n.copy(h[("chirp_rate")])
+        t0=n.copy(h[("t0")])
         i0=n.int64(t0*conf.sample_rate)
         print("calculating i0=%d chirp_rate=%1.2f kHz/s t0=%1.2f"%(i0,chirp_rate/1e3,t0))
         h.close()
