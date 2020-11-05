@@ -94,27 +94,26 @@ def scan_for_chirps(conf,dt=0.1):
 
         for ti,t0 in enumerate(t0s):
 
-            if not conf.realtime:
-                print("Found chirp-rate %1.2f kHz/s t0=%1.4f num_det %d"%(c/1e3,t0,num_dets[ti]))
-
             if conf.plot_timings:
                 plt.axhline(t0,color="red")
             
             dname="%s/%s"%(data_dir,cd.unix2dirname(n.floor(t0)))
+            if not os.path.exists(dname):
+                os.mkdir(dname)
+
             fname="%s/par-%1.4f.h5"%(dname,n.floor(t0))
             
             if not os.path.exists(fname):
-                if not os.path.exists(dname):
-                    os.mkdir(dname)
-                    ho=h5py.File(fname,"w")
-                    print("writing file %s"%(fname))
-                    ho["chirp_rate"]=c
-                    ho["t0"]=t0
-                    sweep_idx=n.where( (n.abs(chirp_times-t0)<dt) & (n.abs(chirp_rates-c)<0.1) )[0]
-                    ho["f0"]=f0[sweep_idx]
-                    ho["t0s"]=chirp_times[sweep_idx]
-                    ho["snrs"]=snrs[sweep_idx]            
-                    ho.close()
+                ho=h5py.File(fname,"w")
+                print("Found chirp-rate %1.2f kHz/s t0=%1.4f num_det %d"%(c/1e3,t0,num_dets[ti]))
+                print("writing file %s"%(fname))
+                ho["chirp_rate"]=c
+                ho["t0"]=t0
+                sweep_idx=n.where( (n.abs(chirp_times-t0)<dt) & (n.abs(chirp_rates-c)<0.1) )[0]
+                ho["f0"]=f0[sweep_idx]
+                ho["t0s"]=chirp_times[sweep_idx]
+                ho["snrs"]=snrs[sweep_idx]            
+                ho.close()
                     
         if conf.plot_timings:
             plt.plot(f0[idx]/1e6,chirp_times[idx],".")
