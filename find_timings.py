@@ -64,7 +64,7 @@ def scan_for_chirps(conf,dt=0.1):
         fl.sort()
     else:
         # look for all
-        fl=glob.glob("%s/2*/chirp*.h5"%(dir_name))
+        fl=glob.glob("%s/2*/chirp*.h5"%(data_dir))
         fl.sort()
         
     chirp_rates=[]
@@ -73,11 +73,11 @@ def scan_for_chirps(conf,dt=0.1):
     snrs=[]        
     for f in fl:
         h=h5py.File(f,"r")
-        chirp_times.append(h["chirp_time"].value)
-        chirp_rates.append(h["chirp_rate"].value)
-        f0.append(h["f0"].value)
+        chirp_times.append(n.copy(h[("chirp_time")]))
+        chirp_rates.append(n.copy(h[("chirp_rate")]))
+        f0.append(n.copy(h[("f0")]))
         if "snr" in h.keys():
-            snrs.append(h["snr"].value)
+            snrs.append(n.copy(h[("snr")]))
         else:
             snrs.append(-1.0)
         h.close()
@@ -86,7 +86,9 @@ def scan_for_chirps(conf,dt=0.1):
     chirp_rates=n.array(chirp_rates)
     f0=n.array(f0)
     snrs=n.array(snrs)        
-    
+
+
+    n_ionograms=0
     crs=n.unique(chirp_rates)
     for c in crs:
         idx=n.where(chirp_rates == c)[0]
@@ -96,6 +98,7 @@ def scan_for_chirps(conf,dt=0.1):
 
             if not conf.realtime:
                 print("Found chirp-rate %1.2f kHz/s t0=%1.4f num_det %d"%(c/1e3,t0,num_dets[ti]))
+                n_ionograms+=1
 
             if conf.plot_timings:
                 plt.axhline(t0,color="red")
@@ -125,6 +128,8 @@ def scan_for_chirps(conf,dt=0.1):
             plt.xlim([0,conf.maximum_analysis_frequency/1e6])
             plt.title("Chirp-rate %1.2f kHz/s"%(c/1e3))
             plt.show()
+    if not conf.realtime:
+        print("Found %d ionograms in total"%(n_ionograms))
 
 if __name__ == "__main__":
     if len(sys.argv) == 2:
