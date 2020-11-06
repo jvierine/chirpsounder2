@@ -264,42 +264,66 @@ def analyze_realtime(conf,d):
                           cid=best_id)
 
 
-
-
-def analyze_parfiles(conf,d):
+def get_next_chirp_par_file(conf):
     """ 
-    Realtime analysis using newly found parameter files.
+    wait until we encounter a parameter file with remaining time 
     """
-    ch=conf.channel
-    while True:    
-        b=d.get_bounds(ch)
-        t0=n.floor(n.float128(b[0])/n.float128(conf.sample_rate))
-        t1=n.floor(n.float128(b[1])/n.float128(conf.sample_rate))
-
-        # find the next sounder that can be measured
+    # find the next sounder that can be measured
+    while True:
         dname="%s/%s"%(conf.output_dir,cd.unix2dirname(time.time()))
         fl=glob.glob("%s/par*.h5"%(dname))
         fl.sort()
         if len(fl)> 0:
             ftry=fl[-1]
-            print(ftry)
             h=h5py.File(ftry,"r")
             t0=n.copy(h[("t0")])
             i0=n.int64(t0*conf.sample_rate)
             chirp_rate=n.copy(h[("chirp_rate")])
             h.close()
-            
-            chirp_downconvert(conf,
-                              t0,
-                              d,
-                              i0,                  
-                              conf.channel,
-                              chirp_rate,
-                              dec=conf.decimation,
-                              cid=0)
-        
-    
+            t1=conf.maximum_analysis_frequency/chirp_rate + t0
+            tnow=time.time()
+            # print("rank %d time left %f"%(rank,t1-tnow))
+            # if chirp is ongoing and not being analyzed, then start analyzing it
+            if t1-tnow > 0:
+                if not os.path.exists("%s.done"%(ftry)):
+                    ho=h5py.File("%s.done"%(ftry),"w")
+                    ho["t_an"]=time.time()
+                    ho.close()
+                    print("Rank %d analyzing %s time left in sweep %1.2f s"%(rank,ftry,t1-tnow))
+                    return(ftry)
+        time.sleep(1)
 
+        
+def analyze_parfiles(conf,d):
+    """ 
+    Realtime analysis using newly found parameter files.
+    """
+    ch=conf.channel
+    while True:
+        b=d.get_bounds(ch)
+        t0=n.floor(n.float128(b[0])/n.float128(conf.sample_rate))
+        t1=n.floor(n.float128(b[1])/n.float128(conf.sample_rate))
+
+        time.sleep(rank)
+        ftry=get_next_chirp_par_file(conf)
+        
+        h=h5py.File(ftry,"r")
+        t0=n.copy(h[("t0")])
+        i0=n.int64(t0*conf.sample_rate)
+        chirp_rate=n.copy(h[("chirp_rate")])
+        h.close()
+        
+        chirp_downconvert(conf,
+                          t0,
+                          d,
+                          i0,                  
+                          conf.channel,
+                          chirp_rate,
+                          dec=conf.decimation,
+                          cid=0)
+        
+        time.sleep(0.1)
+        
 
 if __name__ == "__main__":
     if len(sys.argv) == 2:
@@ -309,7 +333,7 @@ if __name__ == "__main__":
     
     d=drf.DigitalRFReader(conf.data_dir)
 
-    # analyze serendpituous par files
+    # analyze serendpituous par files immediately after a chirp is detected
     if conf.serendipitous:
         analyze_parfiles(conf,d)
     elif conf.realtime: # analyze analytic timings

@@ -107,7 +107,7 @@ def scan_for_chirps(conf,dt=0.1):
             if not os.path.exists(fname):
                 ho=h5py.File(fname,"w")
                 tnow=time.time()
-                t1=(t0+(conf.center_freq + conf.sample_rate/2.0)/c)
+                t1=(t0+conf.maximum_analysis_frequency/c)
                 print("Found chirp-rate %1.2f kHz/s t0=%1.4f num_det %d started %1.2f s ago %1.2f s left"%(c/1e3,t0,num_dets[ti],tnow-t0,t1-tnow))
                 print("writing file %s"%(fname))
                 ho["chirp_rate"]=c
