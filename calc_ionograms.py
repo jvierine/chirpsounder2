@@ -280,22 +280,23 @@ def analyze_parfiles(conf,d):
         dname="%s/%s"%(conf.output_dir,cd.unix2dirname(time.time()))
         fl=glob.glob("%s/par*.h5"%(dname))
         fl.sort()
-        ftry=fl[-1]
-        print(ftry)
-        h=h5py.File(ftry,"r")
-        t0=n.copy(h[("t0")])
-        i0=n.int64(t0*conf.sample_rate)
-        chirp_rate=n.copy(h[("chirp_rate")])
-        h.close()
-
-        chirp_downconvert(conf,
-                          t0,
-                          d,
-                          i0,                  
-                          conf.channel,
-                          chirp_rate,
-                          dec=conf.decimation,
-                          cid=0)
+        if len(fl)> 0:
+            ftry=fl[-1]
+            print(ftry)
+            h=h5py.File(ftry,"r")
+            t0=n.copy(h[("t0")])
+            i0=n.int64(t0*conf.sample_rate)
+            chirp_rate=n.copy(h[("chirp_rate")])
+            h.close()
+            
+            chirp_downconvert(conf,
+                              t0,
+                              d,
+                              i0,                  
+                              conf.channel,
+                              chirp_rate,
+                              dec=conf.decimation,
+                              cid=0)
         
     
 
