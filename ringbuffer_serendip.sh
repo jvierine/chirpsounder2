@@ -9,7 +9,7 @@ NTP_SERVER=ntp.uit.no
 # if you have a fast SSD or raid, you can also use that
 RINGBUFFER_DIR=/dev/shm/hf25
 SAMPLE_RATE=10e6
-CENTER_FREQ=10e6
+CENTER_FREQ=5e6
 # make this about 200 MB less than half your RAM size
 # with an SSD this can be more
 # more is better, as we can analyze more
