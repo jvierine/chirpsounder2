@@ -38,7 +38,10 @@ def scan_for_chirps(conf,cfb,block0=None):
                 snrs,chirp_rates,f0s=cfb.seek(z,i0)
                 cput1=time.time()
                 analysis_time=(conf.n_samples_per_block*conf.step)/conf.sample_rate
-                print("%d/%d Analyzing %s speed %1.2f * realtime"%( rank, size, c.unix2datestr(i0/conf.sample_rate), size*analysis_time/(cput1-cput0) ))
+                print("%d/%d Analyzing %s speed %1.2f * realtime"%( rank,
+                                                                    size,
+                                                                    c.unix2datestr(i0/conf.sample_rate),
+                                                                    size*analysis_time/(cput1-cput0) ))
             except:
                 print("error")
                 traceback.print_exc()
