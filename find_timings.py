@@ -87,7 +87,7 @@ def scan_for_chirps(conf,dt=0.1):
     crs=n.unique(chirp_rates)
     for c in crs:
         idx=n.where(chirp_rates == c)[0]
-        t0s,num_dets=cluster_times(chirp_times[idx],dt)
+        t0s,num_dets=cluster_times(chirp_times[idx],dt,min_det=conf.min_detections)
 
         for ti,t0 in enumerate(t0s):
 

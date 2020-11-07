@@ -17,6 +17,7 @@ class chirp_config:
                      "data_dir":'"/mnt/data/juha/hf25"',
                      "threshold_snr":"13.0",
                      "max_simultaneous_detections":"5",
+                     "min_detections":"3",                     
                      "step":"1",
                      "n_samples_per_block":"5000000",
                      "minimum_frequency_spacing":"0.2e6",
@@ -46,6 +47,7 @@ class chirp_config:
         self.plot_timings=json.loads(c["config"]["plot_timings"])
         self.debug_timings=json.loads(c["config"]["debug_timings"])
         self.serendipitous=json.loads(c["config"]["serendipitous"])
+        self.min_detections=int(json.loads(c["config"]["min_detections"]))
         self.sounder_timings=json.loads(c["config"]["sounder_timings"])
         self.decimation=json.loads(c["config"]["decimation"])
         self.chirp_rep_times=json.loads(c["config"]["chirp_rep_times"])
