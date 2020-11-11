@@ -25,7 +25,8 @@ if __name__ == "__main__":
     wf=n.array(ss.hann(n_fft),dtype=n.float32)
     S=n.zeros([n_fft,n_spec],dtype=n.float32)
     i0=b[0]+conf.sample_rate
-
+    rms_voltage=0.0
+    n_rms_voltage=0.0
     tvec=n.zeros(n_spec)
     fvec=n.fft.fftshift(n.fft.fftfreq(n_fft,d=1.0/conf.sample_rate))/1e6 + conf.center_freq/1e6
     for i in range(n_spec):
@@ -33,6 +34,8 @@ if __name__ == "__main__":
         for j in range(n_avg):
             try:
                 z=d.read_vector_c81d(i0+i*dt+j*n_fft,n_fft,conf.channel)
+                rms_voltage+=n.mean(n.abs(z)**2.0)
+                n_rms_voltage+=1.0
                 S[:,i]+=n.fft.fftshift(n.abs(cd.fft(wf*z))**2.0)
             except:
                 print("missing data")
@@ -41,8 +44,10 @@ if __name__ == "__main__":
 
     dB=10.0*n.log10(S)
     dB=dB-n.nanmedian(dB)
+    rms_voltage=n.sqrt(rms_voltage/n_rms_voltage)
     plt.pcolormesh(tvec,fvec,dB,vmin=-10,vmax=50.0,cmap="plasma")
     plt.colorbar()
+    plt.title("$V_{\mathrm{RMS}}=%1.6f$ (ADC units)"%(rms_voltage))
     plt.xlabel("Time (s)")
     plt.ylabel("Frequency (MHz)")
     plt.ylim([(-conf.sample_rate/2.0/1e6+conf.center_freq/1e6),(conf.sample_rate/2.0/1e6+conf.center_freq/1e6)])
