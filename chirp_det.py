@@ -50,7 +50,7 @@ def debug1(msg):
         print(msg)
 
 def unix2date(x):
-    return datetime.datetime.utcfromtimestamp(x)
+    return datetime.datetime.utcfromtimestamp(int(x))
 
 def unix2datestr(x):
     return(unix2date(x).strftime('%Y-%m-%d %H:%M:%S'))
