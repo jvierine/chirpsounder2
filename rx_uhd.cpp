@@ -35,7 +35,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     // clang-format off
     desc.add_options()
         ("help", "help message")
-        ("args", po::value<std::string>(&args)->default_value(""), "single uhd device address args")
+        ("args", po::value<std::string>(&args)->default_value("recv_buff_size=500000000"), "single uhd device address args")
         ("wire", po::value<std::string>(&wire)->default_value(""), "the over the wire type, sc16, sc8, etc")
         ("subdev", po::value<std::string>(&subdev)->default_value("A:A"), "subdevice")
         ("secs", po::value<double>(&seconds_in_future)->default_value(1.5), "number of seconds in the future to receive")
@@ -152,7 +152,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     printf("%lld\n",global_start_index);
 
     printf("Writing complex short to multiple files and subdirectores in /dev/shm/hf25/cha\n");
-    result = system("rm -rf /dev/shm/hf25/cha ; mkdir -p /dev/shm/hf25/cha");
+    result = system("mkdir -p /dev/shm/hf25/cha");
 
     /* init */
     data_object = digital_rf_create_write_hdf5("/dev/shm/hf25/cha",
@@ -204,31 +204,68 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     size_t num_acc_samps = 0; // number of accumulated samples
     uint64_t packet_i=0;
+    uint64_t prev_tl=0;
+    uint64_t samp_diff=363;
     while (1)
     {
       // receive a single packet
       size_t num_rx_samps = rx_stream->recv(buffs, buff.size(), md, timeout, true);
 
-      // pointer to short array
-      short *a = (short *)buff.data();
-      
-      if(num_rx_samps == 363)
+      if(num_rx_samps  == 363){
+	uint64_t tl=(uint64_t)md.time_spec.get_full_secs()*sample_rate_numerator;
+	tl=tl + (uint64_t)(md.time_spec.get_frac_secs()*((double)sample_rate_numerator));
+
+	//      printf("tl %ld prev %ld\n",tl,prev_tl);
+	if(prev_tl!=0)
+	{
+	  samp_diff = tl-prev_tl;
+	}
+	
+	// pointer to short array
+	short *a = (short *)buff.data();
+	
+	if(samp_diff == 363)
+	{
+	  //	printf("%d\n",data_short[0]);
+	  result = digital_rf_write_hdf5(data_object, vector_leading_edge_index + packet_i*363, a, vector_length);
+	  packet_i+=1;
+	}
+	else
+	{
+	  printf("samp_diff %ld num_rx_samps %d dropped packet. padding %ld extra values\n",samp_diff,num_rx_samps,samp_diff-363);
+	  int n_packets = samp_diff/363;
+	  if(n_packets  > 0 && n_packets < 100)
+	  {
+	    for(int pi = 0 ; pi < n_packets; pi++){
+	      result = digital_rf_write_hdf5(data_object, vector_leading_edge_index + packet_i*363, a, vector_length);
+	      packet_i+=1;
+	    }
+	  }
+	  
+	}
+	prev_tl=tl;
+      }
+      else
       {
-	//	printf("%d\n",data_short[0]);
-	result = digital_rf_write_hdf5(data_object, vector_leading_edge_index + packet_i*363, a, vector_length);
-	packet_i+=1;
+	printf("got no data in recv\n");
+	if (md.error_code != uhd::rx_metadata_t::ERROR_CODE_NONE) {
+	  throw std::runtime_error(str(boost::format("Receiver error %s") % md.strerror()));
+	}
+
       }
       // use a small timeout for subsequent packets
       timeout = 0.1;
-      
+
       // handle the error code
+      /*
       if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT)
 	break;
       if (md.error_code != uhd::rx_metadata_t::ERROR_CODE_NONE) {
 	throw std::runtime_error(str(boost::format("Receiver error %s") % md.strerror()));
       }
+      */
       // check md.time_stamp
-      // if we are at the boundary of a cycle, change frequency
+
     }
     
  

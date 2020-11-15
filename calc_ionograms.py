@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 import time
 import os
 import sys
+import traceback
 
 # c library
 import chirp_lib as cl
@@ -163,11 +164,15 @@ def chirp_downconvert(conf,
 
     ridx=n.where(n.abs(range_gates) < conf.max_range_extent)[0]
 
+    
     try:
+        print(t0)
         dname="%s/%s"%(conf.output_dir,cd.unix2dirname(t0))
         if not os.path.exists(dname):
             os.mkdir(dname)
-        ho=h5py.File("%s/lfm_ionogram-%03d-%1.2f.h5"%(dname,cid,t0),"w")
+        ofname="%s/lfm_ionogram-%03d-%1.2f.h5"%(dname,cid,t0)
+        print(ofname)
+        ho=h5py.File(ofname,"w")
         ho["S"]=S[:,ridx]          # ionogram frequency-range
         ho["freqs"]=freqs  # frequency bins
         ho["rate"]=rate    # chirp-rate
@@ -178,7 +183,9 @@ def chirp_downconvert(conf,
         ho["ch"]=ch            # channel name
         ho.close()
     except:
+        traceback.print_exc(file=sys.stdout)
         print("error writing file")
+
     cput1=time.time()
     cpu_time=cput1-cput0-sleep_time
     print("Done processed %1.2f s in %1.2f s, speed %1.2f * realtime"%(realtime_req,cpu_time,size*realtime_req/cpu_time))
@@ -276,9 +283,9 @@ def get_next_chirp_par_file(conf):
         if len(fl)> 0:
             ftry=fl[-1]
             h=h5py.File(ftry,"r")
-            t0=n.copy(h[("t0")])
+            t0=float(n.copy(h[("t0")]))
             i0=n.int64(t0*conf.sample_rate)
-            chirp_rate=n.copy(h[("chirp_rate")])
+            chirp_rate=float(n.copy(h[("chirp_rate")]))
             h.close()
             t1=conf.maximum_analysis_frequency/chirp_rate + t0
             tnow=time.time()
@@ -299,18 +306,20 @@ def analyze_parfiles(conf,d):
     Realtime analysis using newly found parameter files.
     """
     ch=conf.channel
+    # avoid having two processes snag the same sounder at the start
+    time.sleep(rank)
     while True:
         b=d.get_bounds(ch)
         t0=n.floor(n.float128(b[0])/n.float128(conf.sample_rate))
         t1=n.floor(n.float128(b[1])/n.float128(conf.sample_rate))
 
-        time.sleep(rank)
+
         ftry=get_next_chirp_par_file(conf)
         
         h=h5py.File(ftry,"r")
-        t0=n.copy(h[("t0")])
+        t0=float(n.copy(h[("t0")]))
         i0=n.int64(t0*conf.sample_rate)
-        chirp_rate=n.copy(h[("chirp_rate")])
+        chirp_rate=float(n.copy(h[("chirp_rate")]))
         h.close()
         
         chirp_downconvert(conf,
