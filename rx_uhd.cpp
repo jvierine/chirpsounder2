@@ -199,12 +199,14 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     uint64_t packet_i=0;
     uint64_t prev_tl=0;
     uint64_t samp_diff=363;
+    int n_empty=0;
     while (1)
     {
       // receive a single packet
       size_t num_rx_samps = rx_stream->recv(buffs, buff.size(), md, timeout, true);
 
       if(num_rx_samps  == 363){
+	n_empty=0;
 	uint64_t tl=(uint64_t)md.time_spec.get_full_secs()*sample_rate_numerator;
 	tl=tl + (uint64_t)(md.time_spec.get_frac_secs()*((double)sample_rate_numerator));
 
@@ -225,14 +227,12 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 	}
 	else
 	{
-	  printf("samp_diff %ld num_rx_samps %d dropped packet. padding %ld extra values\n",samp_diff,num_rx_samps,samp_diff-363);
 	  int n_packets = samp_diff/363;
-	  if(n_packets  > 0 && n_packets < 100)
+	  printf("samp_diff %ld number of packets %d\n",samp_diff,n_packets);
+	  for(int pi = 0 ; pi < n_packets; pi++)
 	  {
-	    for(int pi = 0 ; pi < n_packets; pi++){
-	      result = digital_rf_write_hdf5(data_object, vector_leading_edge_index + packet_i*363, a, vector_length);
-	      packet_i+=1;
-	    }
+	    result = digital_rf_write_hdf5(data_object, vector_leading_edge_index + packet_i*363, a, vector_length);
+	    packet_i+=1;
 	  }
 	  
 	}
@@ -240,10 +240,16 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
       }
       else
       {
-	printf("got no data in recv\n");
-	if (md.error_code != uhd::rx_metadata_t::ERROR_CODE_NONE) {
+	printf("got no data in recv %d\n",n_empty);
+	n_empty+=1;
+	if(n_empty > 10)
+	{
+	  exit(0);
+	}
+	/*	if (md.error_code != uhd::rx_metadata_t::ERROR_CODE_NONE) {
 	  throw std::runtime_error(str(boost::format("Receiver error %s") % md.strerror()));
 	}
+	*/
 
       }
       // use a small timeout for subsequent packets
