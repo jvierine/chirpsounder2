@@ -142,9 +142,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
 
     // setup streaming
-    double tstart=time_last_pps.get_real_secs()+5.0;
+    double tstart=time_last_pps.get_real_secs()+1.0;
     uhd::time_spec_t ts_t0=uhd::time_spec_t(tstart);
-    printf("Streaming start at %f\n",time_last_pps.get_real_secs()+5.0);
+    printf("Streaming start at %f\n",time_last_pps.get_real_secs()+1.0);
 
 
     /* start recording at global_start_sample */
@@ -174,15 +174,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
       exit(-1);
     }
 
-    /* write continuous data */
-    //    for (i=0; i<7; i++) /* writing 700 samples, so should create two subdirectories (each holds 400 samples) */
-    //{
-    //	result = digital_rf_write_hdf5(data_object, vector_leading_edge_index + i*100, data_short, vector_length);
-    //	if (result)
-    //	  exit(-1);
-    //}
-    
-    
     uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS);
     // stream_cmd.num_samps  = total_num_samps;
     stream_cmd.stream_now = false;
@@ -200,7 +191,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         buffs.push_back(&buff.front()); // same buffer for each channel
 
     // the first call to recv() will block this many seconds before receiving
-    double timeout = 7.0 + 0.1; // timeout (delay before receive + padding)
+    double timeout = 1.0 + 0.1; // timeout (delay before receive + padding)
 
     size_t num_acc_samps = 0; // number of accumulated samples
     uint64_t packet_i=0;
