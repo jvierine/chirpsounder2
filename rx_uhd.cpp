@@ -17,6 +17,8 @@
 #include <unistd.h>
 #include <digital_rf/digital_rf.h>
 
+#define NO_WRITE_DRF 1
+
 namespace po = boost::program_options;
 
 int UHD_SAFE_MAIN(int argc, char* argv[])
