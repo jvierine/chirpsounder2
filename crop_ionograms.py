@@ -8,7 +8,9 @@ import sys
 import scipy.constants as c
 import os
 
-def create_cropped_ionograms(conf):
+def create_cropped_ionograms(conf,
+                             range_offset=300.0):
+
     """
     the purpose of this hacked together script is to convert ionograms into format
     suitable for scaling
@@ -37,7 +39,7 @@ def create_cropped_ionograms(conf):
         dr=dt*c.c/1e3
         range_gates=dr+2*ranges/1e3
         print(dr)
-        ri0=n.argmin(n.abs(range_gates-300.0))
+        ri0=n.argmin(n.abs(range_gates-range_offset))
         S=n.transpose(n.copy(h["S"].value))
         for fi in range(S.shape[1]):
             noise_floor=n.nanmedian(S[:,fi])
@@ -55,10 +57,10 @@ def create_cropped_ionograms(conf):
             
         img=dB[(ri0):(ri0+200),:]
         
-        img_rgs=ranges[(ri0):(ri0+200)][::-1]
+        img_rgs=ranges[(ri0):(ri0+200)][::-1]/1e3+range_offset
         ho=h5py.File("dl_dataset/lut.h5","w")
         ho["img_rgs"]=img_rgs
-        ho["img_freqs"]=freqs
+        ho["img_freqs"]=freqs/1e6
         ho.close()
         img=img[::-1,:]
         img=n.array(255.0*img/max_dB,dtype=n.uint8)
