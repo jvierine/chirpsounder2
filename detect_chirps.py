@@ -26,6 +26,7 @@ def scan_for_chirps(conf,cfb,block0=None):
 
     # mpi scan through dataset
     for block_idx in range(block0,block1):
+        print('block_idx: %i' % block_idx)
         if block_idx%size == rank:
             # this is my block!
             try:

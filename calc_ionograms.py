@@ -2,7 +2,7 @@
 #
 # Scan through a digital rf recording
 #
-import numpy as n
+import numpy as np
 import digital_rf as drf
 from mpi4py import MPI
 import glob
@@ -18,6 +18,7 @@ import time
 import os
 import sys
 import traceback
+import pdb
 
 # c library
 import chirp_lib as cl
@@ -61,30 +62,30 @@ def chirp(L,f0=-25e3,cr=160e3,sr=50e3,use_numpy=False):
     """
     Generate a chirp.
     """
-    tv=n.arange(L,dtype=n.float64)/sr
-    dphase=0.5*tv**2*cr*2*n.pi
+    tv=np.arange(L,dtype=np.float64)/sr
+    dphase=0.5*tv**2*cr*2*np.pi
 
     if use_numpy:
-        chirp=n.exp(1j*n.mod(dphase,2*n.pi))*n.exp(1j*2*n.pi*f0*tv)
+        chirp=np.exp(1j*np.mod(dphase,2*np.pi))*np.exp(1j*2*np.pi*f0*tv)
     else:
         # table lookup based faster version
-        chirp=fe.expf(dphase)*fe.expf((2*n.pi*f0)*tv)
-        #   chirp=fe.expf(dphase+(2*n.pi*f0)*tv)#*fe.expf()
+        chirp=fe.expf(dphase)*fe.expf((2*np.pi*f0)*tv)
+        #   chirp=fe.expf(dphase+(2*np.pi*f0)*tv)#*fe.expf()
     return(chirp)
 
 def spectrogram(x,window=1024,step=512,wf=ss.hann(1024)):
     n_spec=int((len(x)-window)/step)
-    S=n.zeros([n_spec,window])
+    S=np.zeros([n_spec,window])
     for i in range(n_spec):
-        S[i,] = n.abs(n.fft.fftshift(n.fft.fft(wf*x[(i*step):(i*step+window)])))**2.0
+        S[i,] = np.abs(np.fft.fftshift(np.fft.fft(wf*x[(i*step):(i*step+window)])))**2.0
     return(S)
 
 def decimate(x,dec):
-    Nout = int(n.floor(len(x)/dec))
-    idx = n.arange(Nout,dtype=n.int)*int(dec)
-    res = n.zeros(len(idx),dtype=x.dtype)
+    Nout = int(np.floor(len(x)/dec))
+    idx = np.arange(Nout,dtype=np.int)*int(dec)
+    res = np.zeros(len(idx),dtype=x.dtype)
 
-    for i in n.arange(dec):
+    for i in np.arange(dec):
         res += x[idx+i]
     return(res/float(dec))
 
@@ -115,9 +116,9 @@ def chirp_downconvert(conf,
                              n_threads=conf.n_downconversion_threads)
     
     zd_len=n_windows*step
-    zd=n.zeros(zd_len,dtype=n.complex64)
+    zd=np.zeros(zd_len,dtype=np.complex64)
     
-    z_out=n.zeros(step,dtype=n.complex64)
+    z_out=np.zeros(step,dtype=np.complex64)
     n_out=step
     
     for fi in range(n_windows):
@@ -135,7 +136,7 @@ def chirp_downconvert(conf,
                     
             z=d.read_vector_c81d(i0+idx,step*dec+cdc.filter_len*dec,ch)
         except:
-#            z=n.zeros(step*dec+cdc.filter_len*dec,dtype=n.complex64)
+#            z=np.zeros(step*dec+cdc.filter_len*dec,dtype=np.complex64)
             missing=True
             
         # we can skip this heavy step if there is missing data
@@ -157,12 +158,12 @@ def chirp_downconvert(conf,
     fftlen = int(sr_dec*ds/dr/2.0)*2
     fft_step=int((df/rate)*sr_dec)
 
-    S=spectrogram(n.conj(zd),window=fftlen,step=fft_step,wf=ss.hann(fftlen))
+    S=spectrogram(np.conj(zd),window=fftlen,step=fft_step,wf=ss.hann(fftlen))
 
-    freqs=rate*n.arange(S.shape[0])*fft_step/sr_dec
-    range_gates=ds*n.fft.fftshift(n.fft.fftfreq(fftlen,d=1.0/sr_dec))
+    freqs=rate*np.arange(S.shape[0])*fft_step/sr_dec
+    range_gates=ds*np.fft.fftshift(np.fft.fftfreq(fftlen,d=1.0/sr_dec))
 
-    ridx=n.where(n.abs(range_gates) < conf.max_range_extent)[0]
+    ridx=np.where(np.abs(range_gates) < conf.max_range_extent)[0]
 
     
     try:
@@ -197,9 +198,9 @@ def analyze_all(conf,d):
     # mpi scan through the whole dataset
     for ionogram_idx in range(rank,n_ionograms,size):
         h=h5py.File(fl[ionogram_idx],"r")
-        chirp_rate=n.copy(h[("chirp_rate")])
-        t0=n.copy(h[("t0")])
-        i0=n.int64(t0*conf.sample_rate)
+        chirp_rate=np.copy(h[("chirp_rate")])
+        t0=np.floor(np.copy(h[("t0")]))
+        i0=np.int64(t0*conf.sample_rate)
         print("calculating i0=%d chirp_rate=%1.2f kHz/s t0=%1.2f"%(i0,chirp_rate/1e3,t0))
         h.close()
 
@@ -225,8 +226,8 @@ def analyze_realtime(conf,d):
     ch=conf.channel
     while True:    
         b=d.get_bounds(ch)
-        t0=n.floor(n.float128(b[0])/n.float128(conf.sample_rate))
-        t1=n.floor(n.float128(b[1])/n.float128(conf.sample_rate))
+        t0=np.floor(np.float128(b[0]) / np.float128(conf.sample_rate))
+        t1=np.floor(np.float128(b[1]) / np.float128(conf.sample_rate))
 
         # find the next sounder that can be measured with shortest wait time
         best_sounder=0
@@ -234,12 +235,12 @@ def analyze_realtime(conf,d):
         best_t0=0
         best_id=0
         for s_idx in range(n_sounders):
-            rep=n.float128(st[s_idx]["rep"])
-            chirpt=n.float128(st[s_idx]["chirpt"])
+            rep=np.float128(st[s_idx]["rep"])
+            chirpt=np.float128(st[s_idx]["chirpt"])
             chirp_rate=st[s_idx]["chirp-rate"]
             cid=st[s_idx]["id"]
             
-            try_t0=rep*n.floor(t0/rep)+chirpt
+            try_t0=rep*np.floor(t0/rep)+chirpt
             while try_t0 < t0:
                 try_t0+=rep
             wait_time = try_t0-t0
@@ -249,8 +250,8 @@ def analyze_realtime(conf,d):
                 best_t0=try_t0
                 best_wait_time=wait_time
                 best_id=cid
-        rep=n.float128(st[best_sounder]["rep"])
-        chirpt=n.float128(st[best_sounder]["chirpt"])
+        rep=np.float128(st[best_sounder]["rep"])
+        chirpt=np.float128(st[best_sounder]["chirpt"])
         chirp_rate=st[best_sounder]["chirp-rate"]
         next_t0=float(best_t0)
         print("Rank %d chirp id %d analyzing chirp-rate %1.2f kHz/s chirpt %1.4f rep %1.2f"%(rank,best_id,chirp_rate/1e3,chirpt,rep))
@@ -283,9 +284,9 @@ def get_next_chirp_par_file(conf):
         if len(fl)> 0:
             ftry=fl[-1]
             h=h5py.File(ftry,"r")
-            t0=float(n.copy(h[("t0")]))
-            i0=n.int64(t0*conf.sample_rate)
-            chirp_rate=float(n.copy(h[("chirp_rate")]))
+            t0=float(np.copy(h[("t0")]))
+            i0=np.int64(t0*conf.sample_rate)
+            chirp_rate=float(np.copy(h[("chirp_rate")]))
             h.close()
             t1=conf.maximum_analysis_frequency/chirp_rate + t0
             tnow=time.time()
@@ -310,16 +311,16 @@ def analyze_parfiles(conf,d):
     time.sleep(rank)
     while True:
         b=d.get_bounds(ch)
-        t0=n.floor(n.float128(b[0])/n.float128(conf.sample_rate))
-        t1=n.floor(n.float128(b[1])/n.float128(conf.sample_rate))
+        t0=np.floor(np.float128(b[0])/np.float128(conf.sample_rate))
+        t1=np.floor(np.float128(b[1])/n.float128(conf.sample_rate))
 
 
         ftry=get_next_chirp_par_file(conf)
         
         h=h5py.File(ftry,"r")
-        t0=float(n.copy(h[("t0")]))
-        i0=n.int64(t0*conf.sample_rate)
-        chirp_rate=float(n.copy(h[("chirp_rate")]))
+        t0=float(np.copy(h[("t0")]))
+        i0=np.int64(t0*conf.sample_rate)
+        chirp_rate=float(np.copy(h[("chirp_rate")]))
         h.close()
         
         chirp_downconvert(conf,

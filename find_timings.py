@@ -134,6 +134,7 @@ if __name__ == "__main__":
     if len(sys.argv) == 2:
         conf=cc.chirp_config(sys.argv[1])
     else:
+        print('No config provided - Using defaults')
         conf=cc.chirp_config()
 
     if conf.realtime:
