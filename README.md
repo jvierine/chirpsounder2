@@ -11,7 +11,7 @@ The software consists of several parts:
  - plot_ionograms.py # plot calculated ionograms
 
 ## Installation
-
+See dependencies.txt for instructions on how to build the dependencies (tested on Ubuntu 18 & 20)
 You need to compile the chirp downconversion library, which is written in C.
 ```
 make 
