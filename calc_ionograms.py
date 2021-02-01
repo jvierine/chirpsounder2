@@ -167,12 +167,11 @@ def chirp_downconvert(conf,
 
     
     try:
-        print(t0)
         dname="%s/%s"%(conf.output_dir,cd.unix2dirname(t0))
         if not os.path.exists(dname):
             os.mkdir(dname)
         ofname="%s/lfm_ionogram-%03d-%1.2f.h5"%(dname,cid,t0)
-        print(ofname)
+        print("Writing to %s" % ofname)
         ho=h5py.File(ofname,"w")
         ho["S"]=S[:,ridx]          # ionogram frequency-range
         ho["freqs"]=freqs  # frequency bins
@@ -199,9 +198,9 @@ def analyze_all(conf,d):
     for ionogram_idx in range(rank,n_ionograms,size):
         h=h5py.File(fl[ionogram_idx],"r")
         chirp_rate=np.copy(h[("chirp_rate")])
-        t0=np.floor(np.copy(h[("t0")]))
+        t0=np.copy(h[("t0")]) 
         i0=np.int64(t0*conf.sample_rate)
-        print("calculating i0=%d chirp_rate=%1.2f kHz/s t0=%1.2f"%(i0,chirp_rate/1e3,t0))
+        print("calculating i0=%d chirp_rate=%1.2f kHz/s t0=%1.6f"%(i0,chirp_rate/1e3,t0))
         h.close()
 
         chirp_downconvert(conf,

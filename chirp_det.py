@@ -50,7 +50,7 @@ def debug1(msg):
         print(msg)
 
 def unix2date(x):
-    return datetime.datetime.utcfromtimestamp(n.floor(x))
+    return datetime.datetime.utcfromtimestamp(n.float(x))  # ATC bug-fix for python3
 
 def unix2datestr(x):
     return(unix2date(x).strftime('%Y-%m-%d %H:%M:%S'))
