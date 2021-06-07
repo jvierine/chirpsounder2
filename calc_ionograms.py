@@ -180,6 +180,8 @@ def chirp_downconvert(conf,
         ho["t0"]=t0
         ho["id"]=cid
         ho["sr"]=float(sr_dec) # ionogram sample-rate
+        if conf.save_raw_voltage:
+            ho["z"]=zd
         ho["ch"]=ch            # channel name
         ho.close()
     except:
@@ -256,9 +258,11 @@ def analyze_realtime(conf,d):
         print("Rank %d chirp id %d analyzing chirp-rate %1.2f kHz/s chirpt %1.4f rep %1.2f"%(rank,best_id,chirp_rate/1e3,chirpt,rep))
         i0=int(next_t0*conf.sample_rate)
         realtime_req=conf.sample_rate/chirp_rate
-        print("Buffer extent %1.2f-%1.2f launching next chirp at %1.2f"%(b[0]/conf.sample_rate,
-                                                                               b[1]/conf.sample_rate,
-                                                                               next_t0))
+        print("Buffer extent %1.2f-%1.2f launching next chirp at %1.2f %s"%(b[0]/conf.sample_rate,
+                                                                            b[1]/conf.sample_rate,
+                                                                            next_t0,
+                                                                            cd.unix2datestr(next_t0)))
+
 
         chirp_downconvert(conf,
                           next_t0,
