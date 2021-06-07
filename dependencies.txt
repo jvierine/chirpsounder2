@@ -1,0 +1,46 @@
+
+sudo apt install git
+sudo apt-get install libhdf5-dev
+sudo apt-get install cmake
+sudo apt-get install python-mako
+sudo apt-get install python-numpy
+sudo apt-get install python-pkgconfig
+sudo apt-get install python3
+sudo apt-get install python-setuptools
+sudo apt-get install python-h5py
+sudo apt-get install python-packaging
+sudo apt-get install python-tz
+sudo apt-get install python-dateutil
+sudo apt-get install gnuradio
+sudo apt-get install python-matplotlib
+sudo apt-get install python-scipy
+sudo apt-get install python3-uhd
+sudo apt install python3-pip
+pip3 install uhd
+sudo apt-get install libgnuradio-uhd
+
+git clone http://github.com/MITHaystack/digital_rf
+cd digital_rf/
+mkdir build
+cd build
+cmake ..
+make
+sudo make install
+
+cd ~/
+sudo apt-get install libboost-all-dev libusb-1.0-0-dev doxygen python3-docutils python3-mako python3-numpy python3-requests python3-ruamel.yaml python3-setuptools cmake build-essential
+git clone https://github.com/EttusResearch/uhd.git
+cd uhd/host/
+mkdir build
+cd build
+cmake -DENABLE_PYTHON=ON ..
+make
+sudo make install
+
+git clone http://github.com/jvierine/chirpsounder2
+cd chirpsounder2/
+make
+
+Use pip3 to install missing packages (e.g. pyfftw, scipy etc.)
+
+Thor can be tested using the suggested line "thor.py -m 192.168.10.2 -d "A:A" -c cha -f 12.5e6 -r 25e6 /dev/shm/hf25"

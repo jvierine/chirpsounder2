@@ -11,17 +11,17 @@ import sys
 import chirp_det as cd
 import os
 import time
+import pdb
 
 def cluster_times(t,dt=0.1,dt2=0.02,min_det=2):
     t0s=dt*n.array(n.unique(n.array(n.round(t/dt),dtype=n.int)),dtype=n.float)
     ct0s=[]
-    num_dets=[]
 
     for t0 in t0s:
         tidx=n.where(n.abs(t-t0) < dt)[0]
         if len(tidx) >= min_det:
             ct0s.append(n.mean(t[tidx]))
-#            num_dets.append(len(tidx))
+
     t0s=n.unique(ct0s)
     ct0s=[]
     num_dets=[]
@@ -127,6 +127,7 @@ def scan_for_chirps(conf,dt=0.1):
             plt.xlim([0,conf.maximum_analysis_frequency/1e6])
             plt.title("Chirp-rate %1.2f kHz/s"%(c/1e3))
             plt.show()
+
     if not conf.realtime:
         print("Found %d ionograms in total"%(n_ionograms))
 
@@ -134,6 +135,7 @@ if __name__ == "__main__":
     if len(sys.argv) == 2:
         conf=cc.chirp_config(sys.argv[1])
     else:
+        print('No config provided - Using defaults')
         conf=cc.chirp_config()
 
     if conf.realtime:
