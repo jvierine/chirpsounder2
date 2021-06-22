@@ -10,14 +10,12 @@ sudo apt-get install python-setuptools
 sudo apt-get install python-h5py
 sudo apt-get install python-packaging
 sudo apt-get install python-tz
-sudo apt-get install python-dateutil
 sudo apt-get install gnuradio
 sudo apt-get install python-matplotlib
 sudo apt-get install python-scipy
 sudo apt-get install python3-uhd
 sudo apt install python3-pip
-pip3 install uhd
-sudo apt-get install libgnuradio-uhd
+sudo apt-get install libuhd-dev
 
 git clone http://github.com/MITHaystack/digital_rf
 cd digital_rf/

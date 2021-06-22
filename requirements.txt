@@ -1,0 +1,11 @@
+mako
+numpy
+pkgconfig
+setuptools
+h5py
+packaging
+tz
+matplotlib
+scipy
+uhd
+digital_rf
