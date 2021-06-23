@@ -20,7 +20,7 @@ ext_modules.append(down_convert_module)
 
 setuptools.setup(
     name="ChirpSounder",
-    version="2.0.0",
+    version="2.0.2",
     author="Juha Vierinen",
     author_email="juha-pekka.vierinen@uit.no",
     description="Detect chirp sounders and over the horizon transmissions",
@@ -44,6 +44,9 @@ setuptools.setup(
         'scipy',
         'digital_rf',
     ],
+    extras_requires={
+        'with-pyfftw':'pyfftw',
+    },
     package_dir={"": "src"},
     packages=setuptools.find_packages(where="src"),
     python_requires=">=3.6",
