@@ -111,7 +111,8 @@ All of these are observed in Northern Norway (Skibotn). I typically see around 1
 
 US ROTHR (hard to tell which one, as I'm so far away)
 
-<img src=![](https://github.com/jvierine/chirpsounder2/tree/python-packaging/examples/example00.png) width="60%"/>
+![](https://github.com/jvierine/chirpsounder2/tree/python-packaging/examples/example00.png)
+<!-- <img src= width="60%"/> -->
 
 Sodankylä geophysical observatory vertical sounding ionosonde
 
