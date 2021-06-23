@@ -5,11 +5,11 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 ext_modules = []
-cSources = ['src/chirpsounder2/cSources/chirp_downconvert.c']
+cSources = ['src/chirpsounder/cSources/chirp_downconvert.c']
 cLibraries = []
 down_convert_module = setuptools.Extension(
             #Where to store the .so file
-            name='chirpsounder2.libdownconvert',
+            name='chirpsounder.libdownconvert',
             #Libraries used
             libraries=cLibraries,
             extra_compile_args = ['-pthread'],
@@ -20,8 +20,8 @@ ext_modules.append(down_convert_module)
 
 setuptools.setup(
     name="ChirpSounder",
-    version="2.0.1",
-    author="Juha Vierinen, Vetle Hofsøy-Woie",
+    version="2.0.0",
+    author="Juha Vierinen",
     author_email="juha-pekka.vierinen@uit.no",
     description="Detect chirp sounders and over the horizon transmissions",
     long_description=long_description,

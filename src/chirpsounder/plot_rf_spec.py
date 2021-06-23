@@ -51,5 +51,5 @@ if __name__ == "__main__":
     plt.xlabel("Time (s)")
     plt.ylabel("Frequency (MHz)")
     plt.ylim([(-conf.sample_rate/2.0/1e6+conf.center_freq/1e6),(conf.sample_rate/2.0/1e6+conf.center_freq/1e6)])
-    plt.show()
+    plt.savefig("./tf_spectrum.pdf")
     

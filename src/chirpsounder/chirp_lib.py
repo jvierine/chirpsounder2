@@ -4,7 +4,8 @@ from ctypes.util import find_library
 from numpy import ctypeslib
 import matplotlib.pyplot as plt
 import scipy.signal as ss
-libdc=ctypes.cdll.LoadLibrary("./libdownconvert.so")
+from . import __path__
+libdc=ctypes.cdll.LoadLibrary(__path__[0]+"/libdownconvert.cpython-38-x86_64-linux-gnu.so")
 libdc.test.argtypes =[ ctypeslib.ndpointer(n.complex64,ndim=1,flags='C'), ctypes.c_int ]
 libdc.consume.argtypes =[ ctypes.c_double,
                           ctypes.c_double,
@@ -100,5 +101,5 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     plt.plot(z_out.real)
     plt.plot(z_out.imag)
-    plt.show()
+    plt.savefig("./chirp_lib.pdf")
                     
