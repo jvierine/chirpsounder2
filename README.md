@@ -111,27 +111,27 @@ All of these are observed in Northern Norway (Skibotn). I typically see around 1
 
 US ROTHR (hard to tell which one, as I'm so far away)
 
-<img src="examples/example00.png" width="60%"/>
+<img src="https://github.com/jvierine/chirpsounder2/tree/python-packaging/examples/example00.png" width="60%"/>
 
 Sodankylä geophysical observatory vertical sounding ionosonde
 
-<img src="./examples/example01.png" width="60%"/>
+<img src="https://github.com/jvierine/chirpsounder2/tree/python-packaging/examples/example01.png" width="60%"/>
 
 US ROTHR (hard to tell which one, as I'm so far away)
 
-<img src="./examples/example02.png" width="60%"/>
+<img src="https://github.com/jvierine/chirpsounder2/tree/python-packaging/examples/example02.png" width="60%"/>
 
 Sodankylä geophysical observatory vertical sounding ionosonde
 
-<img src="./examples/example03.png" width="60%"/>
+<img src="https://github.com/jvierine/chirpsounder2/tree/python-packaging/examples/example03.png" width="60%"/>
 
 Australian JORN. Very far away! I see many of these at the right time of day. 
 
-<img src="./examples/example04.png" width="60%"/>
+<img src="https://github.com/jvierine/chirpsounder2/tree/python-packaging/examples/example04.png" width="60%"/>
 
 US ROTHR (hard to tell which one, as I'm so far away)
 
-<img src="./examples/example05.png" width="60%"/>
+<img src="https://github.com/jvierine/chirpsounder2/tree/python-packaging/examples/example05.png" width="60%"/>
 
 ## Links
 
