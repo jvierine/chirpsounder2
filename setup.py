@@ -16,10 +16,11 @@ down_convert_module = setuptools.Extension(
             #Path to C source files, relative to repo root
             sources=cSources,
             )
+ext_modules.append(down_convert_module)
 
 setuptools.setup(
     name="ChirpSounder",
-    version="2.0.0",
+    version="2.0.1",
     author="Juha Vierinen, Vetle Hofsøy-Woie",
     author_email="juha-pekka.vierinen@uit.no",
     description="Detect chirp sounders and over the horizon transmissions",
