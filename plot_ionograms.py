@@ -32,7 +32,7 @@ def plot_ionogram(conf,f,normalize_by_frequency=True):
 
     if normalize_by_frequency:
         for i in range(S.shape[0]):
-            noise=n.median(S[i,:])
+            noise=n.nanmedian(S[i,:])
             S[i,:]=(S[i,:]-noise)/noise
         S[S<=0.0]=1e-3
             
@@ -41,6 +41,9 @@ def plot_ionogram(conf,f,normalize_by_frequency=True):
     dB=n.transpose(10.0*n.log10(S))
     if normalize_by_frequency == False:
         dB=dB-n.nanmedian(dB)
+
+    dB[n.isnan(dB)]=0.0
+    dB[n.isfinite(dB)!=True]=0.0    
     
     # assume that t0 is at the start of a standard unix second
     # therefore, the propagation time is anything added to a full second
