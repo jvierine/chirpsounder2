@@ -67,6 +67,7 @@ def plot_ionogram(conf,f,normalize_by_frequency=True):
     plt.close()
     plt.clf()
     ho.close()
+    sys.stdout.flush()
 
 
 if __name__ == "__main__":
