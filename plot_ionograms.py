@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-
+import matplotlib
+matplotlib.use('Agg')
 import numpy as n
 import matplotlib.pyplot as plt
 import glob
@@ -64,8 +65,10 @@ def plot_ionogram(conf,f,normalize_by_frequency=True):
     plt.xlim([0,conf.maximum_analysis_frequency/1e6])
     plt.tight_layout()
     plt.savefig(img_fname)
-    plt.close()
     plt.clf()
+    plt.close("all")
+    import gc
+    gc.collect()
     ho.close()
     sys.stdout.flush()
 
