@@ -27,8 +27,8 @@ python3 plot_ionograms.py $CONFFILE >logs/plot_ionograms.log 2>&1 &
 while true;
 do
     echo "Starting THOR"
-    # start digital rf acquisition
-    thor.py -m 192.168.10.2 -d A:A -c cha -f 12.5e6 -r 25e6 $DDIR  >logs/thor.log 2>&1
+    # start digital rf acquisition with custom c++ program that uses the uhd driver directly, skipping gnuradio
+    ./rx_uhd >logs/thor.log 2>&1
     sleep 10
 done
     
