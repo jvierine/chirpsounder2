@@ -53,7 +53,7 @@ def plot_ionogram(conf,f,normalize_by_frequency=True):
     dr=dt*c.c/1e3
     range_gates=dr+2*ranges/1e3
     r0=range_gates[max_range_idx]
-    plt.figure(figsize=(1.5*8,1.5*6))
+    fig=plt.figure(figsize=(1.5*8,1.5*6))
     plt.pcolormesh(freqs/1e6,range_gates,dB,vmin=-3,vmax=30.0,cmap="inferno")
     cb=plt.colorbar()
     cb.set_label("SNR (dB)")
@@ -65,6 +65,7 @@ def plot_ionogram(conf,f,normalize_by_frequency=True):
     plt.xlim([0,conf.maximum_analysis_frequency/1e6])
     plt.tight_layout()
     plt.savefig(img_fname)
+    fig.clf()
     plt.clf()
     plt.close("all")
     import gc
