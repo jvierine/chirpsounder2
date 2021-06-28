@@ -16,6 +16,14 @@ down_convert_module = setuptools.Extension(
             #Path to C source files, relative to repo root
             sources=cSources,
             )
+            
+rx_uhd_libraries = []
+rx_uhd_sources = ['src/chirpsounder/cSources/rx_uhd.cpp']
+rx_uhd_module = setuptools.Extension(
+    name="chirpsounder.rx_uhd",
+    libraries = rx_uhd_libraries,
+    sources= rx_uhd_sources,
+)
 ext_modules.append(down_convert_module)
 
 setuptools.setup(
