@@ -1,0 +1,9 @@
+cmake
+libhdf5-dev
+gnuradio
+libfftw3-dev
+libuhd-dev
+python3-pyfftw
+python3-watchdog
+python3-mpi4py
+python3-uhd
