@@ -1,15 +1,16 @@
 #!/usr/bin/env python
-
+import matplotlib
+matplotlib.use('Agg')
 import numpy as n
 import matplotlib.pyplot as plt
 import glob
 import h5py
 import scipy.constants as c
+import chirpsounder.chirp_config as cc
+import chirpsounder.chirp_det as cd
 import sys
 import os
 import time
-import chirpsounder.chirp_det as cd
-import chirpsounder.chirp_config as cc
 
 def plot_ionogram(conf,f,normalize_by_frequency=True):
     ho=h5py.File(f,"r")
@@ -32,7 +33,7 @@ def plot_ionogram(conf,f,normalize_by_frequency=True):
 
     if normalize_by_frequency:
         for i in range(S.shape[0]):
-            noise=n.median(S[i,:])
+            noise=n.nanmedian(S[i,:])
             S[i,:]=(S[i,:]-noise)/noise
         S[S<=0.0]=1e-3
             
@@ -41,6 +42,9 @@ def plot_ionogram(conf,f,normalize_by_frequency=True):
     dB=n.transpose(10.0*n.log10(S))
     if normalize_by_frequency == False:
         dB=dB-n.nanmedian(dB)
+
+    dB[n.isnan(dB)]=0.0
+    dB[n.isfinite(dB)!=True]=0.0    
     
     # assume that t0 is at the start of a standard unix second
     # therefore, the propagation time is anything added to a full second
@@ -49,7 +53,7 @@ def plot_ionogram(conf,f,normalize_by_frequency=True):
     dr=dt*c.c/1e3
     range_gates=dr+2*ranges/1e3
     r0=range_gates[max_range_idx]
-    plt.figure(figsize=(1.5*8,1.5*6))
+    fig=plt.figure(figsize=(1.5*8,1.5*6))
     plt.pcolormesh(freqs/1e6,range_gates,dB,vmin=-3,vmax=30.0,cmap="inferno")
     cb=plt.colorbar()
     cb.set_label("SNR (dB)")
@@ -61,9 +65,13 @@ def plot_ionogram(conf,f,normalize_by_frequency=True):
     plt.xlim([0,conf.maximum_analysis_frequency/1e6])
     plt.tight_layout()
     plt.savefig(img_fname)
-    plt.close()
+    fig.clf()
     plt.clf()
+    plt.close("all")
+    import gc
+    gc.collect()
     ho.close()
+    sys.stdout.flush()
 
 
 if __name__ == "__main__":

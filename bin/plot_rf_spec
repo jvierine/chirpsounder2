@@ -6,9 +6,9 @@ import digital_rf as drf
 import numpy as n
 import matplotlib.pyplot as plt
 import sys
+import chirpsounder.chirp_config as cc
 import scipy.signal as ss
 import chirpsounder.chirp_det as cd
-import chirpsounder.chirp_config as cc
 
 if __name__ == "__main__":
     n_spec=100

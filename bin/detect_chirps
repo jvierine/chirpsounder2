@@ -3,13 +3,13 @@
 # Scan through a digital rf recording
 #
 import numpy as n
+import chirpsounder.chirp_det as c
+import chirpsounder.chirp_config as cc
 import digital_rf as drf
 from mpi4py import MPI
 import time
 import sys
 import traceback
-import chirpsounder.chirp_det as c
-import chirpsounder.chirp_config as cc
 
 comm=MPI.COMM_WORLD
 size=comm.Get_size()
