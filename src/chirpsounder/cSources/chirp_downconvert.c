@@ -143,4 +143,6 @@ void consume(double chirpt, double dt, complex_float *sintab, int tabl, complex_
   {
     pthread_join(proc_threads[i],NULL);
   }
+  free(a);
+  free(proc_threads);
 }

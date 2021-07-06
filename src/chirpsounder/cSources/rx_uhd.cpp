@@ -114,21 +114,17 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
       printf("No GPS lock, waiting for lock.\n");
     }
     
-    // Set to GPS time
-    uhd::time_spec_t gps_time = uhd::time_spec_t(int64_t(usrp->get_mboard_sensor("gps_time").to_int()));
-    usrp->set_time_next_pps(gps_time + 1.0);
-
+    const time_t gps_time = usrp->get_mboard_sensor("gps_time").to_int();
+    usrp->set_time_next_pps(uhd::time_spec_t(gps_time+1));
+    
     // Wait for it to apply
     // The wait is 2 seconds because N-Series has a known issue where
     // the time at the last PPS does not properly update at the PPS edge
     // when the time is actually set.
     std::this_thread::sleep_for(std::chrono::seconds(2));
 
-    // Check times
-    gps_time = uhd::time_spec_t(int64_t(usrp->get_mboard_sensor("gps_time").to_int()));
-				
     uhd::time_spec_t time_last_pps = usrp->get_time_last_pps();
-    printf("USRP time %1.4f GPSDO time %1.4f\n",time_last_pps.get_real_secs(),gps_time.get_real_secs());
+    printf("USRP time now %1.4f USRP last pps %1.4f\n",usrp->get_time_now().get_real_secs(),time_last_pps.get_real_secs());
     
     // set the rx sample rate
     printf("Setting sample-rate to %1.2f",rate);
@@ -143,10 +139,11 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     stream_args.channels             = channel_nums;
     uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
 
+    //    std::this_thread::sleep_for(std::chrono::seconds(2));
     // setup streaming
-    double tstart=time_last_pps.get_real_secs()+1.0;
+    double tstart=time_last_pps.get_real_secs()+2.0;
     uhd::time_spec_t ts_t0=uhd::time_spec_t(tstart);
-    printf("Streaming start at %f\n",time_last_pps.get_real_secs()+1.0);
+    printf("Streaming start at %f\n",time_last_pps.get_real_secs()+2.0);
 
 
     /* start recording at global_start_sample */
@@ -195,7 +192,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         buffs.push_back(&buff.front()); // same buffer for each channel
 
     // the first call to recv() will block this many seconds before receiving
-    double timeout = 1.0 + 0.1; // timeout (delay before receive + padding)
+    double timeout = 3.0 + 0.1; // timeout (delay before receive + padding)
 
     size_t num_acc_samps = 0; // number of accumulated samples
     uint64_t packet_i=0;

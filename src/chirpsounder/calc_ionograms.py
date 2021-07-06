@@ -191,6 +191,7 @@ def chirp_downconvert(conf,
     cput1=time.time()
     cpu_time=cput1-cput0-sleep_time
     print("Done processed %1.2f s in %1.2f s, speed %1.2f * realtime"%(realtime_req,cpu_time,realtime_req/cpu_time))
+    sys.stdout.flush()
     
 
 def analyze_all(conf,d):
@@ -344,13 +345,31 @@ if __name__ == "__main__":
     else:
         conf=cc.chirp_config()
     
-    d=drf.DigitalRFReader(conf.data_dir)
 
+    
     # analyze serendpituous par files immediately after a chirp is detected
     if conf.serendipitous:
-        analyze_parfiles(conf,d)
+        while True:
+            try:
+                d=drf.DigitalRFReader(conf.data_dir)
+                analyze_parfiles(conf,d)
+            except:
+                print("error in calc_ionograms.py. trying to restart")
+                sys.stdout.flush()
+                time.sleep(1)
+                
+        
+        
     elif conf.realtime: # analyze analytic timings
-        analyze_realtime(conf,d)
+        while True:
+            try:
+                d=drf.DigitalRFReader(conf.data_dir)
+                analyze_realtime(conf,d)
+            except:
+                print("error in calc_ionograms.py. trying to restart")
+                sys.stdout.flush()
+                time.sleep(1)
+        
     else: # batch analyze
         analyze_all(conf,d)
 
