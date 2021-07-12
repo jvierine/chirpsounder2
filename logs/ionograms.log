@@ -1,0 +1,435 @@
+No protocol specified
+using pyfftw
+reading /home/hamsci/code/juha/chirpsounder2/examples/w2naf/w2naf.ini
+using pyfftw
+reading /home/hamsci/code/juha/chirpsounder2/examples/w2naf/w2naf.ini
+using pyfftw
+reading /home/hamsci/code/juha/chirpsounder2/examples/w2naf/w2naf.ini
+using pyfftw
+reading /home/hamsci/code/juha/chirpsounder2/examples/w2naf/w2naf.ini
+using pyfftw
+reading /home/hamsci/code/juha/chirpsounder2/examples/w2naf/w2naf.ini
+using pyfftw
+reading /home/hamsci/code/juha/chirpsounder2/examples/w2naf/w2naf.ini
+using pyfftw
+reading /home/hamsci/code/juha/chirpsounder2/examples/w2naf/w2naf.ini
+using pyfftw
+reading /home/hamsci/code/juha/chirpsounder2/examples/w2naf/w2naf.ini
+using pyfftw
+reading /home/hamsci/code/juha/chirpsounder2/examples/w2naf/w2naf.ini
+using pyfftw
+reading /home/hamsci/code/juha/chirpsounder2/examples/w2naf/w2naf.ini
+using pyfftw
+reading /home/hamsci/code/juha/chirpsounder2/examples/w2naf/w2naf.ini
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+using pyfftw
+reading /home/hamsci/code/juha/chirpsounder2/examples/w2naf/w2naf.ini
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+error in calc_ionograms.py. trying to restart
+Traceback (most recent call last):
+  File "calc_ionograms.py", line 354, in <module>
+    d=drf.DigitalRFReader(conf.data_dir)
+  File "/usr/local/lib/python3.8/dist-packages/digital_rf/digital_rf_hdf5.py", line 880, in __init__
+    raise ValueError(errstr.format(top_level_directory_arg))
+ValueError: No channels found: top_level_directory_arg = /mnt/ramdisk/hf25. If path is correct, you may need to run recreate_properties_file to re-create missing drf_properties.h5 files.
+Rank 11 analyzing /home/hamsci/data/chirpsounder2/2021-07-12/par-1626124159.0000.h5 time left in sweep 138.56 s
+Rank 6 analyzing /home/hamsci/data/chirpsounder2/2021-07-12/par-1626124185.0000.h5 time left in sweep 118.66 s
+Rank 7 analyzing /home/hamsci/data/chirpsounder2/2021-07-12/par-1626124186.0000.h5 time left in sweep 97.77 s
+Rank 5 analyzing /home/hamsci/data/chirpsounder2/2021-07-12/par-1626124369.0000.h5 time left in sweep 139.01 s
+Writing to /home/hamsci/data/chirpsounder2/2021-07-12/lfm_ionogram-000-1626124159.08.h5
+Done processed 200.00 s in 224.21 s, speed 0.89 * realtime
+Rank 9 analyzing /home/hamsci/data/chirpsounder2/2021-07-12/par-1626124397.0000.h5 time left in sweep 124.01 s
+Writing to /home/hamsci/data/chirpsounder2/2021-07-12/lfm_ionogram-000-1626124185.09.h5
+Done processed 200.00 s in 224.70 s, speed 0.89 * realtime
+Rank 8 analyzing /home/hamsci/data/chirpsounder2/2021-07-12/par-1626124435.0000.h5 time left in sweep 134.42 s
+Rank 3 analyzing /home/hamsci/data/chirpsounder2/2021-07-12/par-1626124440.0000.h5 time left in sweep 130.95 s
+Writing to /home/hamsci/data/chirpsounder2/2021-07-12/lfm_ionogram-000-1626124186.02.h5
+Done processed 250.00 s in 282.93 s, speed 0.88 * realtime
+Rank 2 analyzing /home/hamsci/data/chirpsounder2/2021-07-12/par-1626124500.0000.h5 time left in sweep 121.64 s
+Writing to /home/hamsci/data/chirpsounder2/2021-07-12/lfm_ionogram-000-1626124369.08.h5
+Done processed 200.00 s in 226.57 s, speed 0.88 * realtime
+Rank 10 analyzing /home/hamsci/data/chirpsounder2/2021-07-12/par-1626124579.0000.h5 time left in sweep 112.45 s
+Writing to /home/hamsci/data/chirpsounder2/2021-07-12/lfm_ionogram-000-1626124397.08.h5
+Done processed 200.00 s in 226.64 s, speed 0.88 * realtime
+Rank 11 analyzing /home/hamsci/data/chirpsounder2/2021-07-12/par-1626124637.0000.h5 time left in sweep 128.88 s
+Rank 7 analyzing /home/hamsci/data/chirpsounder2/2021-07-12/par-1626124712.0000.h5 time left in sweep 141.01 s
+Writing to /home/hamsci/data/chirpsounder2/2021-07-12/lfm_ionogram-000-1626124435.03.h5
+Done processed 250.00 s in 284.69 s, speed 0.88 * realtime
+Writing to /home/hamsci/data/chirpsounder2/2021-07-12/lfm_ionogram-000-1626124440.03.h5
+Done processed 250.00 s in 285.00 s, speed 0.88 * realtime
+Rank 6 analyzing /home/hamsci/data/chirpsounder2/2021-07-12/par-1626124735.0000.h5 time left in sweep 119.96 s
+Writing to /home/hamsci/data/chirpsounder2/2021-07-12/lfm_ionogram-000-1626124579.08.h5
+Done processed 200.00 s in 229.93 s, speed 0.87 * realtime
+Writing to /home/hamsci/data/chirpsounder2/2021-07-12/lfm_ionogram-000-1626124500.03.h5
+Done processed 250.00 s in 287.28 s, speed 0.87 * realtime
+Rank 10 analyzing /home/hamsci/data/chirpsounder2/2021-07-12/par-1626124740.0000.h5 time left in sweep 73.82 s
+Rank 0 analyzing /home/hamsci/data/chirpsounder2/2021-07-12/par-1626124780.0000.h5 time left in sweep 105.47 s
+Writing to /home/hamsci/data/chirpsounder2/2021-07-12/lfm_ionogram-000-1626124637.08.h5
+Done processed 200.00 s in 231.22 s, speed 0.86 * realtime
+Rank 8 analyzing /home/hamsci/data/chirpsounder2/2021-07-12/par-1626124877.0000.h5 time left in sweep 129.91 s
+Rank 4 analyzing /home/hamsci/data/chirpsounder2/2021-07-12/par-1626124877.0000.h5 time left in sweep 129.91 s
+Rank 1 analyzing /home/hamsci/data/chirpsounder2/2021-07-12/par-1626124969.0000.h5 time left in sweep 138.66 s
+Writing to /home/hamsci/data/chirpsounder2/2021-07-12/lfm_ionogram-000-1626124712.01.h5
+Done processed 250.00 s in 287.12 s, speed 0.87 * realtime
+Rank 5 analyzing /home/hamsci/data/chirpsounder2/2021-07-12/par-1626125035.0000.h5 time left in sweep 140.11 s
+Rank 2 analyzing /home/hamsci/data/chirpsounder2/2021-07-12/par-1626125040.0000.h5 time left in sweep 141.03 s
+Writing to /home/hamsci/data/chirpsounder2/2021-07-12/lfm_ionogram-000-1626124735.03.h5
+Done processed 250.00 s in 286.96 s, speed 0.87 * realtime
+Writing to /home/hamsci/data/chirpsounder2/2021-07-12/lfm_ionogram-000-1626124877.08.h5
+Done processed 200.00 s in 228.40 s, speed 0.88 * realtime
+Writing to /home/hamsci/data/chirpsounder2/2021-07-12/lfm_ionogram-000-1626124877.08.h5
+Done processed 200.00 s in 228.66 s, speed 0.87 * realtime
+Rank 8 analyzing /home/hamsci/data/chirpsounder2/2021-07-12/par-1626125117.0000.h5 time left in sweep 118.52 s
+Writing to /home/hamsci/data/chirpsounder2/2021-07-12/lfm_ionogram-000-1626124740.03.h5
+Done processed 250.00 s in 286.84 s, speed 0.87 * realtime
+Writing to /home/hamsci/data/chirpsounder2/2021-07-12/lfm_ionogram-000-1626124780.03.h5
+Done processed 250.00 s in 287.56 s, speed 0.87 * realtime
+Rank 0 analyzing /home/hamsci/data/chirpsounder2/2021-07-12/par-1626125145.0000.h5 time left in sweep 117.41 s
+Writing to /home/hamsci/data/chirpsounder2/2021-07-12/lfm_ionogram-000-1626124969.08.h5
+Done processed 200.00 s in 229.83 s, speed 0.87 * realtime
+Rank 7 analyzing /home/hamsci/data/chirpsounder2/2021-07-12/par-1626125357.0000.h5 time left in sweep 129.59 s
+Writing to /home/hamsci/data/chirpsounder2/2021-07-12/lfm_ionogram-000-1626125117.08.h5
+Done processed 200.00 s in 233.61 s, speed 0.86 * realtime
+Rank 8 analyzing /home/hamsci/data/chirpsounder2/2021-07-12/par-1626125359.0000.h5 time left in sweep 124.69 s
+Writing to /home/hamsci/data/chirpsounder2/2021-07-12/lfm_ionogram-000-1626125035.03.h5
+Done processed 250.00 s in 292.18 s, speed 0.86 * realtime
+Writing to /home/hamsci/data/chirpsounder2/2021-07-12/lfm_ionogram-000-1626125040.03.h5
+Done processed 250.00 s in 291.51 s, speed 0.86 * realtime
+Writing to /home/hamsci/data/chirpsounder2/2021-07-12/lfm_ionogram-000-1626125145.09.h5
+Done processed 200.00 s in 234.88 s, speed 0.85 * realtime
+Rank 0 analyzing /home/hamsci/data/chirpsounder2/2021-07-12/par-1626125386.0000.h5 time left in sweep 85.98 s
+Rank 2 analyzing /home/hamsci/data/chirpsounder2/2021-07-12/par-1626125432.0000.h5 time left in sweep 100.65 s
+Rank 1 analyzing /home/hamsci/data/chirpsounder2/2021-07-12/par-1626125539.0000.h5 time left in sweep 114.54 s
+Rank 10 analyzing /home/hamsci/data/chirpsounder2/2021-07-12/par-1626125567.0000.h5 time left in sweep 128.16 s
+Writing to /home/hamsci/data/chirpsounder2/2021-07-12/lfm_ionogram-000-1626125357.08.h5
+Done processed 200.00 s in 234.99 s, speed 0.85 * realtime
+Writing to /home/hamsci/data/chirpsounder2/2021-07-12/lfm_ionogram-000-1626125359.08.h5
+Done processed 200.00 s in 235.51 s, speed 0.85 * realtime
+Rank 11 analyzing /home/hamsci/data/chirpsounder2/2021-07-12/par-1626125625.0000.h5 time left in sweep 128.85 s

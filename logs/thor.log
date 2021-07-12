@@ -1,0 +1,47 @@
+[INFO] [UHD] linux; GNU C++ version 9.3.0; Boost_107100; UHD_4.0.0.HEAD-0-g90ce6062
+[INFO] [USRP2] Opening a USRP2/N-Series device...
+[INFO] [USRP2] Current recv frame size: 1472 bytes
+[INFO] [USRP2] Current send frame size: 1472 bytes
+[WARNING] [UDP] The recv buffer could not be resized sufficiently.
+Target sock buff size: 500000000 bytes.
+Actual sock buff size: 50000000 bytes.
+See the transport application notes on buffer resizing.
+Please run: sudo sysctl -w net.core.rmem_max=500000000
+[WARNING] [UDP] The send buffer could not be resized sufficiently.
+Target sock buff size: 2500000 bytes.
+Actual sock buff size: 1048576 bytes.
+See the transport application notes on buffer resizing.
+Please run: sudo sysctl -w net.core.wmem_max=2500000
+[WARNING] [UDP] The recv buffer could not be resized sufficiently.
+Target sock buff size: 500000000 bytes.
+Actual sock buff size: 50000000 bytes.
+See the transport application notes on buffer resizing.
+Please run: sudo sysctl -w net.core.rmem_max=500000000
+[WARNING] [UDP] The send buffer could not be resized sufficiently.
+Target sock buff size: 2500000 bytes.
+Actual sock buff size: 1048576 bytes.
+See the transport application notes on buffer resizing.
+Please run: sudo sysctl -w net.core.wmem_max=2500000
+[WARNING] [UDP] The send buffer could not be resized sufficiently.
+Target sock buff size: 2500000 bytes.
+Actual sock buff size: 1048576 bytes.
+See the transport application notes on buffer resizing.
+Please run: sudo sysctl -w net.core.wmem_max=2500000
+[INFO] [USRP2] Detecting internal GPSDO.... 
+[INFO] [GPS] Found an internal GPSDO: Jackson-Labs, FireFly , Firmware Rev 0.929
+[WARNING] [UHD] Unable to set the thread priority. Performance may be negatively affected.
+Please see the general application notes in the manual for instructions.
+EnvironmentError: OSError: error in pthread_setschedparam
+[INFO] [USRP2] Setting references to the internal GPSDO
+0done
+1
+1done
+0
+done channels
+waiting for lock
+USRP time now 1626124139.0194 USRP last pps 1626124139.0000
+Setting sample-rate to 25000000.00Streaming start at 1626124141.000000
+40653103525000000
+Writing complex short to multiple files and subdirectores in /mnt/ramdisk/hf25/cha
+mkdir -p /mnt/ramdisk/hf25/cha
+...............................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
