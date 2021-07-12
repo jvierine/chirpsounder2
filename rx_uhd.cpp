@@ -1,4 +1,7 @@
 //
+// This is based on one of the UHD driver examples.
+// Juha Vierinen, 2021
+//
 // Copyright 2010-2011 Ettus Research LLC
 // Copyright 2018 Ettus Research, a National Instruments Company
 //
@@ -25,6 +28,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 {
     // variables to be set by po
     std::string args;
+    std::string outdir;    
     std::string wire;
     std::string subdev;
     double seconds_in_future;
@@ -38,6 +42,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     desc.add_options()
         ("help", "help message")
         ("args", po::value<std::string>(&args)->default_value("recv_buff_size=500000000"), "single uhd device address args")
+        ("outdir", po::value<std::string>(&outdir)->default_value("/dev/shm/hf25"), "output directory")
         ("wire", po::value<std::string>(&wire)->default_value(""), "the over the wire type, sc16, sc8, etc")
         ("subdev", po::value<std::string>(&subdev)->default_value("A:A"), "subdevice")
         ("secs", po::value<double>(&seconds_in_future)->default_value(1.5), "number of seconds in the future to receive")
@@ -47,7 +52,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         ("channels", po::value<std::string>(&channel_list)->default_value("0"), "which channel(s) to use (specify \"0\", \"1\", \"0,1\", etc)")
  
     ;
-
 
 
 
@@ -88,6 +92,11 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // create device
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
+    std::cout << channel_list;
+    printf("done\n");
+    std::cout << 1 << std::endl;
+    std::cout << usrp->get_tx_num_channels();
+    printf("done\n");
 
     // detect which channels to use
     std::vector<std::string> channel_strings;
@@ -95,16 +104,19 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     boost::split(channel_strings, channel_list, boost::is_any_of("\"',"));
     for (size_t ch = 0; ch < channel_strings.size(); ch++) {
         size_t chan = std::stoi(channel_strings[ch]);
+	std::cout << chan << std::endl;
         if (chan >= usrp->get_tx_num_channels() or chan >= usrp->get_rx_num_channels()) {
             throw std::runtime_error("Invalid channel(s) specified.");
         } else
             channel_nums.push_back(std::stoi(channel_strings[ch]));
     }
-    
-    // use internal gpsdo
-    usrp->set_clock_source("gpsdo");
-    usrp->set_time_source("gpsdo");
+    std::cout << "done channels" << std::endl;
 
+    // use internal gpsdo
+    //    usrp->set_clock_source("gpsdo");
+    //usrp->set_time_source("gpsdo");
+
+    printf("waiting for lock\n");
     // Wait for GPS lock
     bool gps_locked = usrp->get_mboard_sensor("gps_locked").to_bool();
     while (gps_locked == false){
@@ -149,14 +161,22 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     /* start recording at global_start_sample */
     global_start_index = (uint64_t)((uint64_t)tstart * (long double)sample_rate_numerator/sample_rate_denominator);
     printf("%lld\n",global_start_index);
+    
 
-    printf("Writing complex short to multiple files and subdirectores in /dev/shm/hf25/cha\n");
 
-    result = system("mkdir -p /dev/shm/hf25/cha");
-    result = system("rm -Rf /dev/shm/hf25/cha/2*/tmp*.h5");
+    std::string ch_dir = outdir+"/cha";
+    //    std::cout << ch_dir << std::endl;
+    std::cout << "Writing complex short to multiple files and subdirectores in " << ch_dir << std::endl;
+
+    std::string mkdir_cmd = "mkdir -p "+ch_dir;
+    std::cout << mkdir_cmd << std::endl;
+    
+    //    exit(0);
+    result = system(mkdir_cmd.c_str());
+    //    result = system("rm -Rf /dev/shm/hf25/cha/2*/tmp*.h5");
 
     /* init */
-    data_object = digital_rf_create_write_hdf5("/dev/shm/hf25/cha",
+    data_object = digital_rf_create_write_hdf5((char *)ch_dir.c_str(),
 					       H5T_NATIVE_SHORT,
 					       subdir_cadence,
 					       millseconds_per_file,

@@ -67,15 +67,18 @@ def scan_for_chirps(conf,dt=0.1):
     chirp_times=[]
     snrs=[]        
     for f in fl:
-        h=h5py.File(f,"r")
-        chirp_times.append(n.copy(h[("chirp_time")]))
-        chirp_rates.append(n.copy(h[("chirp_rate")]))
-        f0.append(n.copy(h[("f0")]))
-        if "snr" in h.keys():
-            snrs.append(n.copy(h[("snr")]))
-        else:
-            snrs.append(-1.0)
-        h.close()
+        try:
+            h=h5py.File(f,"r")
+            chirp_times.append(n.copy(h[("chirp_time")]))
+            chirp_rates.append(n.copy(h[("chirp_rate")]))
+            f0.append(n.copy(h[("f0")]))
+            if "snr" in h.keys():
+                snrs.append(n.copy(h[("snr")]))
+            else:
+                snrs.append(-1.0)
+            h.close()
+        except:
+            print("Couldn't open %s"%(f))
 
     chirp_times=n.array(chirp_times)
     chirp_rates=n.array(chirp_rates)
@@ -140,6 +143,7 @@ if __name__ == "__main__":
 
     if conf.realtime:
         print("Scanning for timings indefinitely")
+        sys.stdout.flush()
         while True:
             if conf.debug_timings:
                 print("find_timings: scanning for new sounders")
@@ -147,6 +151,7 @@ if __name__ == "__main__":
             if conf.debug_timings:
                 print("find_timings: sleeping 10 seconds")
             time.sleep(1.0)
+            sys.stdout.flush()
     else:
         print("Scanning for timings once in batch")
         scan_for_chirps(conf)

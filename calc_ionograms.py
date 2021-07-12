@@ -316,7 +316,7 @@ def analyze_parfiles(conf,d):
     while True:
         b=d.get_bounds(ch)
         t0=np.floor(np.float128(b[0])/np.float128(conf.sample_rate))
-        t1=np.floor(np.float128(b[1])/n.float128(conf.sample_rate))
+        t1=np.floor(np.float128(b[1])/np.float128(conf.sample_rate))
 
 
         ftry=get_next_chirp_par_file(conf)
@@ -355,6 +355,7 @@ if __name__ == "__main__":
                 analyze_parfiles(conf,d)
             except:
                 print("error in calc_ionograms.py. trying to restart")
+                traceback.print_exc(file=sys.stdout)
                 sys.stdout.flush()
                 time.sleep(1)
                 
