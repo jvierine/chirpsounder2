@@ -276,7 +276,7 @@ def analyze_realtime(conf,d):
                           cid=best_id)
 
 
-def get_next_chirp_par_file(conf):
+def get_next_chirp_par_file(conf, buffer_t0):
     """ 
     wait until we encounter a parameter file with remaining time 
     """
@@ -293,16 +293,20 @@ def get_next_chirp_par_file(conf):
             chirp_rate=float(np.copy(h[("chirp_rate")]))
             h.close()
             t1=conf.maximum_analysis_frequency/chirp_rate + t0
+
             tnow=time.time()
-            # print("rank %d time left %f"%(rank,t1-tnow))
-            # if chirp is ongoing and not being analyzed, then start analyzing it
-            if t1-tnow > 0:
+
+            # if the beginning of the buffer is before the end of the chirp,
+            # start analyzing as there is at least some of the the ionogram
+            # still in the buffer.
+            if buffer_t0 < t1:
                 if not os.path.exists("%s.done"%(ftry)):
                     ho=h5py.File("%s.done"%(ftry),"w")
                     ho["t_an"]=time.time()
                     ho.close()
                     print("Rank %d analyzing %s time left in sweep %1.2f s"%(rank,ftry,t1-tnow))
                     return(ftry)
+        # didn't find anything. let's wait.
         time.sleep(1)
 
         
@@ -319,7 +323,7 @@ def analyze_parfiles(conf,d):
         t1=np.floor(np.float128(b[1])/np.float128(conf.sample_rate))
 
 
-        ftry=get_next_chirp_par_file(conf)
+        ftry=get_next_chirp_par_file(conf,t0)
         
         h=h5py.File(ftry,"r")
         t0=float(np.copy(h[("t0")]))

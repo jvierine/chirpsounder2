@@ -40,7 +40,7 @@ echo "Starting find_timings.py"
 # calculate ionograms
 # seems like four parallel processes work.
 # this means we can process four ionograms simultaneously!
-$MPIRUN --oversubscribe -np 12 python calc_ionograms.py $CONF_FILE > logs/ionograms.log 2>&1 &
+$MPIRUN --oversubscribe -np 16 python calc_ionograms.py $CONF_FILE > logs/ionograms.log 2>&1 &
 
 echo "Starting calc_ionograms.py"
 
