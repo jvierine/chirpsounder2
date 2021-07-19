@@ -286,26 +286,28 @@ def get_next_chirp_par_file(conf, buffer_t0):
         fl=glob.glob("%s/par*.h5"%(dname))
         fl.sort()
         if len(fl)> 0:
-            ftry=fl[-1]
-            h=h5py.File(ftry,"r")
-            t0=float(np.copy(h[("t0")]))
-            i0=np.int64(t0*conf.sample_rate)
-            chirp_rate=float(np.copy(h[("chirp_rate")]))
-            h.close()
-            t1=conf.maximum_analysis_frequency/chirp_rate + t0
+            for fi in range(len(fl)):
+                ftry = fl[len(fl)-fi-1]
+                h=h5py.File(ftry,"r")
+                t0=float(np.copy(h[("t0")]))
+                i0=np.int64(t0*conf.sample_rate)
+                chirp_rate=float(np.copy(h[("chirp_rate")]))
+                h.close()
+                t1=conf.maximum_analysis_frequency/chirp_rate + t0
+                
+                tnow=time.time()
 
-            tnow=time.time()
-
-            # if the beginning of the buffer is before the end of the chirp,
-            # start analyzing as there is at least some of the the ionogram
-            # still in the buffer.
-            if buffer_t0 < t1:
-                if not os.path.exists("%s.done"%(ftry)):
-                    ho=h5py.File("%s.done"%(ftry),"w")
-                    ho["t_an"]=time.time()
-                    ho.close()
-                    print("Rank %d analyzing %s time left in sweep %1.2f s"%(rank,ftry,t1-tnow))
-                    return(ftry)
+                # if the beginning of the buffer is before the end of the chirp,
+                # start analyzing as there is at least some of the the ionogram
+                # still in the buffer.
+                if buffer_t0 < t1:
+                    # if not already analyzed, analyze it
+                    if not os.path.exists("%s.done"%(ftry)):
+                        ho=h5py.File("%s.done"%(ftry),"w")
+                        ho["t_an"]=time.time()
+                        ho.close()
+                        print("Rank %d analyzing %s time left in sweep %1.2f s"%(rank,ftry,t1-tnow))
+                        return(ftry)
         # didn't find anything. let's wait.
         time.sleep(1)
 
@@ -321,7 +323,6 @@ def analyze_parfiles(conf,d):
         b=d.get_bounds(ch)
         t0=np.floor(np.float128(b[0])/np.float128(conf.sample_rate))
         t1=np.floor(np.float128(b[1])/np.float128(conf.sample_rate))
-
 
         ftry=get_next_chirp_par_file(conf,t0)
         
