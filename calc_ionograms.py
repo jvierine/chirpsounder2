@@ -276,38 +276,68 @@ def analyze_realtime(conf,d):
                           cid=best_id)
 
 
-def get_next_chirp_par_file(conf, buffer_t0):
+def get_next_chirp_par_file(conf, d):
     """ 
     wait until we encounter a parameter file with remaining time 
     """
     # find the next sounder that can be measured
     while True:
+        ch=conf.channel
+        b=d.get_bounds(ch)
+        buffer_t0=np.floor(np.float128(b[0])/np.float128(conf.sample_rate))
+        while np.isnan(buffer_t0):
+            b=d.get_bounds(ch)
+            buffer_t0=np.floor(np.float128(b[0])/np.float128(conf.sample_rate))
+#            t1=np.floor(np.float128(b[1])/np.float128(conf.sample_rate))
+            print("nan bounds for ringbuffer. trying again")
+            time.sleep(1)
+
+        
+        # todo: look at today and yesterday. only looking
+        # at today will result in a few lost ionograms
+        # when the day is changing
         dname="%s/%s"%(conf.output_dir,cd.unix2dirname(time.time()))
         fl=glob.glob("%s/par*.h5"%(dname))
         fl.sort()
+        
         if len(fl)> 0:
             for fi in range(len(fl)):
                 ftry = fl[len(fl)-fi-1]
-                h=h5py.File(ftry,"r")
-                t0=float(np.copy(h[("t0")]))
-                i0=np.int64(t0*conf.sample_rate)
-                chirp_rate=float(np.copy(h[("chirp_rate")]))
-                h.close()
-                t1=conf.maximum_analysis_frequency/chirp_rate + t0
-                
-                tnow=time.time()
 
-                # if the beginning of the buffer is before the end of the chirp,
-                # start analyzing as there is at least some of the the ionogram
-                # still in the buffer.
-                if buffer_t0 < t1:
-                    # if not already analyzed, analyze it
-                    if not os.path.exists("%s.done"%(ftry)):
+                # proceed if this hasn't already been analyzed.
+                if not os.path.exists("%s.done"%(ftry)):
+                    h=h5py.File(ftry,"r")
+                    t0=float(np.copy(h[("t0")]))
+                    i0=np.int64(t0*conf.sample_rate)
+                    chirp_rate=float(np.copy(h[("chirp_rate")]))
+                    h.close()
+                    t1=conf.maximum_analysis_frequency/chirp_rate + t0
+                    
+                    tnow=time.time()
+
+                    # if the beginning of the buffer is before the end of the chirp,
+                    # start analyzing as there is at least some of the the ionogram
+                    # still in the buffer. the start of the buffer is
+                    # before the the chirp ends
+                    # t0 ---- t1
+                    #      bt0-------bt1
+                    if buffer_t0 < t1:
+                        # if not already analyzed, analyze it
+                        if not os.path.exists("%s.done"%(ftry)):
+                            ho=h5py.File("%s.done"%(ftry),"w")
+                            ho["t_an"]=time.time()
+                            ho.close()
+                            print("Rank %d analyzing %s time left in sweep %1.2f s"%(rank,ftry,t1-tnow))
+                            return(ftry)
+                    else:
+                        # we haven't analyzed this one, but we no longer
+                        # can, because it is not in the buffer
+                        print("Not able to analyze %s (%1.2f kHz/s), because it is no longer in the buffer. Buffer start at %1.2f and chirp ends at %1.2f"%(ftry,chirp_rate/1e3,buffer_t0,t1))
                         ho=h5py.File("%s.done"%(ftry),"w")
                         ho["t_an"]=time.time()
                         ho.close()
-                        print("Rank %d analyzing %s time left in sweep %1.2f s"%(rank,ftry,t1-tnow))
-                        return(ftry)
+                        time.sleep(0.01)
+                            
         # didn't find anything. let's wait.
         time.sleep(1)
 
@@ -317,14 +347,9 @@ def analyze_parfiles(conf,d):
     Realtime analysis using newly found parameter files.
     """
     ch=conf.channel
-    # avoid having two processes snag the same sounder at the start
-    time.sleep(rank)
     while True:
-        b=d.get_bounds(ch)
-        t0=np.floor(np.float128(b[0])/np.float128(conf.sample_rate))
-        t1=np.floor(np.float128(b[1])/np.float128(conf.sample_rate))
 
-        ftry=get_next_chirp_par_file(conf,t0)
+        ftry=get_next_chirp_par_file(conf,d)
         
         h=h5py.File(ftry,"r")
         t0=float(np.copy(h[("t0")]))
@@ -354,6 +379,8 @@ if __name__ == "__main__":
     
     # analyze serendpituous par files immediately after a chirp is detected
     if conf.serendipitous:
+        # avoid having two processes snag the same sounder at the start
+        time.sleep(rank)
         while True:
             try:
                 d=drf.DigitalRFReader(conf.data_dir)
