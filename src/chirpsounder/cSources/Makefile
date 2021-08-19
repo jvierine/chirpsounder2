@@ -1,6 +1,6 @@
 all:
 	g++ \
-	 ./src/chirpsounder/cSources/rx_uhd.cpp \
+	 ./rx_uhd.cpp \
 	-o $(INSTALL_PATH) \
 	-L/usr/lib/x86_64-linux-gnu/hdf5/serial \
 	-I/usr/include/hdf5/serial \

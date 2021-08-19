@@ -42,10 +42,10 @@ ext_modules.append(down_convert_module)
 class customInstall(install):
     def compile_and_install_rx_uhd(self):
         print('Compiling rx_uhd')
-        src_file = './src/chirpsounder/cSources/rx_uhd.cpp'
+        cwd = './src/chirpsounder/cSources/'
         bin_path = get_bin_path() + '/bin/rx_uhd'
         print('Compiling executable into :' + bin_path)
-        os.system('make INSTALL_PATH='+bin_path)
+        subprocess.check_call('make INSTALL_PATH='+bin_path, cwd=cwd, shell=True)
 
     def run(self):
         self.compile_and_install_rx_uhd()
@@ -53,7 +53,7 @@ class customInstall(install):
 
 setuptools.setup(
     name="ChirpSounder",
-    version="2.0.3",
+    version="2.0.4",
     author="Juha Vierinen",
     author_email="juha-pekka.vierinen@uit.no",
     description="Detect chirp sounders and over the horizon transmissions",
@@ -78,9 +78,6 @@ setuptools.setup(
         'digital_rf',
         'mpi4py',
     ],
-    # extras_requires={
-    #     'with-pyfftw':'pyfftw',
-    # },
     scripts=[
         'bin/detect_chirps',
         'bin/calc_ionograms',
@@ -89,6 +86,8 @@ setuptools.setup(
     ],
     cmdclass={'install' : customInstall},
     package_dir={"": "src"},
+    package_data={"chirpsounder": ["cSources/*"]},
+    include_package_data=True,
     packages=setuptools.find_packages(where="src"),
     python_requires=">=3.6",
     ext_modules=ext_modules,
