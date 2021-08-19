@@ -1,0 +1,50 @@
+No protocol specified
+using pyfftw
+reading /home/hamsci/code/juha/chirpsounder2/examples/w2naf/w2naf.ini
+Scanning for timings indefinitely
+Found chirp-rate 100.00 kHz/s t0=1626124696.0017 num_det 3 started 220.00 s ago 30.00 s left
+writing file /home/hamsci/data/chirpsounder2/2021-07-12/par-1626124696.0000.h5
+Found chirp-rate 100.00 kHz/s t0=1626124740.0305 num_det 8 started 175.98 s ago 74.02 s left
+writing file /home/hamsci/data/chirpsounder2/2021-07-12/par-1626124740.0000.h5
+Found chirp-rate 100.00 kHz/s t0=1626124780.0282 num_det 3 started 144.46 s ago 105.54 s left
+writing file /home/hamsci/data/chirpsounder2/2021-07-12/par-1626124780.0000.h5
+Found chirp-rate 125.00 kHz/s t0=1626124877.0844 num_det 3 started 70.05 s ago 129.95 s left
+writing file /home/hamsci/data/chirpsounder2/2021-07-12/par-1626124877.0000.h5
+Found chirp-rate 100.00 kHz/s t0=1626124786.0208 num_det 3 started 168.42 s ago 81.58 s left
+writing file /home/hamsci/data/chirpsounder2/2021-07-12/par-1626124786.0000.h5
+Found chirp-rate 125.00 kHz/s t0=1626124969.0777 num_det 3 started 60.98 s ago 139.02 s left
+writing file /home/hamsci/data/chirpsounder2/2021-07-12/par-1626124969.0000.h5
+Found chirp-rate 100.00 kHz/s t0=1626125035.0319 num_det 3 started 109.38 s ago 140.62 s left
+writing file /home/hamsci/data/chirpsounder2/2021-07-12/par-1626125035.0000.h5
+Found chirp-rate 100.00 kHz/s t0=1626125040.0316 num_det 3 started 108.72 s ago 141.28 s left
+writing file /home/hamsci/data/chirpsounder2/2021-07-12/par-1626125040.0000.h5
+Found chirp-rate 125.00 kHz/s t0=1626125117.0848 num_det 3 started 81.43 s ago 118.57 s left
+writing file /home/hamsci/data/chirpsounder2/2021-07-12/par-1626125117.0000.h5
+Found chirp-rate 100.00 kHz/s t0=1626125080.0287 num_det 3 started 119.92 s ago 130.08 s left
+writing file /home/hamsci/data/chirpsounder2/2021-07-12/par-1626125080.0000.h5
+Found chirp-rate 125.00 kHz/s t0=1626125145.0859 num_det 3 started 81.81 s ago 118.19 s left
+writing file /home/hamsci/data/chirpsounder2/2021-07-12/par-1626125145.0000.h5
+Found chirp-rate 100.00 kHz/s t0=1626125086.0211 num_det 3 started 159.28 s ago 90.72 s left
+writing file /home/hamsci/data/chirpsounder2/2021-07-12/par-1626125086.0000.h5
+Found chirp-rate 50.00 kHz/s t0=1626125060.0343 num_det 3 started 202.32 s ago 297.68 s left
+writing file /home/hamsci/data/chirpsounder2/2021-07-12/par-1626125060.0000.h5
+Found chirp-rate 125.00 kHz/s t0=1626125357.0846 num_det 3 started 69.48 s ago 130.52 s left
+writing file /home/hamsci/data/chirpsounder2/2021-07-12/par-1626125357.0000.h5
+Found chirp-rate 125.00 kHz/s t0=1626125359.0777 num_det 3 started 74.91 s ago 125.09 s left
+writing file /home/hamsci/data/chirpsounder2/2021-07-12/par-1626125359.0000.h5
+Found chirp-rate 100.00 kHz/s t0=1626125340.0312 num_det 3 started 113.93 s ago 136.07 s left
+writing file /home/hamsci/data/chirpsounder2/2021-07-12/par-1626125340.0000.h5
+Found chirp-rate 100.00 kHz/s t0=1626125335.0311 num_det 3 started 123.22 s ago 126.78 s left
+writing file /home/hamsci/data/chirpsounder2/2021-07-12/par-1626125335.0000.h5
+Found chirp-rate 100.00 kHz/s t0=1626125386.0207 num_det 3 started 163.96 s ago 86.04 s left
+writing file /home/hamsci/data/chirpsounder2/2021-07-12/par-1626125386.0000.h5
+Found chirp-rate 100.00 kHz/s t0=1626125432.0091 num_det 3 started 149.15 s ago 100.85 s left
+writing file /home/hamsci/data/chirpsounder2/2021-07-12/par-1626125432.0000.h5
+Found chirp-rate 50.00 kHz/s t0=1626125360.0336 num_det 3 started 239.85 s ago 260.15 s left
+writing file /home/hamsci/data/chirpsounder2/2021-07-12/par-1626125360.0000.h5
+Found chirp-rate 125.00 kHz/s t0=1626125539.0775 num_det 3 started 85.08 s ago 114.92 s left
+writing file /home/hamsci/data/chirpsounder2/2021-07-12/par-1626125539.0000.h5
+Found chirp-rate 125.00 kHz/s t0=1626125567.0841 num_det 3 started 71.45 s ago 128.55 s left
+writing file /home/hamsci/data/chirpsounder2/2021-07-12/par-1626125567.0000.h5
+Found chirp-rate 125.00 kHz/s t0=1626125625.0862 num_det 3 started 71.06 s ago 128.94 s left
+writing file /home/hamsci/data/chirpsounder2/2021-07-12/par-1626125625.0000.h5

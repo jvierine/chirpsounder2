@@ -1,17 +1,11 @@
 # Chirp Sounder 2
 
-This software can be used to detect chirp sounders and over-the-horizon radar transmissions over the air, and to calculate ionograms from them. The software relies on <a href="https://github.com/MITHaystack/digital_rf">Digital RF</a> recordings of HF. 
+This software can be used to detect chirp sounders and over-the-horizon radar transmissions over the air, and to calculate ionograms from them. The software relies on <a href="https://github.com/MITHaystack/digital_rf">Digital RF</a> recordings of HF. The program can be run in realtime on complex voltage recorded into a ringbuffer, but it can also be run offline on a recording on a disk. 
 
 This is a new implementation of the <a href="https://github.com/jvierine/chirpsounder">GNU Chirp Sounder</a>. This new version allows you to now automatically find chirps without knowledge of what the timing and chirp-rate is. You can still figure out the true distance if you have a GPSDO, as most sounders start at a full second. 
 
-The software consists of several parts:
- - detect_chirps.py  # this is used to find chirps using a chirp-rate matched filterbank
- - find_timings.py # this is used to cluster detections and determine what chirp timings and chirp rates exist
- - calc_ionograms.py # this is used to calculate ionograms based on parameters
- - plot_ionograms.py # plot calculated ionograms
-
 ## Installation
-
+See dependencies.txt for instructions on how to build the dependencies (tested on Ubuntu 18 & 20)
 You need to compile the chirp downconversion library, which is written in C.
 ```
 make 
@@ -104,6 +98,21 @@ python calc_ionograms.py configuration.ini
 python plot_ionograms.py configuration.ini
 ```
 
+## Programs
+
+The software consists of several parts:
+ - detect_chirps.py  # this is used to find chirps using a chirp-rate matched filterbank
+ - find_timings.py # this is used to cluster detections and determine what chirp timings and chirp rates exist
+ - calc_ionograms.py # this is used to calculate ionograms based on parameters
+ - plot_ionograms.py # plot calculated ionograms
+
+## Output files
+
+The program creates several different kinds of output files. 
+
+- chirp-%017d.h5 - Files created by detect_chirps.py, indicating that a chirp was detected in a block of data being inspected. The starting frequency, time, chirp-rate, chirp-time, and signal-to-noise ratio are recorded. Chirp-time means the virtual time at which the chirp started from a frequency of 0 hertz.
+- par-%11.3f.h5 - Files created by find_timings.py, which analyzes chirp-*.h5 files and determines what are the sounder parameters. By default, three independent detections of the same chirp at different times with consistent parameters to classify the chirp as real. This is to avoid false positives.
+- lfm_ionogram-%03d-%11.2f.h5 - Files created by calc_ionograms.py. These contain the ionogram itself. Optionally the chirp downconverted raw voltage can also be stored in order to allow the chirp to be reanalyzed with different spectral analysis settings. 
 
 ## Examples
 

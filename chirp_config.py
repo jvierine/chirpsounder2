@@ -33,6 +33,7 @@ class chirp_config:
                      "realtime":"false",
                      "decimation":"1250",
                      "debug_timings":"false",
+                     "save_raw_voltage":"false",                     
                      "serendipitous":"false",
                      "sounder_timings":'[{"chirp-rate":500.0084e3,"rep":60.0,"chirpt":54.0016,"id":5}]',
                      "n_downconversion_threads":"4"}
@@ -52,6 +53,7 @@ class chirp_config:
         self.decimation=json.loads(c["config"]["decimation"])
         self.chirp_rep_times=json.loads(c["config"]["chirp_rep_times"])
         self.realtime=json.loads(c["config"]["realtime"])
+        self.save_raw_voltage=json.loads(c["config"]["save_raw_voltage"])        
         self.data_dir=json.loads(c["config"]["data_dir"])
         self.n_downconversion_threads=json.loads(c["config"]["n_downconversion_threads"])
         self.max_range_extent=json.loads(c["config"]["max_range_extent"])

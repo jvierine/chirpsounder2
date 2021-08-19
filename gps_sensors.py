@@ -3,7 +3,7 @@
 # Demonstrate the use of internal gpsdo and set launch time on a N200.
 # 11 Nov 2020 - Updated by W2NAF to work with GnuRadio 3.8.1
 #
-from gnuradio import gr, gru, uhd
+from gnuradio import gr, uhd
 import time, math, os
 from time import strftime, gmtime
 import datetime
