@@ -2,16 +2,25 @@
 #
 # start a ringbuffer
 #
-CONFFILE=/home/chrpsdr/src/chirpsounder2/examples/sgo/sgo.ini
+INSTALL_PATH=/home/hfrx1/src/chirpsounder2
+cd $INSTALL_PATH
+# stop all processes
+./stop_ringbuffer.sh
+CONFFILE=/home/hfrx1/src/chirpsounder2/examples/sgo/sgo.ini
 DDIR=/dev/shm/hf25
 mkdir -p logs
+
+# delete old data from ram disk
+rm -Rf $DDIR
+mkdir -p $DDIR
+
 # sync to ntp time
 echo "NTPDATE"
 sudo ntpdate ntp.uit.no
 
 # setup ringbuffer
 echo "Ringbuffer"
-drf ringbuffer -z 1700MB $DDIR -p 2 >logs/ringbuffer.log 2>&1 &
+drf ringbuffer -z 30000MB $DDIR -p 2 >logs/ringbuffer.log 2>&1 &
 
 
 # Calculate ionograms using known timings
