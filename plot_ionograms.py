@@ -60,9 +60,16 @@ def plot_ionogram(conf,f,normalize_by_frequency=True):
     plt.title("Chirp-rate %1.2f kHz/s t0=%1.5f (unix s)\n%s (UTC)"%(float(n.copy(ho[("rate")]))/1e3,float(n.copy(ho[("t0")])),cd.unix2datestr(float(n.copy(ho[("t0")])))))
     plt.xlabel("Frequency (MHz)")
     plt.ylabel("One-way range offset (km)")
-    plt.ylim([dr-conf.max_range_extent/1e3,dr+conf.max_range_extent/1e3])
+    if conf.manual_range_extent:
+        plt.ylim([conf.min_range/1e3,conf.max_range/1e3])
+    else:
+        plt.ylim([dr-conf.max_range_extent/1e3,dr+conf.max_range_extent/1e3])
+        
 #    plt.ylim([dr-1000.0,dr+1000.0])
-    plt.xlim([0,conf.maximum_analysis_frequency/1e6])
+    if conf.manual_freq_extent:
+        plt.xlim([conf.min_freq/1e6,conf.max_freq/1e6])
+    else:
+        plt.xlim([0,conf.maximum_analysis_frequency/1e6])
     plt.tight_layout()
     plt.savefig(img_fname)
     fig.clf()

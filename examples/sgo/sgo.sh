@@ -2,11 +2,11 @@
 #
 # start a ringbuffer
 #
-INSTALL_PATH=/home/hfrx1/src/chirpsounder2
+INSTALL_PATH=/home/hfrx2/src/chirpsounder2
 cd $INSTALL_PATH
 # stop all processes
 ./stop_ringbuffer.sh
-CONFFILE=/home/hfrx1/src/chirpsounder2/examples/sgo/sgo.ini
+CONFFILE=/home/hfrx2/src/chirpsounder2/examples/sgo/sgo.ini
 DDIR=/dev/shm/hf25
 mkdir -p logs
 
@@ -14,9 +14,9 @@ mkdir -p logs
 rm -Rf $DDIR
 mkdir -p $DDIR
 
-# sync to ntp time
-echo "NTPDATE"
-sudo ntpdate ntp.uit.no
+# sync to ntp time not needed, if you run ntpd
+#echo "NTPDATE"
+#sudo ntpdate ntp.uit.no
 
 # setup ringbuffer
 echo "Ringbuffer"

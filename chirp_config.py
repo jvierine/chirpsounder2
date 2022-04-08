@@ -29,6 +29,12 @@ class chirp_config:
                      "maximum_analysis_frequency":"25e6",
                      "minimum_analysis_frequency":"0.0",                     
                      "max_range_extent":"2000e3",
+                     "min_range":"200e3",
+                     "max_range":"1500e3",
+                     "manual_range_extent":"false",                     
+                     "min_freq":"0",
+                     "max_freq":"25e6",
+                     "manual_freq_extent":"false",                     
                      "plot_timings":"false",
                      "realtime":"false",
                      "decimation":"1250",
@@ -47,6 +53,10 @@ class chirp_config:
         self.fname=fname
         self.plot_timings=json.loads(c["config"]["plot_timings"])
         self.debug_timings=json.loads(c["config"]["debug_timings"])
+        self.manual_range_extent=json.loads(c["config"]["manual_range_extent"])
+        
+        self.manual_freq_extent=json.loads(c["config"]["manual_freq_extent"])        
+        
         self.serendipitous=json.loads(c["config"]["serendipitous"])
         self.min_detections=int(json.loads(c["config"]["min_detections"]))
         self.sounder_timings=json.loads(c["config"]["sounder_timings"])
@@ -57,6 +67,13 @@ class chirp_config:
         self.data_dir=json.loads(c["config"]["data_dir"])
         self.n_downconversion_threads=json.loads(c["config"]["n_downconversion_threads"])
         self.max_range_extent=json.loads(c["config"]["max_range_extent"])
+        
+        self.max_range=json.loads(c["config"]["max_range"])
+        self.min_range=json.loads(c["config"]["min_range"])
+
+        self.max_freq=json.loads(c["config"]["max_freq"])
+        self.min_freq=json.loads(c["config"]["min_freq"])
+        
         self.n_samples_per_block=json.loads(c["config"]["n_samples_per_block"])
         self.sample_rate=json.loads(c["config"]["sample_rate"])
         self.center_freq=json.loads(c["config"]["center_freq"])
