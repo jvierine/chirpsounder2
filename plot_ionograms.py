@@ -58,7 +58,7 @@ def plot_ionogram(conf,f,normalize_by_frequency=True):
     plt.pcolormesh(freqs/1e6,range_gates,dB,vmin=-3,vmax=30.0,cmap="inferno")
     cb=plt.colorbar()
     cb.set_label("SNR (dB)")
-    plt.title("Chirp-rate %1.2f kHz/s t0=%1.5f (unix s)\n%s (UTC)"%(float(n.copy(ho[("rate")]))/1e3,float(n.copy(ho[("t0")])),cd.unix2datestr(float(n.copy(ho[("t0")])))))
+    plt.title("Chirp-rate %1.2f kHz/s t0=%1.5f (unix s)\n%s %s (UTC)"%(float(n.copy(ho[("rate")]))/1e3,float(n.copy(ho[("t0")])),conf.station_name,cd.unix2datestr(float(n.copy(ho[("t0")])))))
     plt.xlabel("Frequency (MHz)")
     plt.ylabel("One-way range offset (km)")
     if conf.manual_range_extent:
@@ -80,6 +80,8 @@ def plot_ionogram(conf,f,normalize_by_frequency=True):
     gc.collect()
     ho.close()
     sys.stdout.flush()
+    if conf.copy_to_server:
+        os.system("rsync -av %s %s/latest_%s.png"%(img_fname,conf.copy_destination,conf.station_name))
 
 
 if __name__ == "__main__":

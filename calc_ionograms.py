@@ -183,7 +183,7 @@ def chirp_downconvert(conf,
         dname="%s/%s"%(conf.output_dir,cd.unix2dirname(t0))
         if not os.path.exists(dname):
             os.mkdir(dname)
-        ofname="%s/lfm_ionogram-%03d-%1.2f.h5"%(dname,cid,t0)
+        ofname="%s/lfm_ionogram-%s-%03d-%1.2f.h5"%(dname,conf.station_name,cid,t0)
         print("Writing to %s" % ofname)
         ho=h5py.File(ofname,"w")
         S0=n.array(S[:,ridx],dtype=n.float16)     # ionogram frequency-range, save space
@@ -193,6 +193,7 @@ def chirp_downconvert(conf,
         ho["ranges"]=range_gates[ridx]
         ho["t0"]=t0
         ho["id"]=cid
+        ho["station_name"]=conf.station_name
         ho["sr"]=float(sr_dec) # ionogram sample-rate
         if conf.save_raw_voltage:
             ho["z"]=zd

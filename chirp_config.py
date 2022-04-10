@@ -31,7 +31,10 @@ class chirp_config:
                      "max_range_extent":"2000e3",
                      "min_range":"200e3",
                      "max_range":"1500e3",
-                     "manual_range_extent":"false",                     
+                     "manual_range_extent":"false",
+                     "copy_to_server":"false",
+                     "copy_destination":"none",
+                     "station_name":"station_name",
                      "min_freq":"0",
                      "max_freq":"25e6",
                      "manual_freq_extent":"false",                     
@@ -52,6 +55,8 @@ class chirp_config:
                 print("configuration file %s doesn't exist. using default values"%(fname))
         self.fname=fname
         self.plot_timings=json.loads(c["config"]["plot_timings"])
+        self.copy_to_server=json.loads(c["config"]["copy_to_server"])
+        
         self.debug_timings=json.loads(c["config"]["debug_timings"])
         self.manual_range_extent=json.loads(c["config"]["manual_range_extent"])
         
@@ -65,6 +70,9 @@ class chirp_config:
         self.realtime=json.loads(c["config"]["realtime"])
         self.save_raw_voltage=json.loads(c["config"]["save_raw_voltage"])        
         self.data_dir=json.loads(c["config"]["data_dir"])
+        self.copy_destination=json.loads(c["config"]["copy_destination"])
+        self.station_name=json.loads(c["config"]["station_name"])
+        
         self.n_downconversion_threads=json.loads(c["config"]["n_downconversion_threads"])
         self.max_range_extent=json.loads(c["config"]["max_range_extent"])
         
