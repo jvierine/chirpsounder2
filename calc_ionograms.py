@@ -3,6 +3,7 @@
 # Scan through a digital rf recording
 #
 import numpy as np
+import numpy as n
 import digital_rf as drf
 from mpi4py import MPI
 import glob
@@ -55,8 +56,9 @@ def get_m_per_Hz(rate):
     # rate = [Hz/s]
     # 1/rate = [s/Hz]
     dt=1.0/rate
-    # m/Hz round trip
-    return(dt*c.c/2.0)
+    # Changed from m/Hz round trip on 2022.04.10 to
+    # m/Hz one-way travel time 
+    return(dt*c.c)
 
 def chirp(L,f0=-25e3,cr=160e3,sr=50e3,use_numpy=False):
     """
@@ -75,9 +77,12 @@ def chirp(L,f0=-25e3,cr=160e3,sr=50e3,use_numpy=False):
 
 def spectrogram(x,window=1024,step=512,wf=ss.hann(1024)):
     n_spec=int((len(x)-window)/step)
-    S=np.zeros([n_spec,window])
+    S=np.zeros([n_spec,window],dtype=n.float64)
     for i in range(n_spec):
         S[i,] = np.abs(np.fft.fftshift(np.fft.fft(wf*x[(i*step):(i*step+window)])))**2.0
+        
+    #normalize scale to float16
+    S=5e4*S/n.nanmax(S)
     return(S)
 
 def decimate(x,dec):
@@ -163,9 +168,17 @@ def chirp_downconvert(conf,
     freqs=rate*np.arange(S.shape[0])*fft_step/sr_dec
     range_gates=ds*np.fft.fftshift(np.fft.fftfreq(fftlen,d=1.0/sr_dec))
 
-    ridx=np.where(np.abs(range_gates) < conf.max_range_extent)[0]
+    if conf.manual_range_extent:
+        ridx=np.where( (range_gates > conf.min_range) & (range_gates < conf.max_range) )[0]
+    else:
+        ridx=np.where( n.abs(range_gates) < conf.max_range_extent)[0]
 
-    
+    fidx=n.arange(len(freqs),dtype=n.int)
+    if conf.manual_freq_extent:
+        fidx=n.where( (freqs>conf.min_freq) & (freqs < conf.max_freq) )[0]
+        
+
+        
     try:
         dname="%s/%s"%(conf.output_dir,cd.unix2dirname(t0))
         if not os.path.exists(dname):
@@ -173,8 +186,9 @@ def chirp_downconvert(conf,
         ofname="%s/lfm_ionogram-%03d-%1.2f.h5"%(dname,cid,t0)
         print("Writing to %s" % ofname)
         ho=h5py.File(ofname,"w")
-        ho["S"]=S[:,ridx]          # ionogram frequency-range
-        ho["freqs"]=freqs  # frequency bins
+        S0=n.array(S[:,ridx],dtype=n.float16)     # ionogram frequency-range, save space
+        ho["S"]=S0[fidx,:]
+        ho["freqs"]=freqs[fidx]  # frequency bins
         ho["rate"]=rate    # chirp-rate
         ho["ranges"]=range_gates[ridx]
         ho["t0"]=t0

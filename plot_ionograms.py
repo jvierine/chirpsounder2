@@ -26,7 +26,7 @@ def plot_ionogram(conf,f,normalize_by_frequency=True):
         return
     
     print("Plotting %s rate %1.2f (kHz/s) t0 %1.5f (unix)"%(f,float(n.copy(ho[("rate")]))/1e3,float(n.copy(ho[("t0")]))))
-    S=n.copy(ho[("S")])          # ionogram frequency-range
+    S=n.copy(n.array(ho[("S")],dtype=n.float64))          # ionogram frequency-range
     freqs=n.copy(ho[("freqs")])  # frequency bins
     ranges=n.copy(ho[("ranges")])  # range gates
 
@@ -51,7 +51,8 @@ def plot_ionogram(conf,f,normalize_by_frequency=True):
 
     dt=(t0-n.floor(t0))
     dr=dt*c.c/1e3
-    range_gates=dr+2*ranges/1e3
+    # converted to one-way travel time
+    range_gates=dr+ranges/1e3
     r0=range_gates[max_range_idx]
     fig=plt.figure(figsize=(1.5*8,1.5*6))
     plt.pcolormesh(freqs/1e6,range_gates,dB,vmin=-3,vmax=30.0,cmap="inferno")
