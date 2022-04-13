@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import matplotlib
-#matplotlib.use('Agg')
+matplotlib.use('Agg')
 import numpy as n
 import matplotlib.pyplot as plt
 import glob
@@ -13,7 +13,8 @@ import os
 import time
 
 
-def summary(conf,t0):
+
+def summary_plots(conf,t0):
 
     fl=glob.glob("%s/%s/*.h5"%(conf.output_dir,cd.unix2dirname(t0)))
     fl.sort()
@@ -75,8 +76,8 @@ def summary(conf,t0):
     fig.clf()
     plt.clf()
     plt.close("all")
-    if conf.copy_to_server:
-        os.system("rsync -av %s %s/latest_rstack_%s.png"%(img_fname_r,conf.copy_destination,conf.station_name))
+  #  if conf.copy_to_server:
+   #     os.system("rsync -av %s %s/latest_rstack_%s.png"%(img_fname_r,conf.copy_destination,conf.station_name))
 
 
     dBV=10.0*n.log10(SV.T)
@@ -95,13 +96,41 @@ def summary(conf,t0):
     plt.clf()
     fig.clf()
     plt.close("all")
-    if conf.copy_to_server:
-        os.system("rsync -av %s %s/latest_fstack_%s.png"%(img_fname_f,conf.copy_destination,conf.station_name))
+#    if conf.copy_to_server:
+ #       os.system("rsync -av %s %s/latest_fstack_%s.png"%(img_fname_f,conf.copy_destination,conf.station_name))
 
     
-    plt.show()
-        
+def summary_page(conf,t0):
+    rsfl=glob.glob("%s/2*/rstack*.png"%(conf.output_dir))
+    rsfl.sort()
+    fsfl=glob.glob("%s/2*/fstack*.png"%(conf.output_dir))
+    fsfl.sort()
 
+    print(fsfl)
+    if conf.copy_to_server:
+        try:
+            os.system("rsync -av %s %s/latest_fstack_%s.png"%(fsfl[len(fsfl)-1],conf.copy_destination,conf.station_name))
+        except:
+            print("failed to copy latest fstack")
+        try:
+            os.system("rsync -av %s %s/previous_fstack_%s.png"%(fsfl[len(fsfl)-2],conf.copy_destination,conf.station_name))
+        except:
+            print("failed to copy previous fstack")
+        try:
+            os.system("rsync -av %s %s/latest_rstack_%s.png"%(rsfl[len(rsfl)-1],conf.copy_destination,conf.station_name))
+        except:
+            print("failed to copy latest rstack")
+        try:
+            os.system("rsync -av %s %s/previous_rstack_%s.png"%(rsfl[len(rsfl)-2],conf.copy_destination,conf.station_name))
+        except:
+            print("failed to copy previous rstack")
+
+        
+def summary(conf,t0):
+    summary_plots(conf,t0)
+    summary_page(conf,t0)
+
+    
 
 if __name__ == "__main__":
     if len(sys.argv) == 2:
@@ -110,6 +139,8 @@ if __name__ == "__main__":
         print("one argument with configuration file needed")
         exit(0)
 
-    summary(conf,time.time())
+    # 30 minutes delayed to ensure full day
+    summary(conf,time.time()-1800)
+
                 
             
