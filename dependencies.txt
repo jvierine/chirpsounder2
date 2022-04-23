@@ -16,6 +16,11 @@ sudo apt-get install python-matplotlib
 sudo apt-get install python-scipy
 sudo apt-get install python3-uhd
 sudo apt install python3-pip
+
+sudo apt install python3-h5py
+sudo apt install python3-mpi4py
+sudo apt install python3-pyfftw3
+
 pip3 install uhd
 sudo apt-get install libgnuradio-uhd
 
