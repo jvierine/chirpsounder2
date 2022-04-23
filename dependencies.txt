@@ -20,6 +20,7 @@ sudo apt install python3-pip
 sudo apt install python3-h5py
 sudo apt install python3-mpi4py
 sudo apt install python3-pyfftw3
+sudo apt install python3-watchdog
 
 pip3 install uhd
 sudo apt-get install libgnuradio-uhd
