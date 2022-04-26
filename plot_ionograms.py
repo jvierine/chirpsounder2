@@ -11,6 +11,7 @@ import chirp_det as cd
 import sys
 import os
 import time
+import traceback
 
 def plot_ionogram(conf,f,normalize_by_frequency=True):
     ho=h5py.File(f,"r")
@@ -95,12 +96,20 @@ if __name__ == "__main__":
             fl=glob.glob("%s/*/lfm*.h5"%(conf.output_dir))
             fl.sort()
             for f in fl:
-                plot_ionogram(conf,f)
+                try:
+                    plot_ionogram(conf,f)
+                except:
+                    print("error with %s"%(f))
+                    print(traceback.format_exc())
             time.sleep(10)
     else:
         fl=glob.glob("%s/*/lfm*.h5"%(conf.output_dir))
         for f in fl:
-            plot_ionogram(conf,f)
+            try:
+                plot_ionogram(conf,f)
+            except:
+                print("error with %s"%(f))
+                print(traceback.format_exc())
 
                 
             
