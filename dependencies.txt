@@ -16,6 +16,15 @@ sudo apt-get install python-matplotlib
 sudo apt-get install python-scipy
 sudo apt-get install python3-uhd
 sudo apt install python3-pip
+
+sudo apt install python3-h5py
+sudo apt install python3-mpi4py
+sudo apt install python3-pyfftw
+sudo apt install python3-watchdog
+
+# install ntp client to sync PC clock to network
+sudo apt-get install chrony
+
 pip3 install uhd
 sudo apt-get install libgnuradio-uhd
 
@@ -37,10 +46,18 @@ cmake -DENABLE_PYTHON=ON ..
 make
 sudo make install
 
+# refresh shared library index
+sudo ldconfig
+
+# 
 git clone http://github.com/jvierine/chirpsounder2
 cd chirpsounder2/
 make
 
-Use pip3 to install missing packages (e.g. pyfftw, scipy etc.)
+#Use pip3 to install missing packages (e.g. pyfftw, scipy etc.). shouldn't be needed
+#Thor can be tested using the suggested line "thor.py -m 192.168.10.2 -d "A:A" -c cha -f 12.5e6 -r 25e6 /dev/shm/hf25"
 
-Thor can be tested using the suggested line "thor.py -m 192.168.10.2 -d "A:A" -c cha -f 12.5e6 -r 25e6 /dev/shm/hf25"
+# create data output directory. ionograms will go here
+sudo mkdir -p /data0
+sudo chown -R $USER:$USER /data0
+
