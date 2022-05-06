@@ -12,6 +12,7 @@ import sys
 import os
 import time
 import traceback
+import re
 
 def plot_ionogram(conf,f,normalize_by_frequency=True):
     ho=h5py.File(f,"r")
@@ -95,9 +96,15 @@ if __name__ == "__main__":
         while True:
             fl=glob.glob("%s/*/lfm*.h5"%(conf.output_dir))
             fl.sort()
-            for f in fl:
+            t_now=time.time()
+            # avoid last file to make sure we don't read and write simultaneously
+            for f in fl[0:(len(fl)-1)]:
                 try:
-                    plot_ionogram(conf,f)
+                    t_file=float(re.search(".*-(1............).h5",f).group(1))
+                    # new enough file
+                    if t_now-t_file < 48*3600.0:
+                        plot_ionogram(conf,f)
+                    
                 except:
                     print("error with %s"%(f))
                     print(traceback.format_exc())
