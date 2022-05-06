@@ -95,7 +95,10 @@ if __name__ == "__main__":
             fl=glob.glob("%s/*/lfm*.h5"%(conf.output_dir))
             fl.sort()
             for f in fl:
-                plot_ionogram(conf,f)
+                try:
+                    plot_ionogram(conf,f)
+                except:
+                    print("error with plotting %s"%(f))
             time.sleep(10)
     else:
         fl=glob.glob("%s/*/lfm*.h5"%(conf.output_dir))
