@@ -11,7 +11,7 @@ import numpy as n
 # if true, plot all scaled ionograms. otherwise scale only unscaled ionograms, skipping already labeled ionograms
 review=False
 
-data_dir="/data1/noire/noire/iva/2022-05-02"
+data_dir="/data1/noire/noire/ski/2022-05-02"
 fl=glob.glob("%s/lfm*.h5"%(data_dir))
 fl.sort()
 
@@ -23,8 +23,13 @@ def normalize(S):
     S[S<0]=1e-3
     return(S)
 
-for f in fl:
+for fi,f in enumerate(fl):
     hin=h5py.File(f,"a")
+    if "fof2" in hin.keys():
+        print("skipping %s"%(f))
+        hin.close()
+        continue
+    
     print(hin.keys())
 
     S=normalize(hin["S"][()])
@@ -90,19 +95,23 @@ for f in fl:
             ax.axhline(he,color="white")
             fig.canvas.draw()
             
-        if event.key == '5':
-            he=0.0
-            fe=0.0
-            hmf=0.0
-            fof2=0.0
-            fig.canvas.draw()
+#        if event.key == '5':
+#            he=0.0
+ #           fe=0.0
+  #          hmf=0.0
+   #         fof2=0.0
+    #        fig.canvas.draw()
             
         if event.key == '9':
             print("saving %s %f %f %f %f"%(f,fof2,hf,fe,he))
-            hin["fof2"]=fof2
-            hin["hmf"]=hf
-            hin["fe"]=fe
-            hin["he"]=he
+            if "fof2" not in hin.keys():
+                hin["fof2"]=fof2
+            if "hmf" not in hin.keys():                
+                hin["hmf"]=hf
+            if "fe" not in hin.keys():                
+                hin["fe"]=fe
+            if "he" not in hin.keys():                
+                hin["he"]=he
             hin.close()
             plt.close()
             
@@ -113,7 +122,7 @@ for f in fl:
             
     fig.canvas.mpl_connect('key_press_event', press)
     ax.pcolormesh(freqs,ranges,dB)
-    plt.title("1) fof2 2) hf 3) fe 4) he 9) save 0) skip")
+    plt.title("%d/%d\n1) fof2 2) hf 3) fe 4) he 9) save 0) skip"%(fi,len(fl)))
     plt.show()
 
     try:
