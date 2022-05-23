@@ -29,6 +29,10 @@ for fi,f in enumerate(fl):
         print("skipping %s"%(f))
         hin.close()
         continue
+    if "S" not in hin.keys():
+        print("missing ionogram. skipping.")
+        hin.close()
+        continue
     
     print(hin.keys())
 
