@@ -17,6 +17,7 @@ def normalize(S):
 
 
 def plot_slices(data_dir="/data1/noire/noire/oul/2022-05-02",
+                r0 = 850e3,
                 name="Skitbotn"):
 
     fl=glob.glob("%s/lfm*.h5"%(data_dir))
@@ -27,9 +28,9 @@ def plot_slices(data_dir="/data1/noire/noire/oul/2022-05-02",
     tv=[]
     
     # plot this frequency
-    f0 = 5.0
+    f0 = 5.5
     # plot this range
-    r0 = 850e3
+    
     S0=n.zeros([len(fl),650])
     S1=n.zeros([len(fl),310])
     
@@ -70,18 +71,30 @@ def plot_slices(data_dir="/data1/noire/noire/oul/2022-05-02",
     plt.xlabel("Time (hour)")
     plt.ylabel("Virtual path length (km)")
     plt.colorbar()
-    plt.show()
+    plt.tight_layout()
+    plt.savefig("range_%s.png"%(name))
+    plt.clf()
+    plt.close()
     plt.pcolormesh(thour,fr,10.0*n.log10(n.transpose(S1)),vmin=0,vmax=20)
     plt.title("%s %s\nPath length=%1.2f km"%(name,stuffr.unix2datestr(tv[0]),r0/1e3))
     plt.xlabel("Time (hour)")
     plt.ylabel("Frequency (MHz)")
     plt.colorbar()
-    plt.show()
+    plt.tight_layout()    
+    plt.savefig("freq_%s.png"%(name))
+    plt.clf()
+    plt.close()
 
+    ho=h5py.File("%s.h5"%(name),"w")
+    ho["S0"]=S0
+    ho["S1"]=S1
+    ho["thour"]=thour
+    ho["t_unix"]=tv
+    ho["freq"]=fr
+    ho["ranges"]=ra/1e3
+    ho.close()
 
-    
-
-plot_slices(data_dir="/data1/noire/noire/ski/2022-05-02",name="Skibotn")
-plot_slices(data_dir="/data1/noire/noire/iva/2022-05-02",name="Ivalo")
-plot_slices(data_dir="/data1/noire/noire/oul/2022-05-02",name="Oulu")
-plot_slices(data_dir="/data1/noire/noire/kuu/2022-05-02",name="Kuusamo")
+plot_slices(data_dir="/data1/noire/noire/ski/2022-05-02",name="Skibotn",r0=900e3)
+plot_slices(data_dir="/data1/noire/noire/iva/2022-05-02",name="Ivalo",r0=800e3)
+plot_slices(data_dir="/data1/noire/noire/oul/2022-05-02",name="Oulu", r0=850e3)
+plot_slices(data_dir="/data1/noire/noire/kuu/2022-05-02",name="Kuusamo",r0=850e3)
