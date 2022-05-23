@@ -21,26 +21,42 @@ fof2=[]
 hmf=[]
 t=[]
 
+# plot this frequency
 f0 = 5.0
+# plot this range
+r0 = 950e3
 S0=n.zeros([len(fl),650])
+S1=n.zeros([len(fl),310])
+
+h=h5py.File(fl[0],"r")
+
+print(h.keys())
+fr=n.copy(h["freqs"][()]/1e6)
+ra=n.copy(h["ranges"][()])
+fidx=n.argmin(n.abs(f0-fr))
+ridx=n.argmin(n.abs(r0-ra))
+h.close()        
+
 for fi,f in enumerate(fl):
     try:
         h=h5py.File(f,"r")
         print(h.keys())
-#        S=normalize(h["S"][()])
-        S=h["S"][()]
-        fr=h["freqs"][()]/1e6
-        fidx=n.argmin(n.abs(f0-fr))
-        print(S.shape)
-        print(fidx)
-        S0[fi,:]=S[fidx,:]/n.median(n.abs(S[fidx,:]))
+        S=normalize(h["S"][()])
+        S0[fi,:]=S[fidx,:]#/n.median(n.abs(S[fidx,:]))
+        S1[fi,:]=S[:,ridx]#/n.median(n.abs(S[:,ridx]))
         h.close()
-        print(f)
+    #    print(f)
     except:
+        S0[fi,:]=1e-3
+        S1[fi,:]=1e-3        
         pass
         h.close()
+S0[S0<0]=1e-3
+S1[S1<0]=1e-3
 
-
-plt.pcolormesh(n.transpose(S0),vmin=0,vmax=20)
+plt.pcolormesh(10.0*n.log10(n.transpose(S0)),vmin=0,vmax=20)
+plt.colorbar()
+plt.show()
+plt.pcolormesh(10.0*n.log10(n.transpose(S1)),vmin=0,vmax=20)
 plt.colorbar()
 plt.show()
