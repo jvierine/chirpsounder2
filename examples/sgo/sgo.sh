@@ -2,11 +2,11 @@
 #
 # start a ringbuffer
 #
-INSTALL_PATH=/home/hfrx2/src/chirpsounder2
+INSTALL_PATH=/home/hfrx3/src/chirpsounder2
 cd $INSTALL_PATH
 # stop all processes
 ./stop_ringbuffer.sh
-CONFFILE=/home/hfrx2/src/chirpsounder2/examples/sgo/sgo.ini
+CONFFILE=/home/hfrx3/src/chirpsounder2/examples/sgo/sgo.ini
 DDIR=/dev/shm/hf25
 mkdir -p logs
 
@@ -33,11 +33,4 @@ sleep 10
 echo "Plot ionograms"
 python3 plot_ionograms.py $CONFFILE >logs/plot_ionograms.log 2>&1 &
 
-while true;
-do
-    echo "Starting THOR"
-    # start digital rf acquisition with custom c++ program that uses the uhd driver directly, skipping gnuradio
-    ./rx_uhd >logs/thor.log 2>&1
-    sleep 10
-done
-    
+bash rx_uhd_wrapper.sh &
