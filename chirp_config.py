@@ -70,7 +70,11 @@ class chirp_config:
         self.realtime=json.loads(c["config"]["realtime"])
         self.save_raw_voltage=json.loads(c["config"]["save_raw_voltage"])        
         self.data_dir=json.loads(c["config"]["data_dir"])
-        self.copy_destination=json.loads(c["config"]["copy_destination"])
+        try:
+            self.copy_destination=json.loads(c["config"]["copy_destination"])
+        except:
+            print("couldn't read copy destination")
+            pass
         self.station_name=json.loads(c["config"]["station_name"])
         
         self.n_downconversion_threads=json.loads(c["config"]["n_downconversion_threads"])

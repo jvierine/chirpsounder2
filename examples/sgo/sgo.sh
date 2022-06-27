@@ -20,24 +20,18 @@ mkdir -p $DDIR
 
 # setup ringbuffer
 echo "Ringbuffer"
-drf ringbuffer -z 30000MB $DDIR -p 2 >logs/ringbuffer.log 2>&1 &
+nohup drf ringbuffer -z 30000MB $DDIR -p 2 >logs/ringbuffer.log 2>&1 &
 
 
 # Calculate ionograms using known timings
 # use two parallel threads. one for SGO and one for HAARP
 echo "Ionogram calc"
-python3 calc_ionograms.py $CONFFILE >logs/calc_ionograms.log 2>&1 &
+nohup python3 calc_ionograms.py $CONFFILE >logs/calc_ionograms.log 2>&1 &
 sleep 10
 
 # plot ionograms
 echo "Plot ionograms"
-python3 plot_ionograms.py $CONFFILE >logs/plot_ionograms.log 2>&1 &
+nohup python3 plot_ionograms.py $CONFFILE >logs/plot_ionograms.log 2>&1 &
 
-while true;
-do
-    echo "Starting THOR"
-    # start digital rf acquisition with custom c++ program that uses the uhd driver directly, skipping gnuradio
-    ./rx_uhd >logs/thor.log 2>&1
-    sleep 10
-done
-    
+# disown
+nohup bash rx_uhd_wrapper.sh &
