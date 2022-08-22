@@ -6,7 +6,7 @@ INSTALL_PATH=/home/$USER/src/chirpsounder2
 cd $INSTALL_PATH
 # stop all processes
 ./stop_ringbuffer.sh
-CONFFILE=/home/$USER/src/chirpsounder2/examples/sgo/sgo.ini
+CONFFILE=/home/$USER/src/chirpsounder2/examples/sgo/sgo_iva.ini
 DDIR=/dev/shm/hf25
 mkdir -p logs
 
