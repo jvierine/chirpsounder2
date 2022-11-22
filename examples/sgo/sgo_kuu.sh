@@ -6,7 +6,7 @@ INSTALL_PATH=/home/hfrx3/src/chirpsounder2
 cd $INSTALL_PATH
 # stop all processes
 ./stop_ringbuffer.sh
-CONFFILE=/home/hfrx3/src/chirpsounder2/examples/sgo/sgo.ini
+CONFFILE=/home/hfrx3/src/chirpsounder2/examples/sgo/sgo_kuu.ini
 DDIR=/dev/shm/hf25
 mkdir -p logs
 
@@ -32,6 +32,9 @@ sleep 10
 # plot ionograms
 echo "Plot ionograms"
 python3 plot_ionograms.py $CONFFILE >logs/plot_ionograms.log 2>&1 &
+
+# backup data to sgo
+sh $INSTALL_PATH/examples/sgo/sgo_kuu_backup.sh > logs/backup.log  2>&1 &
 
 while true;
 do
