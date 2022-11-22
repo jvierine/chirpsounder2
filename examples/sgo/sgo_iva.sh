@@ -33,6 +33,10 @@ sleep 10
 echo "Plot ionograms"
 python3 plot_ionograms.py $CONFFILE >logs/plot_ionograms.log 2>&1 &
 
+
+echo "startgin backup"
+sh ./examples/sgo/backup_iva.sh >logs/backup.log 2>&1 &
+
 while true;
 do
     echo "Starting THOR"
