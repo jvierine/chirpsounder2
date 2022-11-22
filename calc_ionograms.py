@@ -75,11 +75,34 @@ def chirp(L,f0=-25e3,cr=160e3,sr=50e3,use_numpy=False):
         #   chirp=fe.expf(dphase+(2*np.pi*f0)*tv)#*fe.expf()
     return(chirp)
 
-def spectrogram(x,window=1024,step=512,wf=ss.hann(1024)):
+def spectrogram(x,window=1024,step=512,wf=ss.hann(1024),n_oversample=13):
+
     n_spec=int((len(x)-window)/step)
+
+    # n_oversample has to be odd
+    if n_oversample%2 == 0:
+        n_oversample+=1
+        
+    n_substep=int(step/n_oversample)
+    substep_idx=n.arange(n_oversample,dtype=n.int)- int((n_oversample-1)/2)
+    
     S=np.zeros([n_spec,window],dtype=n.float64)
     for i in range(n_spec):
-        S[i,] = np.abs(np.fft.fftshift(np.fft.fft(wf*x[(i*step):(i*step+window)])))**2.0
+        n_avg=0.0
+        for j in range(n_oversample):
+            i0=i*step + substep_idx[j]*n_substep
+            i1=i*step + substep_idx[j]*n_substep + window
+#            print("%d %d"%(i0,step))
+            
+            if (i0 >= 0) and (i1 < len(x)):
+                freq_pwr=np.abs(np.fft.fftshift(np.fft.fft(wf*x[i0:i1])))**2.0
+                std_est = n.nanmedian( n.abs(freq_pwr-n.nanmedian(freq_pwr)) )
+#                print(std_est)
+                if std_est > 0:
+                    S[i,:] += (1.0/(std_est**2.0))*freq_pwr#*np.abs(np.fft.fftshift(np.fft.fft(wf*x[i0:i1])))**2.0
+                    n_avg+=1.0/(std_est**2.0)
+                
+        S[i,:]=S[i,:]/n_avg
         
     #normalize scale to float16
     S=5e4*S/n.nanmax(S)
@@ -415,6 +438,7 @@ if __name__ == "__main__":
                 analyze_realtime(conf,d)
             except:
                 print("error in calc_ionograms.py. trying to restart")
+                traceback.print_exc(file=sys.stdout)
                 sys.stdout.flush()
                 time.sleep(1)
         
