@@ -4,6 +4,8 @@ This software can be used to detect chirp sounders and over-the-horizon radar tr
 
 This is a new implementation of the <a href="https://github.com/jvierine/chirpsounder">GNU Chirp Sounder</a>. This new version allows you to now automatically find chirps without knowledge of what the timing and chirp-rate is. You can still figure out the true distance if you have a GPSDO, as most sounders start at a full second. 
 
+Jens Floberg's <a href="https://munin.uit.no/handle/10037/25828">masters thesis</a> discusses the use of chirpsounder2 to make oblique ionograms using this software. 
+
 ## Installation
 See dependencies.txt for instructions on how to build the dependencies (tested on Ubuntu 18 & 20)
 You need to compile the chirp downconversion library, which is written in C.
