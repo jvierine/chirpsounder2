@@ -443,6 +443,7 @@ if __name__ == "__main__":
                 time.sleep(1)
         
     else: # batch analyze
+	d=drf.DigitalRFReader(conf.data_dir)
         analyze_all(conf,d)
 
 
