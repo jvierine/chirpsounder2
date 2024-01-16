@@ -10,8 +10,13 @@ import chirp_config as cc
 import sys
 import chirp_det as cd
 import os
+import os.path
 import time
 import pdb
+
+def kill(conf):
+    exists = os.path.isfile(conf.kill_path)
+    return exists
 
 def cluster_times(t,dt=0.1,dt2=0.02,min_det=2):
     t0s=dt*n.array(n.unique(n.array(n.round(t/dt),dtype=n.int)),dtype=n.float)
@@ -39,7 +44,7 @@ def cluster_times(t,dt=0.1,dt2=0.02,min_det=2):
 
     return(ct0s,num_dets)
             
-def scan_for_chirps(conf,dt=0.1):
+def scan_for_chirps(conf,ch,dt=0.1):
     """
     go through data files and look for unique soundings
     """
@@ -49,7 +54,7 @@ def scan_for_chirps(conf,dt=0.1):
     if conf.realtime:
         this_day_dname="%s/%s"%(conf.output_dir,cd.unix2dirname(time.time()))
         # today
-        fl=glob.glob("%s/chirp*.h5"%(this_day_dname))
+        fl=glob.glob("%s/chirp-%s*.h5"%(this_day_dname,ch))
         fl.sort()
         # latest 100 detections
         if len(fl)>500:
@@ -59,7 +64,7 @@ def scan_for_chirps(conf,dt=0.1):
             return
     else:
         # look for all in batch mode
-        fl=glob.glob("%s/2*/chirp*.h5"%(data_dir))
+        fl=glob.glob("%s/2*/chirp-%s*.h5"%(data_dir,ch))
         fl.sort()
         
     chirp_rates=[]
@@ -95,7 +100,7 @@ def scan_for_chirps(conf,dt=0.1):
         for ti,t0 in enumerate(t0s):
 
             if not conf.realtime:
-                print("Found chirp-rate %1.2f kHz/s t0=%1.4f num_det %d"%(c/1e3,t0,num_dets[ti]))
+                print("%s Found chirp-rate %1.2f kHz/s t0=%1.4f num_det %d"%(ch,c/1e3,t0,num_dets[ti]))
                 n_ionograms+=1
 
             if conf.plot_timings:
@@ -105,13 +110,13 @@ def scan_for_chirps(conf,dt=0.1):
             if not os.path.exists(dname):
                 os.mkdir(dname)
 
-            fname="%s/par-%1.4f.h5"%(dname,n.floor(t0))
+            fname="%s/par-%s-%1.4f.h5"%(dname,ch,n.floor(t0))
             
             if not os.path.exists(fname):
                 ho=h5py.File(fname,"w")
                 tnow=time.time()
                 t1=(t0+conf.maximum_analysis_frequency/c)
-                print("Found chirp-rate %1.2f kHz/s t0=%1.4f num_det %d started %1.2f s ago %1.2f s left"%(c/1e3,t0,num_dets[ti],tnow-t0,t1-tnow))
+                print("%s Found chirp-rate %1.2f kHz/s t0=%1.4f num_det %d started %1.2f s ago %1.2f s left"%(ch,c/1e3,t0,num_dets[ti],tnow-t0,t1-tnow))
                 print("writing file %s"%(fname))
                 ho["chirp_rate"]=c
                 ho["t0"]=t0
@@ -119,6 +124,7 @@ def scan_for_chirps(conf,dt=0.1):
                 ho["f0"]=f0[sweep_idx]
                 ho["t0s"]=chirp_times[sweep_idx]
                 ho["snrs"]=snrs[sweep_idx]            
+                ho["channel"]=ch
                 ho.close()
                     
         if conf.plot_timings:
@@ -132,10 +138,10 @@ def scan_for_chirps(conf,dt=0.1):
             plt.show()
 
     if not conf.realtime:
-        print("Found %d ionograms in total"%(n_ionograms))
+        print("%s Found %d ionograms in total"%(ch,n_ionograms))
 
 if __name__ == "__main__":
-    if len(sys.argv) == 2:
+    if len(sys.argv) == 3:
         conf=cc.chirp_config(sys.argv[1])
     else:
         print('No config provided - Using defaults')
@@ -143,18 +149,23 @@ if __name__ == "__main__":
 
     if conf.realtime:
         print("Scanning for timings indefinitely")
+        time.sleep(10)
         sys.stdout.flush()
         while True:
-            if conf.debug_timings:
-                print("find_timings: scanning for new sounders")
-            scan_for_chirps(conf)
-            if conf.debug_timings:
-                print("find_timings: sleeping 10 seconds")
-            time.sleep(1.0)
-            sys.stdout.flush()
+            if kill(conf):
+                print("kill.txt found, stopping find_timings.py")
+                sys.exit(0)
+            else:
+                if conf.debug_timings:
+                    print("find_timings: scanning for new sounders")
+                scan_for_chirps(conf,sys.argv[2])
+                if conf.debug_timings:
+                    print("find_timings: sleeping 10 seconds")
+                time.sleep(1.0)
+                sys.stdout.flush()
     else:
         print("Scanning for timings once in batch")
-        scan_for_chirps(conf)
+        scan_for_chirps(conf,sys.argv[2])
                 
 
     

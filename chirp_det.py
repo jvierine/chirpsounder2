@@ -84,11 +84,12 @@ class chirp_matched_filter_bank:
         chirp=n.exp(1j*n.mod(dphase,2*n.pi))*n.exp(1j*2*n.pi*f0*tv)
         return(n.array(chirp,dtype=n.complex64))
 
-    def seek(self,z,i0):
+    def seek(self,z,i0,ch):
         """
         Look for chirps in data vector
         z data vector
         i0 time of the leading edge of the vector
+        ch channel vector came from
         """
         cput0=time.time()
         n_samps=len(z)
@@ -157,9 +158,9 @@ class chirp_matched_filter_bank:
                     print("creating %s"%(dname))
                     os.mkdir(dname)
                     
-
                 # tbd: make an hour directory
-                ofname = "%s/chirp-%d.h5"%(dname,
+                ofname = "%s/chirp-%s-%d.h5"%(dname,
+                                           ch,
                                            i0)
                 ho=h5py.File(ofname,"w")
                 ho["f0"]=f0
@@ -169,6 +170,7 @@ class chirp_matched_filter_bank:
                 ho["chirp_time"]=chirp_time
                 ho["chirp_rate"]=detected_chirp_rate
                 ho["snr"]=snr_max
+                ho["channel"]=ch
                 debug1("saving %s"%(ofname))
                 ho.close()
             

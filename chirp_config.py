@@ -11,10 +11,11 @@ class chirp_config:
     def __init__(self,fname=None):
         c=configparser.ConfigParser()
         # initialize with default values
-        c["config"]={"channel":'"cha"',
+        c["config"]={"channel0":'"ch0"',"channel1":'"ch1"',
                      "sample_rate":"25000000.0",
                      "center_freq":"12.5e6",
-                     "data_dir":'"/mnt/data/juha/hf25"',
+                     "data_dir":'"/mnt/ramdisk/hf25"',
+                     "kill_path":'"/home/sdr/chirpsounder2/kill.txt"',
                      "threshold_snr":"13.0",
                      "max_simultaneous_detections":"5",
                      "min_detections":"3",                     
@@ -23,7 +24,7 @@ class chirp_config:
                      "minimum_frequency_spacing":"0.2e6",
                      "chirp_rates":"[50e3,100e3,125e3,500.0084e3]",
                      "chirp_rep_times":"[300.0,300.0,300.0,60.0]",
-                     "output_dir":'"./chirp2"',
+                     "output_dir":'"/home/sdr/chirpsounder2/data_out"',
                      "range_resolution":"2e3",
                      "frequency_resolution":"50e3",
                      "maximum_analysis_frequency":"25e6",
@@ -34,7 +35,7 @@ class chirp_config:
                      "manual_range_extent":"false",
                      "copy_to_server":"false",
                      "copy_destination":"none",
-                     "station_name":"station_name",
+                     "station_name":'"station_name"',
                      "min_freq":"0",
                      "max_freq":"25e6",
                      "manual_freq_extent":"false",                     
@@ -70,6 +71,7 @@ class chirp_config:
         self.realtime=json.loads(c["config"]["realtime"])
         self.save_raw_voltage=json.loads(c["config"]["save_raw_voltage"])        
         self.data_dir=json.loads(c["config"]["data_dir"])
+        self.kill_path=json.loads(c["config"]["kill_path"])
         try:
             self.copy_destination=json.loads(c["config"]["copy_destination"])
         except:
@@ -92,7 +94,9 @@ class chirp_config:
         self.chirp_rates=json.loads(c["config"]["chirp_rates"])
         self.range_resolution=json.loads(c["config"]["range_resolution"])
         self.frequency_resolution=json.loads(c["config"]["frequency_resolution"])
-        self.channel=json.loads(c["config"]["channel"])
+        self.channel0=json.loads(c["config"]["channel0"])
+        self.channel1=json.loads(c["config"]["channel1"])
+
         self.step=json.loads(c["config"]["step"])
         self.maximum_analysis_frequency=json.loads(c["config"]["maximum_analysis_frequency"])
         self.minimum_analysis_frequency=json.loads(c["config"]["minimum_analysis_frequency"])        
