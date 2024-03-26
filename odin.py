@@ -35,6 +35,7 @@ from gnuradio import gr, uhd
 
 import pdb
 
+
 def set_dev_time(usrp):
     # 1)  Poll on usrp->get_mboard_sensor("gps_locked") until it returns true
     while not usrp.get_mboard_sensor("gps_locked", 0).to_bool():
@@ -51,7 +52,8 @@ def set_dev_time(usrp):
     time.sleep(0.2)
 
     # 4)  Use "usrp->set_time_next_pps(uhd::time_spec_t(usrp->get_mboard_sensor("gps_time").to_int()+1));" to set the time
-    usrp.set_time_next_pps(uhd.time_spec_t(usrp.get_mboard_sensor("gps_time").to_int() + 2))
+    usrp.set_time_next_pps(uhd.time_spec_t(
+        usrp.get_mboard_sensor("gps_time").to_int() + 2))
 
     # 5)  Poll on usrp->get_time_last_pps() until a change is seen.
     pps = usrp.get_time_last_pps()
@@ -60,19 +62,18 @@ def set_dev_time(usrp):
 
     # 6)  Sleep 200ms (allow NMEA string to propagate)
     time.sleep(0.2)
-    print('USRP last PPS = %i, GPSDO = %i' % (\
+    print('USRP last PPS = %i, GPSDO = %i' % (
         usrp.get_time_last_pps().get_real_secs(),
         usrp.get_mboard_sensor("gps_time").to_real()
     ))
-    
 
     # 7)  Verify that usrp->get_time_last_pps() and usrp->get_mboard_sensor("gps_time") return the same time.
     while usrp.get_time_last_pps().get_real_secs() != usrp.get_mboard_sensor("gps_time").to_real():
         print(usrp.get_time_last_pps().get_real_secs())
         print(usrp.get_mboard_sensor("gps_time").to_real())
 
-    print('time set, USRP time: %s' % datetime.utcfromtimestamp(int(usrp.get_time_last_pps().get_real_secs())).strftime("%B %d %Y %H:%M:%S"))
-
+    print('time set, USRP time: %s' % datetime.utcfromtimestamp(
+        int(usrp.get_time_last_pps().get_real_secs())).strftime("%B %d %Y %H:%M:%S"))
 
 
 def equiripple_lpf(cutoff=0.9, transition_width=0.2, attenuation=80, pass_ripple=None):
@@ -129,7 +130,8 @@ def equiripple_lpf(cutoff=0.9, transition_width=0.2, attenuation=80, pass_ripple
     error_weight = [10 ** ((pass_ripple - attenuation) / 20.0), 1]
 
     # get estimate for the filter order (Oppenheim + Schafer 2nd ed, 7.104)
-    M = ((attenuation + pass_ripple) / 2.0 - 13) / 2.324 / (np.pi * transition_width)
+    M = ((attenuation + pass_ripple) / 2.0 - 13) / \
+        2.324 / (np.pi * transition_width)
     # round up to nearest even-order (Type I) filter
     M = int(np.ceil(M / 2.0)) * 2
 
@@ -251,14 +253,14 @@ class Thor(object):
 
         # get USRP cpu_format based on output type and decimation requirements
         processing_required = (
-            any(sr is not None for sr in op.ch_samplerates)
-            or any(cf is not False for cf in op.ch_centerfreqs)
-            or any(s != 1 for s in op.ch_scalings)
-            or any(nsch != 1 for nsch in op.ch_nsubchannels)
+            any(sr is not None for sr in op.ch_samplerates) or
+            any(cf is not False for cf in op.ch_centerfreqs) or
+            any(s != 1 for s in op.ch_scalings) or
+            any(nsch != 1 for nsch in op.ch_nsubchannels)
         )
         if (
-            all(ot is None or ot == "sc16" for ot in op.ch_out_types)
-            and not processing_required
+            all(ot is None or ot == "sc16" for ot in op.ch_out_types) and
+            not processing_required
         ):
             # with only sc16 output and no processing, can use sc16 as cpu
             # format and disable conversion
@@ -267,7 +269,8 @@ class Thor(object):
                 dict(
                     convert=None,
                     convert_kwargs=None,
-                    dtype=np.dtype([(str("r"), np.int16), (str("i"), np.int16)]),
+                    dtype=np.dtype(
+                        [(str("r"), np.int16), (str("i"), np.int16)]),
                     name="sc16",
                 )
             ]
@@ -284,13 +287,15 @@ class Thor(object):
                 "sc16": dict(
                     convert="float_to_short",
                     convert_kwargs=dict(vlen=2, scale=float(2 ** 15 - 1)),
-                    dtype=np.dtype([(str("r"), np.int16), (str("i"), np.int16)]),
+                    dtype=np.dtype(
+                        [(str("r"), np.int16), (str("i"), np.int16)]),
                     name="sc16",
                 ),
                 "sc32": dict(
                     convert="float_to_int",
                     convert_kwargs=dict(vlen=2, scale=float(2 ** 31 - 1)),
-                    dtype=np.dtype([(str("r"), np.int32), (str("i"), np.int32)]),
+                    dtype=np.dtype(
+                        [(str("r"), np.int32), (str("i"), np.int32)]),
                     name="sc32",
                 ),
                 "fc32": dict(
@@ -384,7 +389,8 @@ class Thor(object):
             raise ValueError(errstr.format(list(ochannels - rchannels)))
         avail = sorted(rchannels - ochannels)
         try:
-            op.channels = [c if c is not None else avail.pop(0) for c in op.channels]
+            op.channels = [c if c is not None else avail.pop(
+                0) for c in op.channels]
         except IndexError:
             errstr = (
                 "No remaining receiver channels left to assign to unspecified"
@@ -415,9 +421,9 @@ class Thor(object):
             elif re.match(r"[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}", mb):
                 idtype = "addr"
             elif (
-                re.match(r"usrp[123]", mb)
-                or re.match(r"b2[01]0", mb)
-                or re.match(r"x3[01]0", mb)
+                re.match(r"usrp[123]", mb) or
+                re.match(r"b2[01]0", mb) or
+                re.match(r"x3[01]0", mb)
             ):
                 idtype = "type"
             elif re.match(r"[0-9A-Fa-f]{1,}", mb):
@@ -592,9 +598,10 @@ class Thor(object):
 
         # set per-channel options
         # set command time so settings are synced
-        COMMAND_DELAY = 0.2 
+        COMMAND_DELAY = 0.2
         gpstime = datetime.utcfromtimestamp(u.get_mboard_sensor("gps_time"))
-        gpstime_secs = (pytz.utc.localize(gpstime) - drf.util.epoch).total_seconds()
+        gpstime_secs = (pytz.utc.localize(gpstime) -
+                        drf.util.epoch).total_seconds()
         cmd_time_secs = gpstime_secs + COMMAND_DELAY
 
         u.set_command_time(
@@ -633,7 +640,8 @@ class Thor(object):
                 ch_num,
             )
             # store actual values from tune result
-            op.centerfreqs[ch_num] = tune_res.actual_rf_freq - tune_res.actual_dsp_freq
+            op.centerfreqs[ch_num] = tune_res.actual_rf_freq - \
+                tune_res.actual_dsp_freq
             op.lo_offsets[ch_num] = tune_res.actual_dsp_freq
             # dc offset
             dc_offset = op.dc_offsets[ch_num]
@@ -680,7 +688,8 @@ class Thor(object):
             if op.lo_sources[ch_num]:
                 op.lo_sources[ch_num] = u.get_lo_source(uhd.ALL_LOS, ch_num)
             if op.lo_exports[ch_num] is not None:
-                op.lo_exports[ch_num] = u.get_lo_export_enabled(uhd.ALL_LOS, ch_num)
+                op.lo_exports[ch_num] = u.get_lo_export_enabled(
+                    uhd.ALL_LOS, ch_num)
             op.gains[ch_num] = u.get_gain(ch_num)
             op.bandwidths[ch_num] = u.get_bandwidth(chan=ch_num)
             op.antennas[ch_num] = u.get_antenna(chan=ch_num)
@@ -694,7 +703,8 @@ class Thor(object):
                 "Frequency: {freq:.3f} ({lo_off:+.3f}) | Bandwidth: {bw}",
             ]
             if any(op.lo_sources) or any(op.lo_exports):
-                chinfostrs.append("LO source: {lo_source} | LO export: {lo_export}")
+                chinfostrs.append(
+                    "LO source: {lo_source} | LO export: {lo_export}")
             chinfo = "\n".join(["  " + l for l in chinfostrs])
             for ch_num in range(op.nrchs):
                 header = "---- receiver channel {0} ".format(ch_num)
@@ -755,7 +765,8 @@ class Thor(object):
                 taps = equiripple_lpf(
                     cutoff=float(op.ch_lpf_cutoffs[ko]) / ratio.denominator,
                     transition_width=(
-                        float(op.ch_lpf_transition_widths[ko]) / ratio.denominator
+                        float(
+                            op.ch_lpf_transition_widths[ko]) / ratio.denominator
                     ),
                     attenuation=op.ch_lpf_attenuations[ko],
                     pass_ripple=op.ch_lpf_pass_ripples[ko],
@@ -768,8 +779,10 @@ class Thor(object):
                 # (overall taps are applied at interpolated rate, but delay is
                 #  still in terms of input rate, i.e. the taps per filter
                 #  after being split into the polyphase filter bank)
-                taps_per_filter = int(np.ceil(float(len(taps)) / ratio.numerator))
-                op.resampling_filter_delays.append(Fraction(taps_per_filter - 1, 2))
+                taps_per_filter = int(
+                    np.ceil(float(len(taps)) / ratio.numerator))
+                op.resampling_filter_delays.append(
+                    Fraction(taps_per_filter - 1, 2))
 
             # get channelizer low-pass filter taps
             if nsc > 1:
@@ -824,8 +837,9 @@ class Thor(object):
                 print("End time: {0} ({1})".format(etstr, etts))
 
             if (
-                et
-                < (pytz.utc.localize(datetime.utcnow()) + timedelta(seconds=SETUP_TIME))
+                et <
+                (pytz.utc.localize(datetime.utcnow()) +
+                 timedelta(seconds=SETUP_TIME))
             ) or (st is not None and et <= st):
                 raise ValueError("End time is before launch time!")
 
@@ -845,7 +859,8 @@ class Thor(object):
 
         # wait for the start time if it is not past
         while (st is not None) and (
-            (st - pytz.utc.localize(datetime.utcnow())) > timedelta(seconds=SETUP_TIME)
+            (st - pytz.utc.localize(datetime.utcnow())
+             ) > timedelta(seconds=SETUP_TIME)
         ):
             ttl = int((st - pytz.utc.localize(datetime.utcnow())).total_seconds())
             if (ttl % 10) == 0:
@@ -876,7 +891,6 @@ class Thor(object):
 
         # set device time
         set_dev_time(u)
-
 
         # set launch time
         # (at least 2 seconds out so USRP start time can be set properly and
@@ -954,14 +968,16 @@ class Thor(object):
 
                 # declare sample delay for the filter block so that tags are
                 # propagated to the correct sample
-                resampler.declare_sample_delay(int(op.resampling_filter_delays[ko]))
+                resampler.declare_sample_delay(
+                    int(op.resampling_filter_delays[ko]))
 
                 # adjust start sample to account for filter delay so first
                 # sample going to output is shifted to an earlier time
                 # (adjustment is in terms of filter output samples, so need to
                 #  take the input filter delay and account for the output rate)
                 start_sample_adjust = int(
-                    (start_sample_adjust - op.resampling_filter_delays[ko]) * rs_ratio
+                    (start_sample_adjust -
+                     op.resampling_filter_delays[ko]) * rs_ratio
                 )
             else:
                 conv_scaling = scaling
@@ -1002,14 +1018,16 @@ class Thor(object):
                 # propagated to the correct sample
                 # (for channelized, delay is applied for each filter in the
                 #  polyphase bank, so this needs to be the output sample delay)
-                filt.declare_sample_delay(int(op.channelizer_filter_delays[ko] / nsc))
+                filt.declare_sample_delay(
+                    int(op.channelizer_filter_delays[ko] / nsc))
 
                 # adjust start sample to account for filter delay so first
                 # sample going to output is shifted to an earlier time
                 # (adjustment is in terms of filter output samples, so need to
                 #  take the input filter delay and account for the output rate)
                 start_sample_adjust = int(
-                    (start_sample_adjust - op.channelizer_filter_delays[ko]) / nsc
+                    (start_sample_adjust -
+                     op.channelizer_filter_delays[ko]) / nsc
                 )
 
                 # modify output settings accordingly
@@ -1039,7 +1057,8 @@ class Thor(object):
             ch_samplerate_ld = np.longdouble(
                 ch_samplerate_frac.numerator
             ) / np.longdouble(ch_samplerate_frac.denominator)
-            start_sample = int(np.uint64(ltts * ch_samplerate_ld)) + start_sample_adjust
+            start_sample = int(
+                np.uint64(ltts * ch_samplerate_ld)) + start_sample_adjust
 
             # create digital RF sink
             dst = gr_drf.digital_rf_channel_sink(
@@ -1354,7 +1373,8 @@ def _add_receiver_group(parser):
     )
     # kept for backward compatibility,
     # replaced by clock_source/time_source in 2.6
-    recgroup.add_argument("--sync_source", dest="sync_source", help=argparse.SUPPRESS)
+    recgroup.add_argument(
+        "--sync_source", dest="sync_source", help=argparse.SUPPRESS)
     recgroup.add_argument(
         "--nosync",
         dest="time_sync",
@@ -1811,19 +1831,23 @@ def _run_thor(args):
             dev_args_dict = dict([a.split("=") for a in args.dev_args])
         except ValueError:
             raise ValueError("Device arguments must be {KEY}={VALUE} pairs.")
-        args.dev_args = ["{0}={1}".format(k, v) for k, v in dev_args_dict.items()]
+        args.dev_args = ["{0}={1}".format(k, v)
+                         for k, v in dev_args_dict.items()]
     if args.stream_args is not None:
         try:
             stream_args_dict = dict([a.split("=") for a in args.stream_args])
         except ValueError:
             raise ValueError("Stream arguments must be {KEY}={VALUE} pairs.")
-        args.stream_args = ["{0}={1}".format(k, v) for k, v in stream_args_dict.items()]
+        args.stream_args = ["{0}={1}".format(
+            k, v) for k, v in stream_args_dict.items()]
     if args.tune_args is not None:
         try:
             tune_args_dict = dict([a.split("=") for a in args.tune_args])
         except ValueError:
-            raise ValueError("Tune request arguments must be {KEY}={VALUE} pairs.")
-        args.tune_args = ["{0}={1}".format(k, v) for k, v in tune_args_dict.items()]
+            raise ValueError(
+                "Tune request arguments must be {KEY}={VALUE} pairs.")
+        args.tune_args = ["{0}={1}".format(k, v)
+                          for k, v in tune_args_dict.items()]
 
     # convert metadata strings to a dictionary
     if args.metadata is not None:
