@@ -15,22 +15,23 @@ import matplotlib
 matplotlib.use('Agg')
 
 
-def plot_ionogram(conf, f, normalize_by_frequency=True):
-    ho = h5py.File(f, "r")
+def plot_ionogram(conf, fn, normalize_by_frequency=True):
+    ho = h5py.File(fn, "r")
     t0 = float(n.copy(ho[("t0")]))
     if not "id" in ho.keys():
+        print("id not in keys")
         return
     cid = int(n.copy(ho[("id")]))  # ionosonde id
 
     img_fname = "%s/%s/lfm_ionogram-%03d-%1.2f.png" % (
         conf.output_dir, cd.unix2dirname(t0), cid, t0)
     if os.path.exists(img_fname):
-        # print("Ionogram plot %s already exists. Skipping"%(img_fname))
+        print("Ionogram plot %s already exists. Skipping"%(img_fname))
         ho.close()
         return
 
     print("Plotting %s rate %1.2f (kHz/s) t0 %1.5f (unix)" %
-          (f, float(n.copy(ho[("rate")])) / 1e3, float(n.copy(ho[("t0")]))))
+          (fn, float(n.copy(ho[("rate")])) / 1e3, float(n.copy(ho[("t0")]))))
     # ionogram frequency-range
     S = n.copy(n.array(ho[("S")], dtype=n.float64))
     freqs = n.copy(ho[("freqs")])  # frequency bins
@@ -105,23 +106,27 @@ if __name__ == "__main__":
             fl.sort()
             t_now = time.time()
             # avoid last file to make sure we don't read and write simultaneously
-            for f in fl[0:(len(fl) - 1)]:
+            for fn in fl[0:(len(fl) - 1)]:
                 try:
                     t_file = float(
-                        re.search(".*-(1............).h5", f).group(1))
+                        re.search(".*-(1............).h5", fn).group(1))
                     # new enough file
                     if t_now - t_file < 48 * 3600.0:
-                        plot_ionogram(conf, f)
+                        plot_ionogram(conf, fn)
 
                 except:
-                    print("error with %s" % (f))
+                    print("error with %s" % (fn))
                     print(traceback.format_exc())
             time.sleep(10)
     else:
         fl = glob.glob("%s/*/lfm*.h5" % (conf.output_dir))
-        for f in fl:
+        for fn in fl:
             try:
-                plot_ionogram(conf, f)
+                plot_ionogram(conf, fn)
             except:
-                print("error with %s" % (f))
+                print("error with %s" % (fn))
                 print(traceback.format_exc())
+
+
+
+

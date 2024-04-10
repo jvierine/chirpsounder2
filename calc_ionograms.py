@@ -8,7 +8,7 @@ import digital_rf as drf
 from mpi4py import MPI
 import glob
 import fast_exp as fe
-import scipy.signal as ss
+import scipy.signal.windows as ss
 import scipy.constants as c
 import scipy.fftpack
 import h5py
@@ -189,8 +189,9 @@ def chirp_downconvert(conf,
                     sleep_time += 1.0
                     b = d.get_bounds(ch)
 
-            z = d.read_vector_c81d(
-                i0 + idx, step * dec + cdc.filter_len * dec, ch)
+            z = d.read_vector_1d(
+                i0 + idx, step * dec + cdc.filter_len * dec, ch,
+            ).astype('c8', casting='unsafe', copy=False)
         except:
             #            z=np.zeros(step*dec+cdc.filter_len*dec,dtype=np.complex64)
             missing = True
@@ -200,6 +201,7 @@ def chirp_downconvert(conf,
             cdc.consume(z, z_out, n_out)
         else:
             # step chirp time forward
+            print('missing data - skipping')
             cdc.advance_time(dec * step)
             z_out[:] = 0.0
 
@@ -268,13 +270,13 @@ def analyze_all(conf, d):
     n_ionograms = len(fl)
     # mpi scan through the whole dataset
     for ionogram_idx in range(rank, n_ionograms, size):
-        h = h5py.File(fl[ionogram_idx], "r")
-        chirp_rate = np.copy(h[("chirp_rate")])
-        t0 = np.copy(h[("t0")])
+        hd = h5py.File(fl[ionogram_idx], "r")
+        chirp_rate = np.copy(hd[("chirp_rate")])
+        t0 = np.copy(hd[("t0")])
         i0 = np.int64(t0 * conf.sample_rate)
         print("calculating i0=%d chirp_rate=%1.2f kHz/s t0=%1.6f" %
               (i0, chirp_rate / 1e3, t0))
-        h.close()
+        hd.close()
 
         chirp_downconvert(conf,
                           t0,
@@ -378,11 +380,11 @@ def get_next_chirp_par_file(conf, d):
 
                 # proceed if this hasn't already been analyzed.
                 if not os.path.exists("%s.done" % (ftry)):
-                    h = h5py.File(ftry, "r")
-                    t0 = float(np.copy(h[("t0")]))
+                    hd = h5py.File(ftry, "r")
+                    t0 = float(np.copy(hd[("t0")]))
                     i0 = np.int64(t0 * conf.sample_rate)
-                    chirp_rate = float(np.copy(h[("chirp_rate")]))
-                    h.close()
+                    chirp_rate = float(np.copy(hd[("chirp_rate")]))
+                    hd.close()
                     t1 = conf.maximum_analysis_frequency / chirp_rate + t0
 
                     tnow = time.time()
@@ -425,11 +427,11 @@ def analyze_parfiles(conf, d):
 
         ftry = get_next_chirp_par_file(conf, d)
 
-        h = h5py.File(ftry, "r")
-        t0 = float(np.copy(h[("t0")]))
+        hd = h5py.File(ftry, "r")
+        t0 = float(np.copy(hd[("t0")]))
         i0 = np.int64(t0 * conf.sample_rate)
-        chirp_rate = float(np.copy(h[("chirp_rate")]))
-        h.close()
+        chirp_rate = float(np.copy(hd[("chirp_rate")]))
+        hd.close()
 
         chirp_downconvert(conf,
                           t0,

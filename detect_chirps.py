@@ -17,6 +17,7 @@ rank = comm.Get_rank()
 
 
 def scan_for_chirps(conf, cfb, block0=None):
+    print("scanning for chirps")
     d = drf.DigitalRFReader(conf.data_dir)
     b = d.get_bounds(conf.channel)
 
