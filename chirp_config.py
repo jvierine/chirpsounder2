@@ -74,7 +74,6 @@ class chirp_config:
         self.realtime = json.loads(cf["config"]["realtime"])
         self.save_raw_voltage = json.loads(cf["config"]["save_raw_voltage"])
         self.data_dir = json.loads(cf["config"]["data_dir"])
-        self.kill_path = json.loads(cf["config"]["kill_path"])
         try:
             self.copy_destination = json.loads(
                 cf["config"]["copy_destination"])
