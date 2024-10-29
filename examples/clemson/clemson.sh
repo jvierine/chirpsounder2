@@ -10,12 +10,11 @@ sysctl -w net.core.wmem_default=500000000
 sysctl -w net.core.rmem_default=500000000
 
 
-INSTALL_PATH=/home/sdr/stokes
+INSTALL_PATH=/home/sdr/chirpsounder2
 
 # make sure this is the right mpirun command (you might need mpirun instead of mpirun.mpich)
 MPIRUN=mpirun
-CH0="ch0"
-CH1="ch1"
+
 # ram disk buffer for fast i/o.
 # if you have a fast SSD or raid, you can also use that
 RINGBUFFER_DIR=/mnt/ramdisk/hf25
@@ -50,8 +49,7 @@ echo "Starting find_timings.py"
 # calculate ionograms
 # seems like four parallel processes work.
 # this means we can process four ionograms simultaneously!
-$MPIRUN -np 4 python3 calc_ionograms2.py $CONF_FILE $CH0 > logs/ionograms.log 2>&1 &
-$MPIRUN -np 4 python3 calc_ionograms2.py $CONF_FILE $CH1 > logs/ionograms.log 2>&1 &
+$MPIRUN -np 8 python3 calc_ionograms.py $CONF_FILE > logs/ionograms.log 2>&1 &
 echo "Starting calc_ionograms scripts"
 
 # plot ionograms

@@ -12,10 +12,11 @@ class chirp_config:
     def __init__(self, fname=None):
         cf = configparser.ConfigParser()
         # initialize with default values
-        cf["config"] = {"channel": '"cha"',
+        cf["config"] = {"channel": "['cha']",
                         "sample_rate": "25000000.0",
                         "center_freq": "12.5e6",
                         "data_dir": '"/mnt/data/juha/hf25"',
+                        "kill_path": '"/home/sdr/chirpsounder2/kill.txt"',
                         "threshold_snr": "13.0",
                         "max_simultaneous_detections": "5",
                         "min_detections": "3",
@@ -81,7 +82,6 @@ class chirp_config:
         except:
             print("couldn't read copy destination")
             pass
-
         self.station_name = json.loads(cf["config"]["station_name"])
 
         self.n_downconversion_threads = json.loads(

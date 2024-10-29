@@ -477,21 +477,14 @@ if __name__ == "__main__":
                 sys.exit(0)
             else:
                 if first == 1:
-                    try:
-                        time.sleep(10)
-                        d = drf.DigitalRFReader(conf.data_dir)
-                        analyze_parfiles(conf, d, sys.argv[2])
-                        first = 0
-                    except:
-                        print("error in calc_ionograms.py. trying to restart")
-                        traceback.print_exc(file=sys.stdout)
-                        sys.stdout.flush()
-                        time.sleep(1)
-
+                    time.sleep(10)
+                    first = 0
                 else:
                     try:
                         d = drf.DigitalRFReader(conf.data_dir)
-                        analyze_parfiles(conf, d, sys.argv[2])
+                        for chan in conf.channel:
+                            analyze_parfiles(conf, d, conf.channel[chan])
+                         
                     except:
                         print("error in calc_ionograms.py. trying to restart")
                         traceback.print_exc(file=sys.stdout)
@@ -508,7 +501,8 @@ if __name__ == "__main__":
             else:
                 try:
                     d = drf.DigitalRFReader(conf.data_dir)
-                    analyze_realtime(conf, d, sys.argv[2])
+                    for chan in conf.channel:
+                        analyze_realtime(conf, d, conf.channel[chan])
                 except:
                     print("error in calc_ionograms.py. trying to restart")
                     traceback.print_exc(file=sys.stdout)
@@ -517,4 +511,5 @@ if __name__ == "__main__":
         
     else: # batch analyze
         d = drf.DigitalRFReader(conf.data_dir)
-        analyze_all(conf, d, sys.argv[2])
+        for chan in conf.channel:
+            analyze_all(conf, d, conf.channel[chan])
