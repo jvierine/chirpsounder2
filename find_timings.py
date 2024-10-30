@@ -146,7 +146,7 @@ def scan_for_chirps(conf, ch, dt=0.1):
         print("%s Found %d ionograms in total" % (ch, n_ionograms))
 
 if __name__ == "__main__":
-    if len(sys.argv) == 3:
+    if len(sys.argv) == 2:
         conf = cc.chirp_config(sys.argv[1])
     else:
         print('No config provided - Using defaults')
@@ -163,11 +163,13 @@ if __name__ == "__main__":
             else:
                 if conf.debug_timings:
                     print("find_timings: scanning for new sounders")
-                scan_for_chirps(conf, sys.argv[2])
+                for chan in conf.channel:
+                    scan_for_chirps(conf, chan)
                 if conf.debug_timings:
                     print("find_timings: sleeping 10 seconds")
                 time.sleep(1.0)
                 sys.stdout.flush()
     else:
         print("Scanning for timings once in batch")
-        scan_for_chirps(conf, sys.argv[2])
+        for chan in conf.channel:
+            scan_for_chirps(conf, chan)

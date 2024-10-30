@@ -36,7 +36,7 @@ class chirp_config:
                         "manual_range_extent": "false",
                         "copy_to_server": "false",
                         "copy_destination": "none",
-                        "station_name": "station_name",
+                        "station_name": '"station_name"',
                         "min_freq": "0",
                         "max_freq": "25e6",
                         "manual_freq_extent": "false",
