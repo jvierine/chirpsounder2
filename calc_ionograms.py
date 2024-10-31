@@ -419,19 +419,19 @@ def get_next_chirp_par_file(conf, d, ch):
                                 ho.close()
                                 print("Rank %d analyzing %s time left in sweep %1.2f s" % 
                                       (rank, ftry, t1 - tnow))
-                            return (ftry)
-                    else:
-                        # we haven't analyzed this one, but we no longer
-                        # can, because it is not in the buffer
-                        print("Not able to analyze %s (%1.2f kHz/s), because it is no longer in the buffer. Buffer start at %1.2f and chirp ends at %1.2f" %
-                              (ftry, chirp_rate / 1e3, buffer_t0, t1))
-                        ho = h5py.File("%s.done" % (ftry), "w")
-                        ho["t_an"] = time.time()
-                        ho.close()
-                        time.sleep(0.01)
+                                return (ftry)
+                        else:
+                            # we haven't analyzed this one, but we no longer
+                            # can, because it is not in the buffer
+                            print("Not able to analyze %s (%1.2f kHz/s), because it is no longer in the buffer. Buffer start at %1.2f and chirp ends at %1.2f" %
+                                (ftry, chirp_rate / 1e3, buffer_t0, t1))
+                            ho = h5py.File("%s.done" % (ftry), "w")
+                            ho["t_an"] = time.time()
+                            ho.close()
+                            time.sleep(0.01)
 
-        # didn't find anything. let's wait.
-        time.sleep(1)
+            # didn't find anything. let's wait.
+            time.sleep(1)
 
         
 def analyze_parfiles(conf, d):
