@@ -12,7 +12,7 @@ class chirp_config:
     def __init__(self, fname=None):
         cf = configparser.ConfigParser()
         # initialize with default values
-        cf["config"] = {"channel": "['cha']",
+        cf["config"] = {"channel": "['ch0']",
                         "sample_rate": "25000000.0",
                         "center_freq": "12.5e6",
                         "data_dir": '"/mnt/data/juha/hf25"',
