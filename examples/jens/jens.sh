@@ -54,9 +54,4 @@ python3 plot_ionograms.py $CONF_FILE > logs/plot_ionograms.log &
 echo "Starting plot_ionograms.py"
 
 echo "Starting rx_uhd"
-while true;
-do
-    ./rx_uhd --outdir=$RINGBUFFER_DIR > logs/thor.log 2>&1 
-    sleep 5
-done
-
+./rx_uhd --outdir=$RINGBUFFER_DIR > logs/thor.log 2>&1 

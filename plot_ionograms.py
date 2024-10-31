@@ -21,7 +21,7 @@ def kill(conf):
 def plot_ionogram(conf, fn, normalize_by_frequency=True):
     ho = h5py.File(fn, "r")
     t0 = float(n.copy(ho[("t0")]))
-    ch = n.copy(ho[("ch")])
+    ch = str(n.copy(ho[("ch")]))
     if not "id" in ho.keys():
         print("id not in keys")
         return
