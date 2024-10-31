@@ -242,8 +242,8 @@ def chirp_downconvert(conf,
         dname = "%s/%s" % (conf.output_dir, cd.unix2dirname(t0))
         if not os.path.exists(dname):
             os.mkdir(dname)
-        ofname = "%s/lfm_ionogram-%s-%03d-%1.2f.h5" % (
-            dname, conf.station_name, cid, t0)
+        ofname = "%s/lfm_ionogram-%s-%s-%03d-%1.2f.h5" % (
+            dname, conf.station_name, ch, cid, t0)
         print("Writing to %s" % ofname)
         ho = h5py.File(ofname, "w")
         # ionogram frequency-range, save space
@@ -387,7 +387,7 @@ def get_next_chirp_par_file(conf, d, ch):
             # at today will result in a few lost ionograms
             # when the day is changing
             dname = "%s/%s" % (conf.output_dir, cd.unix2dirname(time.time()))
-            fl = glob.glob("%s/par*.h5" % (dname))
+            fl = glob.glob("%s/par-%s*.h5" % (dname, ch))
             fl.sort()
 
             if len(fl) > 0:

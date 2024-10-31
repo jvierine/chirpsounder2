@@ -40,13 +40,13 @@ void get_usrp_time(multi_usrp::sptr usrp, size_t mboard, std::vector<int64_t>* t
 
 void streaming_by_channel(size_t chan,double rate,std::string subdev,std::string outdir, multi_usrp::sptr usrp, uhd::time_spec_t time_last_pps)
 {
-   Digital_rf_write_object * data_object = NULL; /* main object created by init */
+    Digital_rf_write_object * data_object = NULL; /* main object created by init */
     uint64_t vector_leading_edge_index = 0; /* index of the sample being written starting at zero with the first sample recorded */
     uint64_t global_start_index; /* start sample (unix time * sample_rate) of first measurement - set below */
     int i, result;
     std::vector<size_t> channel_number;
     channel_number.push_back(chan);
-      uint64_t sample_rate_numerator = 25000000; /* 25 MHz sample rate */
+    uint64_t sample_rate_numerator = 25000000; /* 25 MHz sample rate */
     uint64_t sample_rate_denominator = 1;
     uint64_t subdir_cadence = 3600;
     uint64_t millseconds_per_file = 1000; 
@@ -194,7 +194,6 @@ void streaming_by_channel(size_t chan,double rate,std::string subdev,std::string
           // check md.time_stamp
 
     }
-  
 }
 
 int UHD_SAFE_MAIN(int argc, char* argv[])

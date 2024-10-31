@@ -29,10 +29,10 @@ def plot_ionogram(conf, fn, normalize_by_frequency=True):
         return
     cid = int(n.copy(ho[("id")]))  # ionosonde id
 
-    img_fname = "%s/%s/lfm_ionogram-%03d-%1.2f.png" % (
-        conf.output_dir, cd.unix2dirname(t0), cid, t0)
+    img_fname = "%s/%s/lfm_ionogram-%s-%03d-%1.2f.png" % (
+        conf.output_dir, cd.unix2dirname(t0), ch, cid, t0)
     if os.path.exists(img_fname):
-        print("Ionogram plot %s already exists. Skipping"%(img_fname))
+        print("Ionogram plot %s already exists. Skipping" % (img_fname))
         ho.close()
         return
 
@@ -71,8 +71,8 @@ def plot_ionogram(conf, fn, normalize_by_frequency=True):
                    vmin=-3, vmax=30.0, cmap="inferno")
     cb = plt.colorbar()
     cb.set_label("SNR (dB)")
-    plt.title("Chirp-rate %1.2f kHz/s t0=%1.5f (unix s)\n%s %s (UTC)" % (float(n.copy(ho[("rate")])) / 1e3, float(
-        n.copy(ho[("t0")])), conf.station_name, cd.unix2datestr(float(n.copy(ho[("t0")])))))
+    plt.title("%s Chirp-rate %1.2f kHz/s t0=%1.5f (unix s)\n%s %s (UTC)" % (
+        ch, float(n.copy(ho[("rate")])) / 1e3, float(n.copy(ho[("t0")])), conf.station_name, cd.unix2datestr(float(n.copy(ho[("t0")])))))
     plt.xlabel("Frequency (MHz)")
     plt.ylabel("One-way range offset (km)")
     if conf.manual_range_extent:
@@ -136,7 +136,3 @@ if __name__ == "__main__":
             except:
                 print("error with %s" % (fn))
                 print(traceback.format_exc())
-
-
-
-
