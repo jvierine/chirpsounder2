@@ -3,6 +3,7 @@ import re
 import traceback
 import time
 import os
+import os.path
 import sys
 import chirp_det as cd
 import chirp_config as cc
@@ -28,10 +29,10 @@ def plot_ionogram(conf, fn, normalize_by_frequency=True):
         return
     cid = int(n.copy(ho[("id")]))  # ionosonde id
 
-    img_fname = "%s/%s/lfm_ionogram-%s-%03d-%1.2f.png" % (
-        conf.output_dir, cd.unix2dirname(t0), ch, cid, t0)
+    img_fname = "%s/%s/lfm_ionogram-%03d-%1.2f.png" % (
+        conf.output_dir, cd.unix2dirname(t0), cid, t0)
     if os.path.exists(img_fname):
-        print("Ionogram plot %s already exists. Skipping" % (img_fname))
+        print("Ionogram plot %s already exists. Skipping"%(img_fname))
         ho.close()
         return
 
@@ -70,7 +71,7 @@ def plot_ionogram(conf, fn, normalize_by_frequency=True):
                    vmin=-3, vmax=30.0, cmap="inferno")
     cb = plt.colorbar()
     cb.set_label("SNR (dB)")
-    plt.title("%s Chirp-rate %1.2f kHz/s t0=%1.5f (unix s)\n%s %s (UTC)" % (ch, float(n.copy(ho[("rate")])) / 1e3, float(
+    plt.title("Chirp-rate %1.2f kHz/s t0=%1.5f (unix s)\n%s %s (UTC)" % (float(n.copy(ho[("rate")])) / 1e3, float(
         n.copy(ho[("t0")])), conf.station_name, cd.unix2datestr(float(n.copy(ho[("t0")])))))
     plt.xlabel("Frequency (MHz)")
     plt.ylabel("One-way range offset (km)")
@@ -113,18 +114,18 @@ if __name__ == "__main__":
             else:
                 fl = glob.glob("%s/*/lfm*.h5" % (conf.output_dir))
                 fl.sort()
-                t_now=time.time()
+                t_now = time.time()
                 # avoid last file to make sure we don't read and write simultaneously
-                for f in fl[0:(len(fl) - 1)]:
+                for fn in fl[0:(len(fl) - 1)]:
                     try:
-                        t_file=float(
-                             re.search(".*-(1............).h5",f).group(1))
+                        t_file = float(
+                            re.search(".*-(1............).h5", fn).group(1))
                         # new enough file
                         if t_now - t_file < 48 * 3600.0:
-                            plot_ionogram(conf, f)
-                    
+                            plot_ionogram(conf, fn)
+
                     except:
-                        print("error with %s" % (f))
+                        print("error with %s" % (fn))
                         print(traceback.format_exc())
                 time.sleep(10)
     else:
@@ -135,3 +136,7 @@ if __name__ == "__main__":
             except:
                 print("error with %s" % (fn))
                 print(traceback.format_exc())
+
+
+
+

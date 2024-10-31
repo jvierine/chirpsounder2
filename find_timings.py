@@ -21,7 +21,7 @@ def kill(conf):
 def cluster_times(t, dt=0.1, dt2=0.02, min_det=2):
     t0s = dt * \
         n.array(n.unique(n.array(n.round(t / dt), dtype=int)), dtype=float)
-    ct0s=[]
+    ct0s = []
 
     for t0 in t0s:
         tidx = n.where(n.abs(t - t0) < dt)[0]
@@ -43,8 +43,9 @@ def cluster_times(t, dt=0.1, dt2=0.02, min_det=2):
                 ct0s.append(meant)
                 num_dets.append(len(tidx))
 
-    return(ct0s, num_dets)
-            
+    return (ct0s, num_dets)
+
+
 def scan_for_chirps(conf, ch, dt=0.1):
     """
     go through data files and look for unique soundings
@@ -144,6 +145,7 @@ def scan_for_chirps(conf, ch, dt=0.1):
 
     if not conf.realtime:
         print("%s Found %d ionograms in total" % (ch, n_ionograms))
+
 
 if __name__ == "__main__":
     if len(sys.argv) == 2:

@@ -242,8 +242,8 @@ def chirp_downconvert(conf,
         dname = "%s/%s" % (conf.output_dir, cd.unix2dirname(t0))
         if not os.path.exists(dname):
             os.mkdir(dname)
-        ofname = "%s/lfm_ionogram-%s-%s-%03d-%1.2f.h5" % (
-            dname, conf.station_name,ch, cid, t0)
+        ofname = "%s/lfm_ionogram-%s-%03d-%1.2f.h5" % (
+            dname, conf.station_name, cid, t0)
         print("Writing to %s" % ofname)
         ho = h5py.File(ofname, "w")
         # ionogram frequency-range, save space
@@ -304,7 +304,7 @@ def analyze_realtime(conf, d):
           as there are computational resources.
     """
     st = conf.sounder_timings[rank]
-    n_sounders = len(st)    
+    n_sounders = len(st)
 
     while True:    
         if kill(conf):
@@ -376,32 +376,33 @@ def get_next_chirp_par_file(conf, d, ch):
             buffer_t0 = np.floor(np.float128(b[0]) / np.float128(conf.sample_rate))
             while np.isnan(buffer_t0):
                 b = d.get_bounds(ch)
-                buffer_t0 = np.floor(np.float128(b[0]) / np.float128(conf.sample_rate))
-                # t1=np.floor(np.float128(b[1])/np.float128(conf.sample_rate))
+                buffer_t0 = np.floor(np.float128(
+                    b[0]) / np.float128(conf.sample_rate))
+    #            t1=np.floor(np.float128(b[1])/np.float128(conf.sample_rate))
                 print("nan bounds for ringbuffer. trying again")
                 time.sleep(1)
 
-            
+
             # todo: look at today and yesterday. only looking
             # at today will result in a few lost ionograms
             # when the day is changing
             dname = "%s/%s" % (conf.output_dir, cd.unix2dirname(time.time()))
-            fl = glob.glob("%s/par-%s*.h5" % (dname, ch))
+            fl = glob.glob("%s/par*.h5" % (dname))
             fl.sort()
-            
+
             if len(fl) > 0:
                 for fi in range(len(fl)):
                     ftry = fl[len(fl) - fi - 1]
 
                     # proceed if this hasn't already been analyzed.
                     if not os.path.exists("%s.done" % (ftry)):
-                        h = h5py.File(ftry, "r")
-                        t0 = float(np.copy(h[("t0")]))
+                        hd = h5py.File(ftry, "r")
+                        t0 = float(np.copy(hd[("t0")]))
                         i0 = np.int64(t0 * conf.sample_rate)
-                        chirp_rate = float(np.copy(h[("chirp_rate")]))
-                        h.close()
+                        chirp_rate = float(np.copy(hd[("chirp_rate")]))
+                        hd.close()
                         t1 = conf.maximum_analysis_frequency / chirp_rate + t0
-                        
+
                         tnow = time.time()
 
                         # if the beginning of the buffer is before the end of the chirp,
@@ -418,19 +419,19 @@ def get_next_chirp_par_file(conf, d, ch):
                                 ho.close()
                                 print("Rank %d analyzing %s time left in sweep %1.2f s" % 
                                       (rank, ftry, t1 - tnow))
-                                return(ftry)
-                        else:
-                            # we haven't analyzed this one, but we no longer
-                            # can, because it is not in the buffer
-                            print("Not able to analyze %s (%1.2f kHz/s), because it is no longer in the buffer. Buffer start at %1.2f and chirp ends at %1.2f" % 
-                                  (ftry, chirp_rate / 1e3, buffer_t0, t1))
-                            ho = h5py.File("%s.done" % (ftry), "w")
-                            ho["t_an"] = time.time()
-                            ho.close()
-                            time.sleep(0.01)
-                                
-            # didn't find anything. let's wait.
-            time.sleep(1)
+                            return (ftry)
+                    else:
+                        # we haven't analyzed this one, but we no longer
+                        # can, because it is not in the buffer
+                        print("Not able to analyze %s (%1.2f kHz/s), because it is no longer in the buffer. Buffer start at %1.2f and chirp ends at %1.2f" %
+                              (ftry, chirp_rate / 1e3, buffer_t0, t1))
+                        ho = h5py.File("%s.done" % (ftry), "w")
+                        ho["t_an"] = time.time()
+                        ho.close()
+                        time.sleep(0.01)
+
+        # didn't find anything. let's wait.
+        time.sleep(1)
 
         
 def analyze_parfiles(conf, d):
