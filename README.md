@@ -45,8 +45,9 @@ while true; do rsync -av --remove-source-files --exclude=tmp*
 ```
 [config]
 
-# channel name for the digital rf recording
-channel="cha"
+# list of channel names for the digital rf recording
+# (must use list notation even for one channel)
+channel=["cha"]
 
 # the sample rate of the digital rf recording
 sample_rate=25000000.0
@@ -56,6 +57,11 @@ center_freq=12.5e6
 
 # the location of the digital_rf recording
 data_dir="/data_out/hf25"
+
+# auto-kill system. If this file path exists, it will
+# break the while loops in the analysis scripts.
+# (if used, remember to delete before restarting))
+kill_path="~/kill.txt"
 
 # detection
 threshold_snr=13.0
