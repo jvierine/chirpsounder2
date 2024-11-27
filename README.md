@@ -134,6 +134,10 @@ The program creates several different kinds of output files.
 
 ## Examples
 
+ROTH Observed from Hawaii (Credits: Ariana Corry)
+
+![11-12_Ionogram_R-T4](https://github.com/user-attachments/assets/2853f129-191b-4dbf-bcb0-ed96f247429e)
+
 All of these are observed in Northern Norway (Skibotn). I typically see around 100 ionograms per hour in a recording.
 
 US ROTHR (hard to tell which one, as I'm so far away)
