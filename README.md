@@ -134,6 +134,10 @@ The program creates several different kinds of output files.
 
 ## Examples
 
+Observing auroral radio propagation with all-sky cameras and chirpsounder (Credit: Kvammen et.al., 2024):
+
+![Screenshot from 2024-11-28 14-09-59](https://github.com/user-attachments/assets/be9d5f39-c99d-4f9e-8a5e-860ff13cff93)
+
 Cordova AK (Credits: Mike McCarrick, Paul Bernhardt, UAF)
 
 ![mccarrick](https://github.com/user-attachments/assets/a25bd798-83ef-4bf3-b666-af4810aba95e)
