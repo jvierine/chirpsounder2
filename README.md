@@ -134,7 +134,11 @@ The program creates several different kinds of output files.
 
 ## Examples
 
-ROTH Observed from Hawaii (Credits: Ariana Corry)
+Cordova AK (Credits: Mike McCarrick, UAF)
+
+![mccarrick](https://github.com/user-attachments/assets/a25bd798-83ef-4bf3-b666-af4810aba95e)
+
+ROTHR Observed from Hawaii (Credits: Ariana Corry, Giuseppe Torri, Univ. of Hawaii)
 
 ![11-12_Ionogram_R-T4](https://github.com/user-attachments/assets/2853f129-191b-4dbf-bcb0-ed96f247429e)
 
@@ -142,27 +146,27 @@ All of these are observed in Northern Norway (Skibotn). I typically see around 1
 
 US ROTHR (hard to tell which one, as I'm so far away)
 
-<img src="examples/example00.png" width="60%"/>
+<img src="examples/example00.png" width="100%"/>
 
 Sodankylä geophysical observatory vertical sounding ionosonde
 
-<img src="./examples/example01.png" width="60%"/>
+<img src="./examples/example01.png" width="100%"/>
 
 US ROTHR (hard to tell which one, as I'm so far away)
 
-<img src="./examples/example02.png" width="60%"/>
+<img src="./examples/example02.png" width="100%"/>
 
 Sodankylä geophysical observatory vertical sounding ionosonde
 
-<img src="./examples/example03.png" width="60%"/>
+<img src="./examples/example03.png" width="100%"/>
 
 Australian JORN. Very far away! I see many of these at the right time of day. 
 
-<img src="./examples/example04.png" width="60%"/>
+<img src="./examples/example04.png" width="100%"/>
 
 US ROTHR (hard to tell which one, as I'm so far away)
 
-<img src="./examples/example05.png" width="60%"/>
+<img src="./examples/example05.png" width="100%"/>
 
 ## Links
 
