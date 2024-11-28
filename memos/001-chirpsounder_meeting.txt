@@ -77,3 +77,6 @@ chirpsoundings in a centralized database. Mike McCarrick is doing this
 for his receivers already, which is a good start.
 
 - Juha will help setup realtime processing for the new receiver in O'ahu.
+
+- Organize another meetup. Look at organizing a session, or just have
+  another informal on-line meeting.
