@@ -1,0 +1,26 @@
+#
+# Simple autossh reverse tunnel setup for ubuntu
+# replace USER, SERVER, and USERNAME
+# To install:
+# sudo cp autossh.service /etc/systemd/system/autossh.service
+# 
+# sudo systemctl daemon-reload
+# sudo systemctl start autossh.service
+# sudo systemctl enable autossh.service
+#
+[Unit]
+Description=Chirpsounder receiver
+After=network.target
+
+[Service]
+# local username that will be used to execute autossh
+User=hfrx1
+
+ExecStart=/home/hfrx1/src/chirpsounder2/examples/sgo/sgo_oul.sh
+
+# kill process
+ExecStop=/usr/bin/killall -g sgo_oul.sh
+
+[Install]
+WantedBy=multi-user.target
+

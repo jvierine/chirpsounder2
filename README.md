@@ -4,6 +4,8 @@ This software can be used to detect chirp sounders and over-the-horizon radar tr
 
 This is a new implementation of the <a href="https://github.com/jvierine/chirpsounder">GNU Chirp Sounder</a>. This new version allows you to now automatically find chirps without knowledge of what the timing and chirp-rate is. You can still figure out the true distance if you have a GPSDO, as most sounders start at a full second. 
 
+Jens Floberg's <a href="https://munin.uit.no/handle/10037/25828">masters thesis</a> discusses the use of chirpsounder2 to make oblique ionograms using this software. 
+
 ## Installation
 See dependencies.txt for instructions on how to build the dependencies (tested on Ubuntu 18 & 20)
 You need to compile the chirp downconversion library, which is written in C.
@@ -14,14 +16,24 @@ There is no packaging or other installation needed. You just run the scripts in 
 
 Python packages that are required: pyfftw, numpy, scipy, matplotlib, digital_rf, mpi4py, h5py. Tested on Python 2.7.17 and Python 3.6.9. 
 
-## Usage:
-1) Make a data capture with THOR (comes with <a href="https://github.com/MITHaystack/digital_rf">DigitalRF</a>), a USRP N2x0, a GPSDO, and a broadband HF antenna in a quiet location. I recommend using a 12.5 MHz center frequency and a 25 MHz sampling rate. Here is an example command to kick off a recording: 
 
+Here is an example of a startup script for kicking off all of the programs. There are scripts in the same directory that also show how to install chirpsounder2 as a service with Ubuntu:
+```
+https://github.com/jvierine/chirpsounder2/blob/master/examples/sgo/sgo_ski.sh
+```
+
+## Usage:
+1) Make a data capture with the rx_uhd that requires a USRP N2x0, a GPSDO, and a broadband HF antenna in a quiet location. I recommend using a 12.5 MHz center frequency and a 25 MHz sampling rate.  I recommend using this simple C++ program instead of thor.py, which comes with Digital RF, because it is more lightweight, handles dropped packets consistently, and has no dependency to Gnuradio. 
+
+```
+./rx_uhd
+```
+Alternatively, you can make a data capture with THOR (comes with <a href="https://github.com/MITHaystack/digital_rf">DigitalRF</a>), Here is an example command to kick off a recording: 
 ```
 thor.py -m 192.168.10.3 -d "A:A" -c cha -f 12.5e6 -r 25e6 /dev/shm/hf25 
 ```
 
-Tip: You can use a RAM disk ring buffer to avoid dropped packets on slower computers and hard disks. This is not necessary, as the chirp analysis will be okay with dropped packets. Here's an example of how you can use rsync to shovel a digital rf recording on the fly from a ram disk to a hard disk.
+Tip: You can use a RAM disk ring buffer to avoid dropped packets on slower computers and hard disks. This is not necessary, as the chirp analysis will be okay with dropped packets. Here's an example of how you can use rsync to shovel a digital rf recording on the fly from a ram disk to a hard disk. 
 
 ```
 # copy digital rf from ram disk to permanent storage:
@@ -33,8 +45,9 @@ while true; do rsync -av --remove-source-files --exclude=tmp*
 ```
 [config]
 
-# channel name for the digital rf recording
-channel="cha"
+# list of channel names for the digital rf recording
+# (must use list notation even for one channel)
+channel=["cha"]
 
 # the sample rate of the digital rf recording
 sample_rate=25000000.0
@@ -44,6 +57,11 @@ center_freq=12.5e6
 
 # the location of the digital_rf recording
 data_dir="/data_out/hf25"
+
+# auto-kill system. If this file path exists, it will
+# break the while loops in the analysis scripts.
+# (if used, remember to delete before restarting))
+kill_path="~/kill.txt"
 
 # detection
 threshold_snr=13.0
@@ -115,6 +133,10 @@ The program creates several different kinds of output files.
 - lfm_ionogram-%03d-%11.2f.h5 - Files created by calc_ionograms.py. These contain the ionogram itself. Optionally the chirp downconverted raw voltage can also be stored in order to allow the chirp to be reanalyzed with different spectral analysis settings. 
 
 ## Examples
+
+ROTH Observed from Hawaii (Credits: Ariana Corry)
+
+![11-12_Ionogram_R-T4](https://github.com/user-attachments/assets/2853f129-191b-4dbf-bcb0-ed96f247429e)
 
 All of these are observed in Northern Norway (Skibotn). I typically see around 100 ionograms per hour in a recording.
 

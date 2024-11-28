@@ -6,7 +6,7 @@ INSTALL_PATH=/home/$USER/src/chirpsounder2
 cd $INSTALL_PATH
 # stop all processes
 ./stop_ringbuffer.sh
-CONFFILE=/home/$USER/src/chirpsounder2/examples/sgo/sgo.ini
+CONFFILE=/home/$USER/src/chirpsounder2/examples/sgo/sgo_iva.ini
 DDIR=/dev/shm/hf25
 mkdir -p logs
 
@@ -32,6 +32,10 @@ sleep 10
 # plot ionograms
 echo "Plot ionograms"
 python3 plot_ionograms.py $CONFFILE >logs/plot_ionograms.log 2>&1 &
+
+
+echo "startgin backup"
+sh ./examples/sgo/backup_iva.sh >logs/backup.log 2>&1 &
 
 while true;
 do
