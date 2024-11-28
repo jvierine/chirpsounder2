@@ -134,7 +134,7 @@ The program creates several different kinds of output files.
 
 ## Examples
 
-Cordova AK (Credits: Mike McCarrick, UAF)
+Cordova AK (Credits: Mike McCarrick, Paul Bernhardt, UAF)
 
 ![mccarrick](https://github.com/user-attachments/assets/a25bd798-83ef-4bf3-b666-af4810aba95e)
 
