@@ -63,6 +63,9 @@ Actions:
 - Improve labeling of plots. Mike McCarrick has code that could
   help. We should investigate pushing these improvements into git.
 
+- Incorporate Mike McCarrick's Martyn's equivalent oblique to vertical
+  ionogram correction into git.
+
 - Support for interferometry and polarization. Lawrence working on
   improving these aspects. This has been done historically and the
   USRP hardware would support it.
