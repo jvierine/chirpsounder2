@@ -6,6 +6,47 @@ This is a new implementation of the <a href="https://github.com/jvierine/chirpso
 
 Jens Floberg's <a href="https://munin.uit.no/handle/10037/25828">masters thesis</a> discusses the use of chirpsounder2 to make oblique ionograms using this software. 
 
+
+## Examples
+
+Observing auroral radio propagation with all-sky cameras and chirpsounder (Credit: <a href="https://www.frontiersin.org/journals/astronomy-and-space-sciences/articles/10.3389/fspas.2024.1289840/full">Kvammen et.al., 2024</a>):
+
+![Screenshot from 2024-11-28 14-09-59](https://github.com/user-attachments/assets/be9d5f39-c99d-4f9e-8a5e-860ff13cff93)
+
+Cordova AK (Credits: Mike McCarrick, Paul Bernhardt, UAF)
+
+![mccarrick](https://github.com/user-attachments/assets/a25bd798-83ef-4bf3-b666-af4810aba95e)
+
+ROTHR Observed from Hawaii (Credits: Ariana Corry, Giuseppe Torri, Univ. of Hawaii)
+
+![11-12_Ionogram_R-T4](https://github.com/user-attachments/assets/2853f129-191b-4dbf-bcb0-ed96f247429e)
+
+All of these are observed in Northern Norway (Skibotn). I typically see around 100 ionograms per hour in a recording.
+
+US ROTHR (hard to tell which one, as I'm so far away)
+
+<img src="examples/example00.png" width="100%"/>
+
+Sodankylä geophysical observatory vertical sounding ionosonde
+
+<img src="./examples/example01.png" width="100%"/>
+
+US ROTHR (hard to tell which one, as I'm so far away)
+
+<img src="./examples/example02.png" width="100%"/>
+
+Sodankylä geophysical observatory vertical sounding ionosonde
+
+<img src="./examples/example03.png" width="100%"/>
+
+Australian JORN. Very far away! I see many of these at the right time of day. 
+
+<img src="./examples/example04.png" width="100%"/>
+
+US ROTHR (hard to tell which one, as I'm so far away)
+
+<img src="./examples/example05.png" width="100%"/>
+
 ## Installation
 See dependencies.txt for instructions on how to build the dependencies (tested on Ubuntu 18 & 20)
 You need to compile the chirp downconversion library, which is written in C.
@@ -132,45 +173,6 @@ The program creates several different kinds of output files.
 - par-%11.3f.h5 - Files created by find_timings.py, which analyzes chirp-*.h5 files and determines what are the sounder parameters. By default, three independent detections of the same chirp at different times with consistent parameters to classify the chirp as real. This is to avoid false positives.
 - lfm_ionogram-%03d-%11.2f.h5 - Files created by calc_ionograms.py. These contain the ionogram itself. Optionally the chirp downconverted raw voltage can also be stored in order to allow the chirp to be reanalyzed with different spectral analysis settings. 
 
-## Examples
-
-Observing auroral radio propagation with all-sky cameras and chirpsounder (Credit: Kvammen et.al., 2024):
-
-![Screenshot from 2024-11-28 14-09-59](https://github.com/user-attachments/assets/be9d5f39-c99d-4f9e-8a5e-860ff13cff93)
-
-Cordova AK (Credits: Mike McCarrick, Paul Bernhardt, UAF)
-
-![mccarrick](https://github.com/user-attachments/assets/a25bd798-83ef-4bf3-b666-af4810aba95e)
-
-ROTHR Observed from Hawaii (Credits: Ariana Corry, Giuseppe Torri, Univ. of Hawaii)
-
-![11-12_Ionogram_R-T4](https://github.com/user-attachments/assets/2853f129-191b-4dbf-bcb0-ed96f247429e)
-
-All of these are observed in Northern Norway (Skibotn). I typically see around 100 ionograms per hour in a recording.
-
-US ROTHR (hard to tell which one, as I'm so far away)
-
-<img src="examples/example00.png" width="100%"/>
-
-Sodankylä geophysical observatory vertical sounding ionosonde
-
-<img src="./examples/example01.png" width="100%"/>
-
-US ROTHR (hard to tell which one, as I'm so far away)
-
-<img src="./examples/example02.png" width="100%"/>
-
-Sodankylä geophysical observatory vertical sounding ionosonde
-
-<img src="./examples/example03.png" width="100%"/>
-
-Australian JORN. Very far away! I see many of these at the right time of day. 
-
-<img src="./examples/example04.png" width="100%"/>
-
-US ROTHR (hard to tell which one, as I'm so far away)
-
-<img src="./examples/example05.png" width="100%"/>
 
 ## Links
 
