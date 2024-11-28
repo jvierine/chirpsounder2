@@ -46,9 +46,9 @@ short baseline oblique ionograms to vertical ionograms. Receiver
 running in Virginia continuously for several years. Database of UAF
 ionograms exists.
 
-Juha: New Deep learning software release for automatic scaling of
-oblique ionograms. Master's thesis of Jens Floberg, which provides a
-set of instructions for setting up a chirpsounder.
+Juha and Devin: New Deep learning software release for automatic
+scaling of oblique ionograms. Master's thesis of Jens Floberg, which
+provides a set of instructions for setting up a chirpsounder.
 
 https://munin.uit.no/handle/10037/25828
 
