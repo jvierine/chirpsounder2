@@ -1,0 +1,76 @@
+On 27th of November, a short one hour meeting was held to catch up with what is going on with chirpsounder.
+
+People in attendance: Paul Bernhardt, Alex Chartier, Lawrence Coleman,
+Arianna Corry, Nathaniel Frissel, Devin Huyghebaert, , Mike McCarrick,
+Giuseppe Torri, Juha Vierinen
+
+Key points:
+
+Paul and Mike: New sounder transmitter on Cordova. This schedule
+repeats every 5 minutes.  The chirp schedule actually starts at
+00:00:05 UT (5 sec, not 5 msec after UT midnight) and sweeps from 2-20
+MHz at 100 kHz/s, repeating every 5 minutes. This corresponds to
+chirpt=285.00 in Juha’s chirpsounder software config. Paul is also
+interested in setting up a chirpsounder receiver in Hawaii to
+determine what frequencies to use for ocean scatter with HAARP.
+
+Ocean scatter study:
+https://munin.uit.no/bitstream/handle/10037/15375/article.pdf?sequence=3&isAllowed=y
+
+Arianna and Giuseppe: New ionosonde receiver on O'ahu at U of Hawaii
+campus, which is a very interesting location for observing JORN and
+ROTHR. There are plans to conduct ionospheric research, study e.g.,
+various tropospheric phenomena coupled with the ionosphere, study
+transequatorial and transpacific radio propagation. Plans to write a
+thesis related with measurements.
+
+Alex: Ship receiver campaign to receive JORN and ROTHR. Compact
+receiver on a balloon, and on the NASA WB57 aircraft observing the
+eclipse. ITSI Topside sounding receiver to be deployed in ISS in April
+2025. Can be used to receive ground based HF transmissions. 5-30 MHz
+band. Deployed on "Japanese platform". 
+
+Lawrence: A bunch of new code was commit to github to allow use of
+multiple channels for interferometric polarization and angle of
+arrival studies. One might need to edit C++ rx_uhd.cpp program to use
+the GPSDO instead of Octoclock. This should be setup as a
+configuration option in the future.
+
+Nate: Running a chirpsounding receiver in Scranton continuously with a
+database. Observations of WWV. New SDR: RX-888 MkII ($200) and Leo
+Bodnar GPSDO ($200) could be used for chirpsounding. New WSPR hardware
+network being setup.
+
+Mike: Cordova receiver, Martyn's equivalent correction for converting
+short baseline oblique ionograms to vertical ionograms. Receiver
+running in Virginia continuously for several years. Database of UAF
+ionograms exists.
+
+Juha: New Deep learning software release for automatic scaling of
+oblique ionograms. Master's thesis of Jens Floberg, which provides a
+set of instructions for setting up a chirpsounder.
+
+https://munin.uit.no/handle/10037/25828
+
+https://github.com/AndreasKvammen/NOIRE-Net
+
+https://www.frontiersin.org/journals/astronomy-and-space-sciences/articles/10.3389/fspas.2024.1289840/full
+
+Actions:
+
+- We need to review is the current format has everything we need or not.
+
+- Improve labeling of plots. Mike McCarrick has code that could
+  help. We should investigate pushing these improvements into git.
+
+- Support for interferometry and polarization. Lawrence working on
+  improving these aspects. This has been done historically and the
+  USRP hardware would support it.
+
+- Figure out if we can run the software using a GPS stabilized RX-888 MkII SDR.
+
+- Investigate proposal for setting up a database collect
+chirpsoundings in a centralized database. Mike McCarrick is doing this
+for his receivers already, which is a good start.
+
+- Juha will help setup realtime processing for the new receiver in O'ahu.
