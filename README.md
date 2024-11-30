@@ -17,7 +17,7 @@ Cordova AK (Credits: Mike McCarrick, Paul Bernhardt, UAF)
 
 ![mccarrick](https://github.com/user-attachments/assets/a25bd798-83ef-4bf3-b666-af4810aba95e)
 
-ROTHR Observed from Hawaii (Credits: <a href="https://www.soest.hawaii.edu/soestwp/announce/news/aeronauts-explore-ionosphere/">Ariana Corry, Giuseppe Torri, Univ. of Hawaii</a>)
+ROTHR Observed from Hawaii (Credits: <a href="https://www.soest.hawaii.edu/soestwp/announce/news/aeronauts-explore-ionosphere/">Arianna Corry, Giuseppe Torri, Univ. of Hawaii</a>)
 
 ![11-12_Ionogram_R-T4](https://github.com/user-attachments/assets/2853f129-191b-4dbf-bcb0-ed96f247429e)
 
