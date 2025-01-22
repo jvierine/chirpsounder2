@@ -12,11 +12,10 @@ class chirp_config:
     def __init__(self, fname=None):
         cf = configparser.ConfigParser()
         # initialize with default values
-        cf["config"] = {"channel": "['ch0']",
+        cf["config"] = {"channel": '"cha"',
                         "sample_rate": "25000000.0",
                         "center_freq": "12.5e6",
                         "data_dir": '"/mnt/data/juha/hf25"',
-                        "kill_path": '"/home/sdr/chirpsounder2/kill.txt"',
                         "threshold_snr": "13.0",
                         "max_simultaneous_detections": "5",
                         "min_detections": "3",
@@ -36,7 +35,7 @@ class chirp_config:
                         "manual_range_extent": "false",
                         "copy_to_server": "false",
                         "copy_destination": "none",
-                        "station_name": '"station_name"',
+                        "station_name": "station_name",
                         "min_freq": "0",
                         "max_freq": "25e6",
                         "manual_freq_extent": "false",
@@ -75,13 +74,13 @@ class chirp_config:
         self.realtime = json.loads(cf["config"]["realtime"])
         self.save_raw_voltage = json.loads(cf["config"]["save_raw_voltage"])
         self.data_dir = json.loads(cf["config"]["data_dir"])
-        self.kill_path = json.loads(cf["config"]["kill_path"])
         try:
             self.copy_destination = json.loads(
                 cf["config"]["copy_destination"])
         except:
             print("couldn't read copy destination")
             pass
+
         self.station_name = json.loads(cf["config"]["station_name"])
 
         self.n_downconversion_threads = json.loads(
