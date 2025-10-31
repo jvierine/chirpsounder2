@@ -49,12 +49,16 @@ def fir_sinc_lowpass(numtaps, cutoff, beta=8.6):
 def fir_decimate(x, R, h):
     """Filter then decimate by R."""
     y = n.convolve(x, h, mode='same')
+#    y = ss.fftconvolve(x, h, mode='same')
     return y[::R]
 
 # precalculate the fir window. nyquist is (0.5/50)
 # aim for 0.25 Nyquist (for 100 kHz, which is 50 kHz bandwidth
-h = fir_sinc_lowpass(numtaps=161, cutoff=(0.5 / 50) * 0.25)
-
+h50 = fir_sinc_lowpass(numtaps=391, cutoff=(0.5 / 50)*0.3 )
+h10 = fir_sinc_lowpass(numtaps=71, cutoff=(0.5 / 10)*0.3 )
+h25 = fir_sinc_lowpass(numtaps=191, cutoff=(0.5 / 25)*0.3 )
+#plt.plot(h)
+#plt.show()
 def decimate_25_then_fir10(x):
     """
     Two-stage decimation:
@@ -68,7 +72,7 @@ def decimate_25_then_fir10(x):
     # --- Stage 2: FIR + decimate by 10 ---
     # The cutoff must be < 0.5 / 10 (normalized to stage1 rate)
     
-    y2 = fir_decimate(y1, 10, h)
+    y2 = fir_decimate(y1, 10, h10)
 
     return y2
 
@@ -85,9 +89,26 @@ def decimate_5_then_fir50(x):
     # --- Stage 2: FIR + decimate by 50 ---
     # cutoff < 0.5 / 50 (normalized to the stage-1 sample rate)
     
-    y2 = fir_decimate(y1, 50, h)
+    y2 = fir_decimate(y1, 50, h50)
     return(y2)
+
+
+def decimate_10_then_fir25(x):
+    """
+    Two-stage decimation:
+      1. Decimate by 5 using block averaging
+      2. FIR lowpass filter + decimate by 50
+    Total decimation = 250
+    """
+    # --- Stage 1: cheap average decimation by 5 ---
+    y1 = decimate_average(x, 10)
+
+    # --- Stage 2: FIR + decimate by 50 ---
+    # cutoff < 0.5 / 50 (normalized to the stage-1 sample rate)
     
+    y2 = fir_decimate(y1, 25, h25)
+    return(y2)
+
 def calculate_ionogram(d,
                        i0,
                        dfreq=50e3,
@@ -100,14 +121,15 @@ def calculate_ionogram(d,
                        offset_us=-320, 
                        cf=12.5e6,
                        max_bandwidth=30e3,
-                       mode=0,
+                       mode=3,
                        wait_for_data=False,
                        ofname="tmp.h5"):
 
 
     # get complementary codes transmitted by digisonde
     # mode=3 includes phase flip
-    cs2,codes2,modes2=ds.complementary_code(sr=100e3,mode=3)
+    # analyze with 100 kHz receiver bandwidth
+    cs2,codes2,modes2=ds.complementary_code(sr=100e3,mode=mode)
     
     n_freq=int((freq1-freq0)/dfreq)
     ipp_dec=int(25*ipp/dec)
@@ -154,13 +176,15 @@ def calculate_ionogram(d,
                         not_enough_data=False
                 
             if True:
-                # it is this first step, which takes 99% of the computation.
-                # multiply with complex sinusoid to shift center frequency and then low pass filter.
+                # This is this first step, where the filtering and decimation takes 99% of the computation.
+                #
                 # the fastest is to boxcar filter, but that has the worst frequency response
                 # the slowest is to fir the whole thing at full rate, that has the best frequency response
                 # compromise: average and decimate 25-> 4 MHz, and then fir decimate to 100 kHz
                 # 25->1 MHz using simple boxcar filter. Then fir to improve freq response
-                z=decimate_5_then_fir50(d.read_vector_c81d(i0+(i*n_ipp+pi)*ipp*srint+srint*offset_us,srint*ipp,"cha")*cvec[0:(srint*ipp)]*pha0[0])
+#                z=decimate_5_then_fir50(d.read_vector_c81d(i0+(i*n_ipp+pi)*ipp*srint+srint*offset_us,srint*ipp,"cha")*cvec[0:(srint*ipp)]*pha0[0])
+#                z=decimate_25_then_fir10(d.read_vector_c81d(i0+(i*n_ipp+pi)*ipp*srint+srint*offset_us,srint*ipp,"cha")*cvec[0:(srint*ipp)]*pha0[0])
+                z=decimate_10_then_fir25(d.read_vector_c81d(i0+(i*n_ipp+pi)*ipp*srint+srint*offset_us,srint*ipp,"cha")*cvec[0:(srint*ipp)]*pha0[0])                
 
                 # deconvolve
                 z=n.fft.ifft(n.fft.fft(z[0:ipp_dec])*CS2[pi%n_codes])
@@ -243,9 +267,9 @@ def realtime_ionogram():
     # cycle through these start delays
     d=drf.DigitalRFReader("/dev/shm/hf25/")
     b=d.get_bounds("cha")
-    # next sounding (every 15 minutes)
+    # next sounding (every 7.5 minutes)
     # look the the next sounding start coming up
-    t0=15*60*25000000*n.ceil(b[1]/25000000/(15*60))
+    t0=15*30*25000000*n.ceil(b[1]/25000000/(15*30))
     output_dir="/data1/digisonde"
     dname="%s/%s"%(output_dir,cd.unix2dirname(t0/25e6))
     if not os.path.exists(dname):
@@ -259,7 +283,7 @@ def realtime_ionogram():
                            t0,
                            dfreq=50e3,
                            freq0=1e6,                       
-                           freq1=16e6,
+                           freq1=18e6,
                            n_ipp=64,
                            ipp=10000,
                            sr=25000000,
@@ -274,6 +298,9 @@ def realtime_ionogram():
 if __name__ == "__main__":
     while True:
         realtime_ionogram()
+
+def test_archival_data_analysis():
+    # old debug stuff
     d=drf.DigitalRFReader("/data1/lz1aq/hf25")
     b=d.get_bounds("cha")
     latest_sounding_start=15*60*25000000*n.ceil(b[0]/25000000/(15*60)) + 3*15*60*25000000
