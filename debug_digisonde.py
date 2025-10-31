@@ -5,6 +5,9 @@ import matplotlib.pyplot as plt
 import digisonde_stuff as ds
 import datetime
 import time
+import chirp_det as cd
+import h5py
+import os
 #
 # Simple simple digisonde receiver. 
 # 
@@ -98,7 +101,9 @@ def calculate_ionogram(d,
                        cf=12.5e6,
                        max_bandwidth=30e3,
                        mode=0,
-                       wait_for_data=False):
+                       wait_for_data=False,
+                       ofname="tmp.h5"):
+
 
     # get complementary codes transmitted by digisonde
     # mode=3 includes phase flip
@@ -143,7 +148,7 @@ def calculate_ionogram(d,
                 while not_enough_data:
                     bnow=d.get_bounds("cha")
                     if bnow[1] < (start_idx+data_length):
-                        print("waiting for more data")
+                        print("waiting for more data (%1.2f seconds)"%( ((start_idx+data_length)-bnow[1])/25e6 ))
                         time.sleep(1)
                     else:
                         not_enough_data=False
@@ -204,20 +209,28 @@ def calculate_ionogram(d,
             SNR[j,i,:]=(S[j,i,:]-nf)/nf
     SNR[SNR<0]=1e-9
     plt.pcolormesh(fvec/1e6,rvec,10.0*n.log10(SNR[0,:,:].T),vmin=-10,vmax=30)
-    plt.title("Digisonde Ramfjordmoen-TGO (O-mode)\n%s"%( unix2date(i0/25e6)))
+    plt.title("Digisonde Ramfjordmoen-TGO\n%s"%( unix2date(i0/25e6)))
     plt.xlabel("Frequency (MHz)")
     plt.ylabel("One-way range (km)")
     plt.colorbar()
+#    plt.subplot(122)    
+ #   plt.pcolormesh(fvec/1e6,rvec,10.0*n.log10(SNR[1,:,:].T),vmin=-10,vmax=30)#,10.0*n.log10(S[1,:,:].T))
+  #  plt.title("Digisonde Ramfjordmoen-TGO (X-mode)\n%s"%(unix2date(i0/25e6)))
+   # plt.xlabel("Frequency (MHz)")
+   # plt.ylabel("One-way range (km)")
+   # plt.colorbar()
     plt.tight_layout()
-    plt.show()
+    plt.savefig("%s.png"%(ofname))
+    plt.close()
+    ho=h5py.File(ofname,"w")
+    ho["S"]=S
+    ho["t0"]=i0/25e6
+    ho["fvec"]=fvec
+    ho["rvec"]=rvec
+    ho.close()
+    print("saved %s.png\nsaving %s"%(ofname,ofname))
 
-    plt.pcolormesh(fvec/1e6,rvec,10.0*n.log10(SNR[1,:,:].T),vmin=-10,vmax=30)#,10.0*n.log10(S[1,:,:].T))
-    plt.title("Digisonde Ramfjordmoen-TGO (X-mode)\n%s"%(unix2date(i0/25e6)))
-    plt.xlabel("Frequency (MHz)")
-    plt.ylabel("One-way range (km)")
-    plt.colorbar()
-    plt.tight_layout()    
-    plt.show()    
+    
 
 def realtime_ionogram():
     
@@ -228,14 +241,39 @@ def realtime_ionogram():
     # -else wait
     #
     # cycle through these start delays
-    delays=15*60
     d=drf.DigitalRFReader("/dev/shm/hf25/")
-    b=d.get_bounds("cha")    
-    latest_sounding_start=15*60*25000000*n.ceil(b[0]/25000000/(15*60))
+    b=d.get_bounds("cha")
+    # next sounding (every 15 minutes)
+    # look the the next sounding start coming up
+    t0=15*60*25000000*n.ceil(b[1]/25000000/(15*60))
+    output_dir="/data1/digisonde"
+    dname="%s/%s"%(output_dir,cd.unix2dirname(t0/25e6))
+    if not os.path.exists(dname):
+        os.mkdir(dname)
+    ofname="%s/lfm_ionogram-%1.2f.h5"%(dname,t0/25e6)
+    if os.path.exists(ofname):
+        print("sounding already exists. skipping")
+    else:
+        # estimated based on ground path ramfjordmoen-tgo (14.1 km)
+        calculate_ionogram(d,
+                           t0,
+                           dfreq=50e3,
+                           freq0=1e6,                       
+                           freq1=16e6,
+                           n_ipp=64,
+                           ipp=10000,
+                           sr=25000000,
+                           dec=250,
+                           offset_us=-320, 
+                           cf=12.5e6,
+                           wait_for_data=True,
+                           ofname=ofname)
 
+        
 
 if __name__ == "__main__":
-    
+    while True:
+        realtime_ionogram()
     d=drf.DigitalRFReader("/data1/lz1aq/hf25")
     b=d.get_bounds("cha")
     latest_sounding_start=15*60*25000000*n.ceil(b[0]/25000000/(15*60)) + 3*15*60*25000000
