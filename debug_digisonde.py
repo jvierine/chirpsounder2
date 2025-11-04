@@ -225,7 +225,7 @@ def calculate_ionogram(d,
             
         t1=time.time()
         # benchmarking
-        print("%d compute time %1.2f real time %1.2f, %1.2f x realtime"%(i,t1-t0,n_ipp*10e-3,(t1-t0)/(n_ipp*10e-3)))        
+        print("%d compute time %1.2f (s) data time %1.2f (s), %1.2f x realtime (data time/compute time)"%(i,t1-t0,n_ipp*10e-3,(n_ipp*10e-3)/(t1-t0)))
     SNR=n.copy(S)
     for i in range(n_freq):
         for j in range(2):
