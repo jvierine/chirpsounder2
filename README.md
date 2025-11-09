@@ -19,6 +19,11 @@ Cordova AK (Credits: Mike McCarrick, Paul Bernhardt, UAF)
 
 ![mccarrick](https://github.com/user-attachments/assets/a25bd798-83ef-4bf3-b666-af4810aba95e)
 
+Ramfjordmoen Digisonde received at Prestvannet during auroral sporadic E conditions:
+
+<img width="978" height="739" alt="Screenshot 2025-11-09 at 10 48 01" src="https://github.com/user-attachments/assets/37e4820d-c20a-4f9e-bc0a-6b052f4e19d3" />
+
+
 ROTHR Observed from Hawaii (Credits: <a href="https://www.soest.hawaii.edu/soestwp/announce/news/aeronauts-explore-ionosphere/">Arianna Corry, Giuseppe Torri, Univ. of Hawaii</a>)
 
 ![11-12_Ionogram_R-T4](https://github.com/user-attachments/assets/2853f129-191b-4dbf-bcb0-ed96f247429e)
