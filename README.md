@@ -1,6 +1,8 @@
 # Chirp Sounder 2
 
-This software can be used to detect chirp sounders and over-the-horizon radar transmissions over the air, and to calculate ionograms from them. The software relies on <a href="https://github.com/MITHaystack/digital_rf">Digital RF</a> recordings of HF. The program can be run in realtime on complex voltage recorded into a ringbuffer, but it can also be run offline on a recording on a disk. 
+This software can be used to detect chirp sounders (over-the-horizon radar transmissions) over the air, and to calculate ionograms from them. I also recently added an experimental capability to receive Digisonde ionograms with known transmit timing. 
+
+The software relies on <a href="https://github.com/MITHaystack/digital_rf">Digital RF</a> recordings of HF. The program can be run in realtime on complex voltage recorded into a ringbuffer, but it can also be run offline on a recording on a disk. 
 
 This is a new implementation of the <a href="https://github.com/jvierine/chirpsounder">GNU Chirp Sounder</a>. This new version allows you to now automatically find chirps without knowledge of what the timing and chirp-rate is. You can still figure out the true distance if you have a GPSDO, as most sounders start at a full second. 
 
@@ -16,6 +18,11 @@ Observing auroral radio propagation with all-sky cameras and chirpsounder (Credi
 Cordova AK (Credits: Mike McCarrick, Paul Bernhardt, UAF)
 
 ![mccarrick](https://github.com/user-attachments/assets/a25bd798-83ef-4bf3-b666-af4810aba95e)
+
+Ramfjordmoen Digisonde received at Prestvannet during auroral sporadic E conditions:
+
+<img width="978" height="739" alt="Screenshot 2025-11-09 at 10 48 01" src="https://github.com/user-attachments/assets/37e4820d-c20a-4f9e-bc0a-6b052f4e19d3" />
+
 
 ROTHR Observed from Hawaii (Credits: <a href="https://www.soest.hawaii.edu/soestwp/announce/news/aeronauts-explore-ionosphere/">Arianna Corry, Giuseppe Torri, Univ. of Hawaii</a>)
 
