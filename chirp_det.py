@@ -29,6 +29,8 @@ def power(x):
     return (x.real**2.0 + x.imag**2.0)
 
 
+
+
 def fft(x):
     if fftw:
         # ,planner_effort='FFTW_ESTIMATE'))
@@ -89,6 +91,37 @@ class chirp_matched_filter_bank:
             self.chirps.append(chirp_vec)
         self.n_chirps = len(self.chirps)
 
+        # todo, setup fftw. should at least 2x things
+        fftlen=self.conf.n_samples_per_block
+        
+        self.fftin = pyfftw.empty_aligned(fftlen, dtype='complex64')
+        self.fftout = pyfftw.empty_aligned(fftlen, dtype='complex64')
+        
+        self.fft_object = pyfftw.FFTW(
+            self.fftin, self.fftout,
+            direction='FFTW_FORWARD',
+            flags=('FFTW_MEASURE',),
+            threads=1
+        )
+        
+        self.ifft_object = pyfftw.FFTW(
+            self.fftout, self.fftin,       # reversed!
+            direction='FFTW_BACKWARD',
+            flags=('FFTW_MEASURE',),
+            threads=1
+        )
+
+    def fft(self, z):
+        self.fftin[:]=z
+        self.fft_object()
+        return(n.copy(self.fftout))
+    
+    def ifft(self, z):
+        self.fftout[:]=z
+        self.ifft_object()
+        return(n.copy(self.fftin))
+
+    
     def chirpf(self, cr=160e3):
         """
         Generate a chirp. This is used for matched filtering
@@ -119,8 +152,12 @@ class chirp_matched_filter_bank:
             exit(0)
 
         # whiten noise with a regularized filter
+
+#        Z = self.fft(self.wf * z)
+ #       z = self.ifft(Z / (n.abs(Z) + 1e-9))
+
         Z = fft(self.wf * z)
-        z = ifft(Z / (n.abs(Z) + 1e-9))
+        z = ifft(Z / (n.abs(Z) + 1e-9))        
 
         # matched filter output
         # store the best matching chirp-rate and
@@ -179,7 +216,7 @@ class chirp_matched_filter_bank:
                     print("creating %s" % (dname))
                     os.mkdir(dname)
                     
-                # tbd: make an hour directory
+                # 
                 ofname = "%s/chirp-%s-%d.h5" % (dname, ch, i0)
                 ho = h5py.File(ofname, "w")
                 ho["f0"] = f0

@@ -1,58 +1,111 @@
-import numpy as n
+import numpy as np
 import h5py
 import glob
 import matplotlib.pyplot as plt
-import stuffr
+import argparse
+import os
+import sys
+import stuffr  # assuming this is a custom/local module
 
-# list of chirp detections
-fl=glob.glob("/data0/2025-*/chirp-cha*.h5")
-fl.sort()
+# ------------------------------------------------------------
+# Script: chirp_analysis.py
+# Description:
+#   Reads chirp detection HDF5 files, extracts signal parameters,
+#   and visualizes frequency vs. time colored by SNR.
+#   Supports multiple chirp rates and automatically formats date labels.
+#   Includes a simple ASCII progress bar.
+# ------------------------------------------------------------
 
-snrs=[]
-times=[]
-frequencies=[]
-rates=[]
-chirp_rates=[]
 
-chirp_rate=100000.0
-#chirp_rate=125000.0
-for f in fl:
-    h=h5py.File(f,"r")
-    if True:#n.abs(h["chirp_rate"][()]-chirp_rate)<10:
-        snrs.append(h["snr"][()])
-        chirp_rates.append(h["chirp_rate"][()])        
-        times.append(h["i0"][()]/25000000)
-        frequencies.append(h["f0"][()]/1e6)
-        print(h.keys())
-    
+def print_progress_bar(iteration, total, length=40):
+    """Display a simple ASCII progress bar in the terminal."""
+    percent = f"{100 * (iteration / float(total)):.1f}"
+    filled_length = int(length * iteration // total)
+    bar = "█" * filled_length + "-" * (length - filled_length)
+    sys.stdout.write(f"\r|{bar}| {percent}% ({iteration}/{total})")
+    sys.stdout.flush()
+    if iteration == total:
+        print()  # Move to a new line at the end
 
-    h.close()
 
-times=n.array(times)
-times_dt = times.astype('datetime64[s]')
-plt.scatter(times_dt,frequencies,c=10.0*n.log10(snrs))
-# started to switch from loop to dipole
-#plt.axvline(stuffr.date2unix(2025,11,4,9,20,0),color="red")
-# dipole on
-#plt.axvline(stuffr.date2unix(2025,11,4,9,50,0),color="red")
-# back to loop
-#plt.axvline(stuffr.date2unix(2025,11,4,10,30,0),color="red")
+def main():
+    # ---- Command-line arguments ----
+    parser = argparse.ArgumentParser(description="Plot chirp detections from HDF5 files.")
+    parser.add_argument(
+        "-d", "--directory",
+        type=str,
+        default=".",
+        help="Directory containing chirp HDF5 files (default: current directory)"
+    )
+    args = parser.parse_args()
 
-cb=plt.colorbar()
-cb.set_label("SNR (dB)")
-plt.xlabel("Time (UTC)")
-plt.ylabel("Frequency (MHz)")
-plt.show()
+    data_dir = os.path.abspath(args.directory)
+    print(f"Using data directory: {data_dir}")
 
-chirp_rates=n.array(chirp_rates,dtype=int)
-frequencies=n.array(frequencies)
+    # ---- Find all chirp detection files ----
+    file_pattern = os.path.join(data_dir, "2*-*-*", "chirp-cha*.h5")
+    fl = sorted(glob.glob(file_pattern))
 
-idx=n.where(chirp_rates==100000)[0]
-plt.plot(times_dt[idx],frequencies[idx],".",label="100 kHz/s")
-idx=n.where(chirp_rates==125000)[0]
-plt.plot(times_dt[idx],frequencies[idx],".",label="125 kHz/s")
-plt.legend()
-cb.set_label("SNR (dB)")
-plt.xlabel("Time (UTC)")
-plt.ylabel("Frequency (MHz)")
-plt.show()
+    if not fl:
+        print("No chirp files found. Check the directory path.")
+        return
+
+    snrs = []
+    times = []
+    frequencies = []
+    chirp_rates = []
+
+    total_files = len(fl)
+    print(f"Found {total_files} files. Processing...\n")
+
+    # ---- Process each file with progress bar ----
+    for i, f in enumerate(fl, start=1):
+        with h5py.File(f, "r") as h:
+            # Extract parameters
+            snrs.append(h["snr"][()])
+            chirp_rates.append(h["chirp_rate"][()])
+            times.append(h["i0"][()] / 25_000_000)  # Convert sample index to seconds
+            frequencies.append(h["f0"][()] / 1e6)   # Convert to MHz
+
+        print_progress_bar(i, total_files)
+
+    # ---- Convert to NumPy arrays ----
+    times = np.array(times)
+    times_dt = times.astype("datetime64[s]")
+    snrs = np.array(snrs)
+    frequencies = np.array(frequencies)
+    chirp_rates = np.array(chirp_rates, dtype=int)
+
+    # ---- Scatter plot: Frequency vs Time ----
+    plt.figure(figsize=(10, 6))
+    sc = plt.scatter(times_dt, frequencies, c=10.0 * np.log10(snrs), cmap="viridis")
+    cb = plt.colorbar(sc)
+    cb.set_label("SNR (dB)")
+    plt.xlabel("Time (UTC)")
+    plt.ylabel("Frequency (MHz)")
+    plt.title("Chirp Detections")
+
+    # Improve date labels (avoid clutter)
+    plt.gcf().autofmt_xdate()
+    plt.tight_layout()
+    plt.show()
+
+    # ---- Separate plot by chirp rate ----
+    plt.figure(figsize=(10, 6))
+    unique_rates = np.unique(chirp_rates)
+    for rate in unique_rates:
+        idx = np.where(chirp_rates == rate)[0]
+        plt.plot(times_dt[idx], frequencies[idx], ".", label=f"{rate/1000:.0f} kHz/s")
+
+    plt.legend()
+    plt.xlabel("Time (UTC)")
+    plt.ylabel("Frequency (MHz)")
+    plt.title("Chirp Detections by Chirp Rate")
+    plt.gcf().autofmt_xdate()
+    plt.tight_layout()
+    plt.show()
+
+
+if __name__ == "__main__":
+    main()
+
