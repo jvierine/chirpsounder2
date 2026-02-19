@@ -121,10 +121,9 @@ def calculate_ionogram(d,
                        offset_us=-320, 
                        cf=12.5e6,
                        max_bandwidth=30e3,
-                       mode=3,
+                       mode=3,              # digisondes have many modes, we Ramfjordmoen uses mode=3
                        wait_for_data=False,
                        ofname="tmp.h5"):
-
 
     # get complementary codes transmitted by digisonde
     # mode=3 includes phase flip
@@ -133,9 +132,11 @@ def calculate_ionogram(d,
     
     n_freq=int((freq1-freq0)/dfreq)
     ipp_dec=int(25*ipp/dec)
-    
-    S=n.zeros([2,n_freq,ipp_dec])
+    # ionogram matrix for two polarizations 
+    S=n.zeros([2,n_freq,ipp_dec],dtype=n.float32)
+    # one-way propagation range (Assuming speed of light in vacuum)
     rvec=n.arange(ipp_dec)*3.0
+    # frequencies 
     fvec=n.arange(n_freq)*dfreq+freq0
     srint=int(sr/1e6)
 
@@ -147,20 +148,31 @@ def calculate_ionogram(d,
     zidx2=n.where(n.abs(freqs2)>max_bandwidth)[0]    
     dec_idx=n.arange(ipp_dec)*dec
 
+    # go through all codes
+    # fourier transform and conjugate each code, so that we can use them for convolution
+    # in frequency domain (convolution in time domain is multiplication in frequency domain)
+    # matched filter
     for i in range(n_codes):
         F2=n.conj(n.fft.fft(cs2[(i*ipp_dec):(i*ipp_dec+ipp_dec)]))
+        # include a low pass filter in the fourier transform
         F2[zidx2]=1e-99
+        # CS2 is a list of fourier transformed codes used later for matched filtering
         CS2.append(F2)
-        
+
+    # for each frequency, deconvolve the transmit pulses
+    # 
     for i in range(n_freq):
         t0=time.time()
 
         freq=freq0+dfreq*i
+        # vector shift frequency to zero
         cvec=n.array(n.exp(-1j*2*n.pi*(freq-cf)*n.arange(25*ipp+1)/sr),dtype=n.complex64)
         decoded=n.zeros([n_ipp,ipp_dec],dtype=n.complex64)
-     #   plt.plot(cvec[0:10000].real)
-    #    plt.show()
+        #   plt.plot(cvec[0:10000].real)
+        #    plt.show()
+        # keep track of the phase of the sinusoid
         pha0=n.array([n.exp(1j*0)],dtype=n.complex64)
+        # for each ipp, convolve complementary code with echo
         for pi in range(n_ipp):
             start_idx=i0+(i*n_ipp+pi)*ipp*srint+srint*offset_us
             data_length=srint*ipp
@@ -184,11 +196,14 @@ def calculate_ionogram(d,
                 # 25->1 MHz using simple boxcar filter. Then fir to improve freq response
 #                z=decimate_5_then_fir50(d.read_vector_c81d(i0+(i*n_ipp+pi)*ipp*srint+srint*offset_us,srint*ipp,"cha")*cvec[0:(srint*ipp)]*pha0[0])
 #                z=decimate_25_then_fir10(d.read_vector_c81d(i0+(i*n_ipp+pi)*ipp*srint+srint*offset_us,srint*ipp,"cha")*cvec[0:(srint*ipp)]*pha0[0])
+                # shift in frequency from the current ionosonde frequency to 0,
+                # reduce samepl-rate to 100 kHz
                 z=decimate_10_then_fir25(d.read_vector_c81d(i0+(i*n_ipp+pi)*ipp*srint+srint*offset_us,srint*ipp,"cha")*cvec[0:(srint*ipp)]*pha0[0])                
 
                 # deconvolve
                 z=n.fft.ifft(n.fft.fft(z[0:ipp_dec])*CS2[pi%n_codes])
 
+            # keep track of transmit polarization
             if pi%4==0:
                 mode=0
             if pi%4==1:
@@ -200,20 +215,25 @@ def calculate_ionogram(d,
                 
             # simple power. not going to be used, as the pulse to pulse doppler spectrum is more sensitive
             S[mode,i,:]+=n.abs(z)**2.0
-            
+
             # save match filter output for complementary code decoding and spectral analysis
             decoded[pi,:]=z
             
             # store oscillator phase for next ipp
             pha0[0]=cvec[-1]*pha0[0]
 
+        # every fourth index
         ipp_idx=n.arange(int(decoded.shape[0]/4))*4
         PS=n.zeros([int(decoded.shape[0]/4),decoded.shape[1]])
+        # complementary code decode (add pairs of codes)
+        # estimate scatter spectrum for each range
+        # keep track of polarization
         for ri in range(decoded.shape[1]):
-            # O-mode power specum and complementary code decode
+            # O-mode power spectrum and complementary code decode
+            # take the power corrsponding to the maximum doppler shift
             S[0,i,ri]=n.max(n.abs(n.fft.fft(decoded[ipp_idx,ri]+decoded[ipp_idx+1,ri]))**2.0,axis=0)
             PS[:,ri]=n.abs(n.fft.fft(decoded[ipp_idx,ri]+decoded[ipp_idx+1,ri]))**2.0
-            # X-mode power specum and complementary code decode
+            # X-mode power spectrum and complementary code decode
             S[1,i,ri]=n.max(n.abs(n.fft.fft(decoded[ipp_idx+2,ri]+decoded[ipp_idx+3,ri]))**2.0,axis=0)            
         # debug spectrum
         if i==63 and False:
@@ -258,39 +278,45 @@ def calculate_ionogram(d,
 
 def realtime_ionogram():
     
-    # while true
-    # -when is next ionogram
-    # -if not analyzed
-    #   -start analyzing ionogram with wait_for_data=True
-    # -else wait
-    #
-    # cycle through these start delays
+    # open ringbuffer directory (essentially an array of complex voltage
     d=drf.DigitalRFReader("/dev/shm/hf25/")
+    # the first and last sample index of raw voltage
+    # index = samples since 1970 (25000000 samples second * unix seconds)
     b=d.get_bounds("cha")
-    # next sounding (every 7.5 minutes)
-    # look the the next sounding start coming up
+    # start sample of next digisonde sounding
+    # sounding every 7.5 minutes)
+    # 15*30 seconds = 7.5 minutes
     t0=15*30*25000000*n.ceil(b[1]/25000000/(15*30))
+    # store data in this directory
     output_dir="/data1/digisonde"
+    # create directory name
     dname="%s/%s"%(output_dir,cd.unix2dirname(t0/25e6))
+    
     if not os.path.exists(dname):
         os.mkdir(dname)
-    ofname="%s/lfm_ionogram-%1.2f.h5"%(dname,t0/25e6)
+    # file name of digisonde ionogram
+    ofname="%s/digisonde_ionogram-%1.2f.h5"%(dname,t0/25e6)
+    
     if os.path.exists(ofname):
         print("sounding already exists. skipping")
     else:
-        # estimated based on ground path ramfjordmoen-tgo (14.1 km)
+        # calculate this ionogram. the offset_us
+        # is determined from ground path, assuming 14 km from
+        # Ramfjordmoen to Prestvannet. Not done super carefully!
+        # Also, the offset seems to change a little bit, which is
+        # a bit worrisome. Probably something to do with the digisonde hardware
         calculate_ionogram(d,
-                           t0,
-                           dfreq=50e3,
-                           freq0=1e6,                       
-                           freq1=18e6,
-                           n_ipp=64,
-                           ipp=10000,
-                           sr=25000000,
-                           dec=250,
-                           offset_us=-320, 
-                           cf=12.5e6,
-                           wait_for_data=True,
+                           t0,        
+                           dfreq=50e3,  # frequency step for digisonde soudning
+                           freq0=1e6,   # start frequency
+                           freq1=18e6,  # stop frequency
+                           n_ipp=64,    # how many pulses per frequency
+                           ipp=10000,   # 10 ms spacing between pulses
+                           sr=25000000, # sample rate for complex voltage
+                           dec=250,     # decimation rate
+                           offset_us=-320, # timing offset for digisonde sounding start 
+                           cf=12.5e6,   # center frequency of complex voltage
+                           wait_for_data=True, # check if we hit data bounds and wait for new data
                            ofname=ofname)
 
         
@@ -298,23 +324,4 @@ def realtime_ionogram():
 if __name__ == "__main__":
     while True:
         realtime_ionogram()
-
-def test_archival_data_analysis():
-    # old debug stuff
-    d=drf.DigitalRFReader("/data1/lz1aq/hf25")
-    b=d.get_bounds("cha")
-    latest_sounding_start=15*60*25000000*n.ceil(b[0]/25000000/(15*60)) + 3*15*60*25000000
-
-    # estimated based on ground path ramfjordmoen-tgo (14.1 km)
-    calculate_ionogram(d,
-                       latest_sounding_start,
-                       dfreq=50e3,
-                       freq0=1e6,                       
-                       freq1=16e6,
-                       n_ipp=64,
-                       ipp=10000,
-                       sr=25000000,
-                       dec=250,
-                       offset_us=-320, 
-                       cf=12.5e6)
 
