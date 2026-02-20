@@ -9,7 +9,7 @@ import os
 folder = "/data1/digisonde/2025-11-05/"
 
 files = sorted(glob.glob(os.path.join(folder, "*.h5")))
-threshold=5
+threshold=2
     
 for path in files:
     fname = os.path.basename(path).replace(".h5", ".png")
@@ -36,10 +36,15 @@ for path in files:
                 nfloors[j,i]=noise_floor
                 SNR[j,i,:]=(S[j,i,:]-noise_floor)/noise_floor
 
-        plt.subplot(211)
-        plt.pcolormesh(10.0*n.log10(SNR[0,:,:].T),vmin=0,vmax=30)
+        plt.figure(figsize=(9,4.8))
+        plt.subplot(121)
+        SNR[SNR<0]=1e-3
+        plt.pcolormesh(10.0*n.log10(SNR[0,:,:].T),vmin=0,vmax=10)
+        plt.title("Original")
         plt.colorbar()
-
+        plt.ylim([0,500])
+        plt.xlabel("Frequency (MHz)")
+        plt.ylabel("Virtual range (km)")
         # set low SNR values to nan to save storage
         SNR[SNR<threshold]=n.nan
 
@@ -58,11 +63,17 @@ for path in files:
         ho.close()
         size1=os.path.getsize(path)
         size2=os.path.getsize(fnamec)
-        print("compression %1.3f"%(size2/size1))
+        print("compression %1.3f"%(size1/size2))
         
-        plt.subplot(212)
-        plt.pcolormesh(10.0*n.log10(SNR[0,:,:].T),vmin=0,vmax=30)
-        plt.title("Compression %1.3f"%(size2/size1))
+        plt.subplot(122)
+        SNRP=n.copy(SNR)
+        SNRP[n.isnan(SNRP)]=1e-3
+        plt.pcolormesh(10.0*n.log10(SNRP[0,:,:].T),vmin=0,vmax=10)
+        plt.title("Compression %1.3f"%(size1/size2))
         plt.colorbar()
+        plt.xlabel("Frequency (MHz)")
+        plt.ylabel("Virtual range (km)")        
+        plt.ylim([0,500])
         plt.savefig(os.path.join("/home/hfrx2/Documents/compression_test/2025-11-05/",fname))
+        plt.tight_layout()
         plt.close()
