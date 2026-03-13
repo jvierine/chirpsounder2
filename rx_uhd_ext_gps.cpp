@@ -235,29 +235,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     bool verbose = vm.count("dilv") == 0;
 
-    const double guard = 0.2; // 200 ms 
-    while (true)
-    {
-      auto now = std::chrono::system_clock::now();
-      auto secs = std::chrono::time_point_cast<std::chrono::seconds>(now);
-      auto frac = std::chrono::duration<double>(now - secs).count();
-
-      if (frac < (1.0 - guard))
-      {
-        // safe to schedule
-        time_t pc_secs = secs.time_since_epoch().count();
-
-        std::cout << "PC time: " << pc_secs << " + " << frac << " sec\n";
-
-        // schedule time reset on next PPS
-        usrp->set_time_next_pps(uhd::time_spec_t(pc_secs + 1));
-
-        break;
-      }
-
-      // too close to next second → wait a bit
-      std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    }
   
     // Create a Multi-USRP device
     std::cout << boost::format("\nCreating the USRP device with: %s") % usrp_args
@@ -296,6 +273,31 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     }
     std::cout << "done channels" << std::endl;
 
+
+    const double guard = 0.2; // 200 ms 
+    while (true)
+    {
+      auto now = std::chrono::system_clock::now();
+      auto secs = std::chrono::time_point_cast<std::chrono::seconds>(now);
+      auto frac = std::chrono::duration<double>(now - secs).count();
+
+      if (frac < (1.0 - guard))
+      {
+        // safe to schedule
+        time_t pc_secs = secs.time_since_epoch().count();
+
+        std::cout << "PC time now: " << pc_secs << " + " << frac << " sec\n";
+        std::cout << "Setting USRP time to: " << pc_secs+1 << " at next PPS";
+        // schedule time reset on next PPS
+        usrp->set_time_next_pps(uhd::time_spec_t(pc_secs + 1));
+
+        break;
+      }
+
+      // too close to next second → wait a bit
+      std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
+    
 
     // Wait for it to apply
     // The wait is 2 seconds because N-Series has a known issue where
