@@ -38,7 +38,7 @@ void get_usrp_time(multi_usrp::sptr usrp, size_t mboard, std::vector<int64_t>* t
     (*times)[mboard] = usrp->get_time_now(mboard).get_full_secs();
 }
 
-void streaming_by_channel(size_t chan,double rate,std::string subdev,std::string outdir, multi_usrp::sptr usrp, uhd::time_spec_t time_last_pps)
+void streaming_by_channel(size_t chan,double rate,std::string subdev,std::string outdir, multi_usrp::sptr usrp, uhd::time_spec_t time_last_pps, std::chrono::steady_clock::time_point end_time)
 {
     Digital_rf_write_object * data_object = NULL; /* main object created by init */
     uint64_t vector_leading_edge_index = 0; /* index of the sample being written starting at zero with the first sample recorded */
@@ -128,7 +128,7 @@ void streaming_by_channel(size_t chan,double rate,std::string subdev,std::string
     uint64_t prev_tl=0;
     uint64_t samp_diff=363;
     int n_empty=0;
-    while (1)
+    while (std::chrono::steady_clock::now() < end_time)
     {
       // receive a single packet
       size_t num_rx_samps = rx_stream->recv(buffs, buff.size(), md, timeout, true);
@@ -194,6 +194,7 @@ void streaming_by_channel(size_t chan,double rate,std::string subdev,std::string
           // check md.time_stamp
 
     }
+    std::cout << "Channel " << chan << " finished 24h streaming.\n";
 }
 
 int UHD_SAFE_MAIN(int argc, char* argv[])
@@ -273,7 +274,14 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     }
     std::cout << "done channels" << std::endl;
 
+    // quit after 24 hours to ensure things stay aligned.
+    auto start_time = std::chrono::steady_clock::now();
+    auto run_duration = std::chrono::hours(24);  // 24 hours
+    auto end_time = start_time + run_duration;
 
+    // telling the USRP to use the 10 MHz and PPS coming in from the external ports.
+    usrp->set_time_source("external");
+    usrp->set_clock_source("external");
     const double guard = 0.2; // 200 ms 
     while (true)
     {
@@ -311,7 +319,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     // Threading for each channel
     std::vector<std::thread> threads;
     for(size_t ch=0 ; ch < usrp->get_num_mboards(); ch++){
-        threads.push_back(std::thread(streaming_by_channel, std::stoi(channel_strings[ch]), rate, subdev, outdir, usrp, time_last_pps));
+      threads.push_back(std::thread(streaming_by_channel, std::stoi(channel_strings[ch]), rate, subdev, outdir, usrp, time_last_pps, end_time));
     }  
     
     // Join threads
