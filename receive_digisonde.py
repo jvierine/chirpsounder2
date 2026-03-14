@@ -28,7 +28,8 @@ def read_config(fname="examples/marieluise/ramfjordmoen_digisonde.ini"):
     
     p["transmitter"] = cfg["sounding"]["transmitter"]
     p["receiver"] = cfg["sounding"]["receiver"]    
-
+    p["snr_threshold"] = cfg.getfloat("sounding", "snr_threshold")
+    
     p["sounding_interval"] = cfg.getint("sounding", "sounding_interval_sec")
 
     p["sr"] = cfg.getint("rf", "sample_rate")
@@ -162,6 +163,7 @@ def calculate_ionogram(d,
                        transmitter_name="Ramfjordmoen",
                        receiver_name="Tromso",
                        channel="ch0",
+                       snr_threshold=2,
                        ofname="tmp.h5"):
 
     # get complementary codes transmitted by digisonde
@@ -308,7 +310,7 @@ def calculate_ionogram(d,
     plt.savefig("%s.png"%(ofname))
     plt.close()
     ho=h5py.File(ofname,"w")
-    SNR[SNR<threshold]=n.nan
+    SNR[SNR<snr_threshold]=n.nan
     ho["fvec"]=n.array(fvec,dtype=n.float32)
     ho["rvec"]=n.array(rvec,dtype=n.float32)
     ho["noise_floor"]=noise_floor
@@ -350,7 +352,7 @@ def realtime_ionogram(config_file="digisonde.ini"):
     if not os.path.exists(dname):
         os.mkdir(dname)
 
-    ofname = "%s/digisonde_ionogram-%1.2f.h5" % (dname, t0/sr)
+    ofname = "%s/digisonde_%s-%s-%1.2f.h5" % (dname, p["transmitter"],p["receiver"],t0/sr)
 
     if os.path.exists(ofname):
         print("sounding already exists. skipping")
@@ -372,6 +374,7 @@ def realtime_ionogram(config_file="digisonde.ini"):
         transmitter_name=p["transmitter"],
         receiver_name=p["receiver"],
         channel=p["channel"],
+        snr_threshold=p["snr_threshold"],
         ofname=ofname
     )
     
@@ -432,7 +435,3 @@ if __name__ == "__main__":
 
     while True:
         realtime_ionogram(args.config)
-#if __name__ == "__main__":
- #   while True:
-  #      realtime_ionogram()
-
