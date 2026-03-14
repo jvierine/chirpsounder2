@@ -217,7 +217,7 @@ class chirp_matched_filter_bank:
                     os.mkdir(dname)
                     
                 # 
-                ofname = "%s/chirp-%s-%d.h5" % (dname, ch, i0)
+                ofname = "%s/chirp-%s-%d-%d-%d.h5" % (dname, ch, detected_chirp_rate/1e3, i0, int(chirp_time))
                 ho = h5py.File(ofname, "w")
                 ho["f0"] = f0
                 ho["i0"] = i0
