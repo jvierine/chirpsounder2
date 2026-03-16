@@ -7,7 +7,7 @@ import sys
 import chirp_config as cc
 import chirp_det as cd
 import h5py
-
+import re
 
 def consolidate_files():
     if len(sys.argv) == 2:
@@ -19,7 +19,14 @@ def consolidate_files():
     data_dir = conf.output_dir
     fl=glob.glob("%s/*/chirp-*.h5"%(data_dir))
     fl.sort()
+    chirptimes=[]
+    # figure out time for each file
+    for f in fl:
+        print(f)
+        secs=int(re.search(".*/chirp-.*-.*-.*-([0-9]+).h5",f).group(1))
+        chirptimes.append(secs)
 
+    chirptimes=n.array(chirptimes)
     #channel                  Dataset {SCALAR}
     #chirp_rate               Dataset {SCALAR}
     #chirp_time               Dataset {SCALAR}
@@ -39,15 +46,16 @@ def consolidate_files():
 
     # 15 minutes per file
     dt=60*15
+    fidx=n.argsort(chirptimes)
     for i in range(len(fl)-4):
-        h=h5py.File(fl[i],"r")
+        fname=fl[fidx[i]]
+        h=h5py.File(fname,"r")
         chirp_rate=h["chirp_rate"][()]
         chirp_time=h["chirp_time"][()]
-
         f0=h["f0"][()]
         i0=h["i0"][()]
         snr=h["snr"][()]
-        data_minute=int(n.round(i0/25e6/dt))
+        data_minute=int(n.floor(i0/25e6/dt))
         h.close()
 
         if (data_minute != current_minute):
@@ -72,7 +80,8 @@ def consolidate_files():
                 files=[]
 
         detections.append([chirp_time,i0/25e6,f0,chirp_rate,snr])
-        files.append(fl[i])
+        print(chirp_time,chirp_rate)
+        files.append(fname)
         current_minute=data_minute
     
 if __name__ == "__main__":
