@@ -32,22 +32,27 @@ def plot_ionogram(conf, fn, normalize_by_frequency=True):
     img_fname = "%s/%s/lfm_ionogram-%s-%03d-%1.2f.png" % (
         conf.output_dir, cd.unix2dirname(t0), ch, cid, t0)
     if os.path.exists(img_fname):
-        print("Ionogram plot %s already exists. Skipping" % (img_fname))
+#        print("Ionogram plot %s already exists. Skipping" % (img_fname))
         ho.close()
         return
 
     print("Plotting %s rate %1.2f (kHz/s) t0 %1.5f (unix)" %
           (fn, float(n.copy(ho[("rate")])) / 1e3, float(n.copy(ho[("t0")]))))
     # ionogram frequency-range
-    S = n.copy(n.array(ho[("S")], dtype=n.float64))
+    if "SNR" in ho.keys():
+        S =  n.array(ho["SNR"][()],dtype=n.float32)
+        S[S <= 0.0] = 1e-3        
+    else:
+        S =  n.array(ho["S"][()],dtype=n.float32)
+        if normalize_by_frequency:
+            for i in range(S.shape[0]):
+                noise = n.nanmedian(S[i, :])
+                S[i, :] = (S[i, :] - noise) / noise
+            S[S <= 0.0] = 1e-3
+        
     freqs = n.copy(ho[("freqs")])  # frequency bins
     ranges = n.copy(ho[("ranges")])  # range gates
 
-    if normalize_by_frequency:
-        for i in range(S.shape[0]):
-            noise = n.nanmedian(S[i, :])
-            S[i, :] = (S[i, :] - noise) / noise
-        S[S <= 0.0] = 1e-3
 
     max_range_idx = n.argmax(n.max(S, axis=0))
 
@@ -68,20 +73,36 @@ def plot_ionogram(conf, fn, normalize_by_frequency=True):
     r0 = range_gates[max_range_idx]
     fig = plt.figure(figsize=(1.5 * 8, 1.5 * 6))
     plt.pcolormesh(freqs / 1e6, range_gates, dB,
-                   vmin=-3, vmax=30.0, cmap="inferno")
+                   vmin=0, vmax=30.0, cmap="inferno")
     cb = plt.colorbar()
     cb.set_label("SNR (dB)")
-    plt.title("%s Chirp-rate %1.2f kHz/s t0=%1.5f (unix s)\n%s %s (UTC)" % (
-        ch, float(n.copy(ho[("rate")])) / 1e3, float(n.copy(ho[("t0")])), conf.station_name, cd.unix2datestr(float(n.copy(ho[("t0")])))))
+    if "station_name" in ho.keys():
+        station_name=ho["station_name"][()].decode("utf-8")
+    else:
+        station_name=conf.station_name
+    
+    if "txname" in ho.keys():
+        txname=ho["txname"][()].decode("utf-8")
+    else:
+        cr=int(float(n.copy(ho[("rate")])) / 1e3)
+        if cr==100:
+            txname="ROTHR"
+        elif cr==125:
+            txname="JORN"
+        else:
+            txname="unknown"
+        
+    plt.title("%s Chirp-rate %1.2f kHz/s t0=%1.5f (unix s)\n%s-%s %s (UTC)" % (
+        ch, float(n.copy(ho[("rate")])) / 1e3, float(n.copy(ho[("t0")])), txname, station_name, cd.unix2datestr(float(n.copy(ho[("t0")])))))
     plt.xlabel("Frequency (MHz)")
     plt.ylabel("One-way range offset (km)")
+    
     if conf.manual_range_extent:
         plt.ylim([conf.min_range / 1e3, conf.max_range / 1e3])
     else:
         plt.ylim([dr - conf.max_range_extent / 1e3,
                  dr + conf.max_range_extent / 1e3])
 
-#    plt.ylim([dr-1000.0,dr+1000.0])
     if conf.manual_freq_extent:
         plt.xlim([conf.min_freq / 1e6, conf.max_freq / 1e6])
     else:
@@ -116,7 +137,7 @@ if __name__ == "__main__":
                 fl.sort()
                 t_now = time.time()
                 # avoid last file to make sure we don't read and write simultaneously
-                for fn in fl[0:(len(fl) - 1)]:
+                for fn in fl[0:(len(fl) - 2)]:
                     try:
                         t_file = float(
                             re.search(".*-(1............).h5", fn).group(1))

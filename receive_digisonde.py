@@ -8,6 +8,7 @@ import time
 import chirp_det as cd
 import h5py
 import os
+import json
 #
 # Simple simple digisonde receiver. 
 # 
@@ -19,34 +20,27 @@ def read_config(fname="examples/marieluise/ramfjordmoen_digisonde.ini"):
 
     cfg = configparser.ConfigParser()
     cfg.read(fname)
-
     p = {}
 
-    p["ringbuffer_dir"] = cfg["paths"]["ringbuffer_dir"]
-    p["output_dir"] = cfg["paths"]["output_dir"]
-    p["channel"] = cfg["paths"]["channel"]
+    p["ringbuffer_dir"] = json.loads(cfg["config"]["data_dir"])
+    p["output_dir"] =     json.loads(cfg["config"]["output_dir"])#  cfg["system"]["output_dir"]
+    p["channel"] = json.loads(cfg["config"]["channel"])[0]
+    p["receiver"] = json.loads(cfg["config"]["receiver_station_name"])
+    p["sr"] = cfg.getint("config", "sample_rate")
+    p["cf"] = cfg.getfloat("config", "center_frequency")
     
-    p["transmitter"] = cfg["sounding"]["transmitter"]
-    p["receiver"] = cfg["sounding"]["receiver"]    
-    p["snr_threshold"] = cfg.getfloat("sounding", "snr_threshold")
-    
-    p["sounding_interval"] = cfg.getint("sounding", "sounding_interval_sec")
+    p["transmitter"] = json.loads(cfg["digisonde"]["transmitter_station_name"])
+    p["snr_threshold"] = cfg.getfloat("digisonde", "snr_threshold")
+    p["sounding_interval"] = cfg.getint("digisonde", "sounding_interval_sec")
 
-    p["sr"] = cfg.getint("rf", "sample_rate")
-    p["cf"] = cfg.getfloat("rf", "center_frequency")
-    p["dec"] = cfg.getint("rf", "decimation")
-
-    p["freq0"] = cfg.getfloat("frequency_sweep", "freq_start")
-    p["freq1"] = cfg.getfloat("frequency_sweep", "freq_stop")
-    p["dfreq"] = cfg.getfloat("frequency_sweep", "freq_step")
-
-    p["ipp"] = cfg.getint("pulses", "ipp_us")
-    p["n_ipp"] = cfg.getint("pulses", "n_ipp")
-
-    p["offset_us"] = cfg.getfloat("timing", "offset_us")
-
-    p["wait_for_data"] = cfg.getboolean("processing", "wait_for_data")
-
+    p["dec"] = cfg.getint("digisonde", "decimation")
+    p["freq0"] = cfg.getfloat("digisonde", "freq_start")
+    p["freq1"] = cfg.getfloat("digisonde", "freq_stop")
+    p["dfreq"] = cfg.getfloat("digisonde", "freq_step")
+    p["ipp"] = cfg.getint("digisonde", "ipp_us")
+    p["n_ipp"] = cfg.getint("digisonde", "n_ipp")
+    p["offset_us"] = cfg.getfloat("digisonde", "offset_us")
+    p["wait_for_data"] = cfg.getboolean("digisonde", "wait_for_data")
     return p
 
 
@@ -176,7 +170,7 @@ def calculate_ionogram(d,
     # ionogram matrix for two polarizations 
     S=n.zeros([2,n_freq,ipp_dec],dtype=n.float32)
     # one-way propagation range (Assuming speed of light in vacuum)
-    rvec=n.arange(ipp_dec)*3.0
+    rvec=n.arange(ipp_dec)*3.0e3
     # frequencies 
     fvec=n.arange(n_freq)*dfreq+freq0
     srint=int(sr/1e6)
@@ -311,8 +305,9 @@ def calculate_ionogram(d,
     plt.close()
     ho=h5py.File(ofname,"w")
     SNR[SNR<snr_threshold]=n.nan
-    ho["fvec"]=n.array(fvec,dtype=n.float32)
-    ho["rvec"]=n.array(rvec,dtype=n.float32)
+    ho["type"]="digisonde"
+    ho["freqs"]=n.array(fvec,dtype=n.float32)
+    ho["ranges"]=n.array(rvec,dtype=n.float32)
     ho["noise_floor"]=noise_floor
     ho["transmitter"]=transmitter_name
     ho["receiver"]=receiver_name
@@ -352,7 +347,7 @@ def realtime_ionogram(config_file="digisonde.ini"):
     if not os.path.exists(dname):
         os.mkdir(dname)
 
-    ofname = "%s/digisonde_%s-%s-%1.2f.h5" % (dname, p["transmitter"],p["receiver"],t0/sr)
+    ofname = "%s/digisonde_ionogram-%s-%s-%1.2f.h5" % (dname, p["transmitter"], p["receiver"], t0/sr)
 
     if os.path.exists(ofname):
         print("sounding already exists. skipping")

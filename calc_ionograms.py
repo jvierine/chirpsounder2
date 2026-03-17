@@ -158,6 +158,7 @@ def chirp_downconvert(conf,
                       rate,
                       dec=2500,
                       realtime_req=None,
+                      txname="unkown",
                       cid=0):
     cput0 = time.time()
     sleep_time = 0.0
@@ -224,36 +225,56 @@ def chirp_downconvert(conf,
 
     S = spectrogram(np.conj(zd), window=fftlen,
                     step=fft_step, wf=ss.hann(fftlen))
-
+    
     freqs = rate * np.arange(S.shape[0]) * fft_step / sr_dec
     range_gates = ds * np.fft.fftshift(np.fft.fftfreq(fftlen, d=1.0 / sr_dec))
-
+    
     if conf.manual_range_extent:
         ridx = np.where((range_gates > conf.min_range) &
                         (range_gates < conf.max_range))[0]
     else:
         ridx = np.where(n.abs(range_gates) < conf.max_range_extent)[0]
-
+    
     fidx = n.arange(len(freqs), dtype=int)
     if conf.manual_freq_extent:
         fidx = n.where((freqs > conf.min_freq) & (freqs < conf.max_freq))[0]
 
+    SNR = n.array(S,dtype=n.float32)#n.copy(S)
+    noise_floor=n.zeros(SNR.shape[0])
+#    S0 = S[:, ridx]
+    for i in range(S.shape[0]):
+        noise_floor[i]=n.median(SNR[i,:])
+        SNR[i,:]=(SNR[i,:]-noise_floor[i])/noise_floor[i]
+    SNR=SNR[:,ridx]
+    SNR=SNR[fidx,:]
+    # significantly save in storage space by threshold+deflate
+    SNR[SNR<conf.storage_snr_threshold]=n.nan
+    # save in storage!
+    SNR=SNR.astype(n.float16)
     try:
         dname = "%s/%s" % (conf.output_dir, cd.unix2dirname(t0))
         if not os.path.exists(dname):
             os.mkdir(dname)
-        ofname = "%s/lfm_ionogram-%s-%s-%03d-%1.2f.h5" % (
-            dname, conf.station_name, ch, cid, t0)
+        ofname = "%s/lfm_ionogram-%s-%s-%s-%03d-%1.2f.h5" % (
+            dname, txname, conf.station_name, ch, cid, t0)
         print("Writing to %s" % ofname)
         ho = h5py.File(ofname, "w")
         # ionogram frequency-range, save space
-        S0 = n.array(S[:, ridx], dtype=n.float16)
-        ho["S"] = S0[fidx, :]
+        #S0 = n.array(S[:, ridx], dtype=n.float16)
+#        ho["S"] = S0[fidx, :]
+        # threshold+deflate. can be 90% savings!
+        ho.create_dataset("SNR",
+                          data=SNR,
+                          compression="gzip",
+                          compression_opts=9,
+                          shuffle=True)
+        ho["noise_floor"]=noise_floor
         ho["freqs"] = freqs[fidx]  # frequency bins
         ho["rate"] = rate    # chirp-rate
         ho["ranges"] = range_gates[ridx]
         ho["t0"] = t0
         ho["id"] = cid
+        ho["txname"]=txname
         ho["station_name"] = conf.station_name
         ho["sr"] = float(sr_dec)  # ionogram sample-rate
         if conf.save_raw_voltage:
@@ -321,11 +342,13 @@ def analyze_realtime(conf, d):
                 best_wait_time = 1e6
                 best_t0 = 0
                 best_id = 0
+                best_txname = "unknown"
                 for s_idx in range(n_sounders):
                     rep = np.float128(st[s_idx]["rep"])
                     chirpt = np.float128(st[s_idx]["chirpt"])
                     chirp_rate = st[s_idx]["chirp-rate"]
                     cid = st[s_idx]["id"]
+                    txname = st[s_idx]["transmit_name"]
                     
                     try_t0 = rep * np.floor(t0 / rep) + chirpt
                     while try_t0 < t0:
@@ -337,29 +360,32 @@ def analyze_realtime(conf, d):
                         best_t0 = try_t0
                         best_wait_time = wait_time
                         best_id = cid
+                        best_txname=txname
                 rep = np.float128(st[best_sounder]["rep"])
                 chirpt = np.float128(st[best_sounder]["chirpt"])
                 chirp_rate = st[best_sounder]["chirp-rate"]
                 next_t0 = float(best_t0)
-                print("Rank %d chirp id %d analyzing chirp-rate %1.2f kHz/s chirpt %1.4f rep %1.2f" %
-                    (rank ,best_id ,chirp_rate / 1e3, chirpt, rep))
+                txname=best_txname
+                print("Rank %d chirp id %d name %s analyzing chirp-rate %1.2f kHz/s chirpt %1.4f rep %1.2f" %
+                    (rank ,best_id ,txname, chirp_rate / 1e3, chirpt, rep))
                 i0 = int(next_t0 * conf.sample_rate)
                 realtime_req = conf.sample_rate / chirp_rate
                 print("Buffer extent %1.2f-%1.2f launching next chirp at %1.2f %s" % (b[0]/conf.sample_rate,
-                                                                                    b[1]/conf.sample_rate,
-                                                                                    next_t0,
-                                                                                    cd.unix2datestr(next_t0)))
+                                                                                      b[1]/conf.sample_rate,
+                                                                                      next_t0,
+                                                                                      cd.unix2datestr(next_t0)))
 
 
                 chirp_downconvert(conf,
-                                next_t0,
-                                d,
-                                i0,
-                                ch,
-                                chirp_rate,
-                                realtime_req=realtime_req,
-                                dec=conf.decimation,
-                                cid=best_id)
+                                  next_t0,
+                                  d,
+                                  i0,
+                                  ch,
+                                  chirp_rate,
+                                  realtime_req=realtime_req,
+                                  dec=conf.decimation,
+                                  txname=txname,
+                                  cid=best_id)
 
 
 def get_next_chirp_par_file(conf, d, ch):
