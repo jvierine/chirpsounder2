@@ -53,7 +53,7 @@ class chirp_config:
             "sounder_timings": '[{"chirp-rate":500.0084e3,"rep":60.0,"chirpt":54.0016,"id":5}]'
             }
         cf["transfer"]={
-                        "copy_to_server": "false",
+                        "copy_to_server": "False",
                         "copy_destination": "none",
             }
         

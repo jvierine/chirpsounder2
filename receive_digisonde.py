@@ -289,11 +289,12 @@ def calculate_ionogram(d,
             noise_floor[j,i]=nf
             SNR[j,i,:]=(S[j,i,:]-nf)/nf
     SNR[SNR<0]=1e-9
-    plt.pcolormesh(fvec/1e6,rvec,10.0*n.log10(SNR[0,:,:].T),vmin=-10,vmax=30)
+    plt.pcolormesh(fvec/1e6,rvec/1e3,10.0*n.log10(SNR[0,:,:].T),vmin=-10,vmax=30)
     plt.title("Digisonde %s-%s\n%s"%( transmitter_name, receiver_name, unix2date(i0/25e6)))
     plt.xlabel("Frequency (MHz)")
     plt.ylabel("One-way range (km)")
-    plt.colorbar()
+    cb=plt.colorbar()
+    cb.set_label("O-mode SNR (dB)")
 #    plt.subplot(122)    
  #   plt.pcolormesh(fvec/1e6,rvec,10.0*n.log10(SNR[1,:,:].T),vmin=-10,vmax=30)#,10.0*n.log10(S[1,:,:].T))
   #  plt.title("Digisonde Ramfjordmoen-TGO (X-mode)\n%s"%(unix2date(i0/25e6)))
@@ -303,6 +304,7 @@ def calculate_ionogram(d,
     plt.tight_layout()
     plt.savefig("%s.png"%(ofname))
     plt.close()
+    os.system("cp %s.png /tmp/latest-digisonde-%s-%s.png"%(ofname,transmitter_name,receiver_name))
     ho=h5py.File(ofname,"w")
     SNR[SNR<snr_threshold]=n.nan
     ho["type"]="digisonde"
