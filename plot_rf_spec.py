@@ -20,7 +20,7 @@ if __name__ == "__main__":
         conf = cc.chirp_config()
 
     d = drf.DigitalRFReader(conf.data_dir)
-    b = d.get_bounds(conf.channel)
+    b = d.get_bounds(conf.channel[0])
     dt = n.floor((b[1] - b[0] - conf.sample_rate) / n_spec)
     wf = n.array(ss.hann(n_fft), dtype=n.float32)
     S = n.zeros([n_fft, n_spec], dtype=n.float32)
@@ -35,7 +35,7 @@ if __name__ == "__main__":
         for j in range(n_avg):
             try:
                 z = d.read_vector_c81d(
-                    i0 + i * dt + j * n_fft, n_fft, conf.channel)
+                    i0 + i * dt + j * n_fft, n_fft, conf.channel[0])
                 rms_voltage += n.mean(n.abs(z)**2.0)
                 n_rms_voltage += 1.0
                 S[:, i] += n.fft.fftshift(n.abs(cd.fft(wf * z))**2.0)

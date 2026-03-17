@@ -8,7 +8,7 @@
 # 
 #
 
-INSTALL_PATH=/home/hfrx2/src/chirpsounder2
+INSTALL_PATH=/home/hfrx2/src/git/chirpsounder2
 
 # make sure this is the right mpirun command (you might need mpirun instead of mpirun.mpich)
 MPIRUN=mpirun
@@ -43,23 +43,23 @@ $MPIRUN -np 4 python3 detect_chirps.py $CONF_FILE > logs/detect.log 2>&1 &
 echo "Starting detect_chirps.py"
 
 # find timings
-python3 find_timings.py $CONF_FILE > logs/timings.log 2>&1 &
-echo "Starting find_timings.py"
+#python3 find_timings.py $CONF_FILE > logs/timings.log 2>&1 &
+#echo "Starting find_timings.py"
 # calculate ionograms
 # seems like four parallel processes work.
 # this means we can process four ionograms simultaneously!
-$MPIRUN --oversubscribe -np 4 python3 calc_ionograms.py $CONF_FILE > logs/ionograms.log 2>&1 &
-
-echo "Starting calc_ionograms.py"
+#$MPIRUN --oversubscribe -np 4 python3 calc_ionograms.py $CONF_FILE > logs/ionograms.log 2>&1 &
+#echo "Starting calc_ionograms.py"
 
 # plot ionograms
 python3 plot_ionograms.py $CONF_FILE > logs/plot_ionograms.log &
 echo "Starting plot_ionograms.py"
 
-echo "Starting rx_uhd"
+echo "Starting rx_uhd with external 1 PPS and 10 MHz. Restarting in 24 hours."
 while true;
 do
-    ./rx_uhd --outdir=$RINGBUFFER_DIR > logs/thor.log 2>&1 
+    ./rx_uhd_ext_gps --outdir=$RINGBUFFER_DIR > logs/thor.log 2>&1 
     sleep 5
+    echo "Restarting recording (every 24 hours)."
 done
 

@@ -242,11 +242,18 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
               << std::endl;
     multi_usrp::sptr usrp = multi_usrp::make(usrp_args);
 
+
+    
     // Store USRP device serials for useful output
     std::vector<std::string> serials;
     for (size_t ch = 0; ch < usrp->get_num_mboards(); ch++) {
         serials.push_back(usrp->get_usrp_tx_info(ch)["mboard_serial"]);
     }
+    // telling the USRP to use the 10 MHz and PPS coming in from the external ports.
+    /*usrp->set_time_source("external");
+      usrp->set_clock_source("external");*/
+    usrp->set_time_source("external");
+    usrp->set_clock_source("external");    
 
     std::cout << std::endl << "Checking USRP devices for lock." << std::endl;
     bool all_locked = true;
@@ -277,11 +284,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     // quit after 24 hours to ensure things stay aligned.
     auto start_time = std::chrono::steady_clock::now();
     auto run_duration = std::chrono::hours(24);  // 24 hours
+    //auto run_duration = std::chrono::seconds(30);  // 24 hours
     auto end_time = start_time + run_duration;
 
-    // telling the USRP to use the 10 MHz and PPS coming in from the external ports.
-    usrp->set_time_source("external");
-    usrp->set_clock_source("external");
     const double guard = 0.2; // 200 ms 
     while (true)
     {

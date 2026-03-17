@@ -22,11 +22,12 @@ def consolidate_files():
     chirptimes=[]
     # figure out time for each file
     for f in fl:
-        print(f)
-        secs=int(re.search(".*/chirp-.*-.*-.*-([0-9]+).h5",f).group(1))
+        secs=int(re.search(".*/chirp-.*-.*-([0-9]+)-([0-9]+).h5",f).group(1))/25e6
+#        print(secs)
         chirptimes.append(secs)
 
     chirptimes=n.array(chirptimes)
+    print("found ",len(chirptimes)," files")
     #channel                  Dataset {SCALAR}
     #chirp_rate               Dataset {SCALAR}
     #chirp_time               Dataset {SCALAR}
@@ -47,6 +48,7 @@ def consolidate_files():
     # 15 minutes per file
     dt=60*15
     fidx=n.argsort(chirptimes)
+
     for i in range(len(fl)-4):
         fname=fl[fidx[i]]
         h=h5py.File(fname,"r")
@@ -80,7 +82,7 @@ def consolidate_files():
                 files=[]
 
         detections.append([chirp_time,i0/25e6,f0,chirp_rate,snr])
-        print(chirp_time,chirp_rate)
+        #print(i0/25e6,chirp_rate)
         files.append(fname)
         current_minute=data_minute
     
