@@ -10,12 +10,13 @@ import time
 import matplotlib.dates as mdates
 from datetime import datetime
 import psutil
+from datetime import datetime, timedelta
 
 p = psutil.Process()
-# Set I/O priority to idle (lowest)
+# Set I/O priority to idle (lowest) to avoid interrupting realtime processes
 p.ionice(psutil.IOPRIO_CLASS_IDLE)
 
-def get_day_view(conf,tx,rx,dirname,sounder_type="lfm"):
+def get_day_view(conf,tx,rx,dirname,sounder_type="lfm",pfname="/tmp/latest-rti.png"):
     fl=glob.glob("%s/%s/%s_ionogram-%s-%s-*.h5"%(conf.output_dir,dirname,sounder_type,tx,rx))
     fl.sort()
     if len(fl)<3:
@@ -24,6 +25,8 @@ def get_day_view(conf,tx,rx,dirname,sounder_type="lfm"):
     h=h5py.File(fl[0],"r")
     if "ranges" in h.keys():
         ranges=h["ranges"][()]
+        if ranges[1]<1e2:
+            ranges=ranges*1e3        
     else:
         ranges=h["rvec"][()]
         # km -> m
@@ -108,12 +111,15 @@ def get_day_view(conf,tx,rx,dirname,sounder_type="lfm"):
         t_new,
         ranges/1e3,
         10*n.log10(M_new.T),
-        shading="auto"
+        shading="auto",
+        cmap="inferno"
     )
+    
     ax[0].set_ylabel("Propagation virtual range (km)")
     cb1 = plt.colorbar(pcm1, ax=ax[0])
     cb1.set_label("SNR (dB)")
 
+    
     # --- second plot ---
     S_new[M_new<20]=n.nan
     pcm2 = ax[1].pcolormesh(
@@ -132,10 +138,20 @@ def get_day_view(conf,tx,rx,dirname,sounder_type="lfm"):
     ax[1].xaxis.set_major_locator(mdates.AutoDateLocator())
 
     start_date = datetime.utcfromtimestamp(tv[0]).strftime("%Y-%m-%d")
-    ax[1].set_xlabel(f"Time (UTC)    Date: {start_date}")
+    ax[0].set_title("%s-%s %s"%(tx,rx,start_date))#Date: {start_date}
+    ax[1].set_xlabel(f"Time (UTC)")
 
+    # full day
+    day_start = t_new.min().replace(hour=0, minute=0, second=0, microsecond=0)
+    day_end = day_start + timedelta(days=1)
+    ax[0].set_xlim(day_start, day_end)
+    ax[1].set_xlim(day_start, day_end)
+
+    
     plt.tight_layout()
-    plt.show()
+    plt.savefig(pfname)
+    plt.close()
+#    plt.show()
 
 def plot_rtf(conf):
     tnow=time.time()
@@ -172,8 +188,8 @@ def plot_rtf(conf):
     for tx in txs:
         for rx in rxs:
             for iono_type in iono_types:
-                get_day_view(conf,tx,rx,today_dir,iono_type)
-                get_day_view(conf,tx,rx,yesterday_dir,iono_type)  
+                get_day_view(conf,tx,rx,today_dir,iono_type,pfname="/tmp/latest-rti-%s-%s.png"%(tx,rx))
+                get_day_view(conf,tx,rx,yesterday_dir,iono_type,pfname="/tmp/yesterday-rti-%s-%s.png"%(tx,rx))  
 
 if __name__ == "__main__":
     import argparse
@@ -186,6 +202,8 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     conf = cc.chirp_config(args.config)
+    import time
     
     while True:
         plot_rtf(conf)
+        time.sleep(15*60)
