@@ -76,18 +76,19 @@ def plot_propagation_range(dfs, start_t, n_hours=24,min_detections=5, pfname="/t
     crs=n.array(dfs[gidx,3]/1e3,dtype=int)
     freqs=dfs[gidx,2]/1e6
 
-    for cr in [100,125]:
-        gidx=n.where(crs==cr)[0]
-        # --- BOTTOM PANEL: frequency vs time (colored by chirp rate) ---
-        ax[1].plot(
-            times[gidx],
-            freqs[gidx],
-            ".",
-            label="%d kHz/s"%(cr),
-            alpha=1.0,
-            ms=0.5
-        )
-    ax[1].legend()
+    # --- BOTTOM PANEL: frequency vs time (colored by chirp rate) ---
+    sc2=ax[1].scatter(
+        times,
+        freqs,
+        c=t_grp * sc.c / 1e3,
+        alpha=0.5,
+        s=0.5,
+        cmap="rainbow",
+        vmin=-5e3,
+        vmax=20e3,
+    )
+    cb2=plt.colorbar(sc2, ax=ax[1])
+    cb2.set_label("Virtual propagation distance (km)")
 
     ax[1].set_ylabel("Frequency (MHz)")
     ax[1].set_xlabel(f"Time (UTC)")
