@@ -143,7 +143,7 @@ class chirp_config:
         if not os.path.exists(self.output_dir):
             print("Output directory %s doesn't exists and cannot be created" %
                   (self.output_dir))
-            exit(0)
+            #exit(0)
 
         # the minimum distance in frequency between detections
         # (avoid multiple detections of the same chirp)
