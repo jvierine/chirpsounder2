@@ -8,7 +8,7 @@ import cartopy.feature as cfeature
 
 import argparse
 
-def plot_map(conf):
+def plot_map(conf, set_extent=True, ofname="map.png"):
     print(conf.station_info)
     stations = conf.station_info
   # Create map
@@ -28,7 +28,8 @@ def plot_map(conf):
     ax.add_feature(cfeature.OCEAN,alpha=0.3)
 
     # Set extent
-    #ax.set_extent([-10, 40, 50, 80])
+    if set_extent:
+        ax.set_extent([-10, 40, 50, 80])
 
     # ✅ Add gridlines
     gl = ax.gridlines(
@@ -47,8 +48,10 @@ def plot_map(conf):
     gl.ylabel_style = {'size': 10}
 
     for l in conf.station_links:
-        ax.plot([conf.station_info[l[0]]["lon"],conf.station_info[l[1]]["lon"]],
-                [conf.station_info[l[0]]["lat"],conf.station_info[l[1]]["lat"]],
+        lons=n.linspace(conf.station_info[l[0]]["lon"],conf.station_info[l[1]]["lon"],num=50)
+        lats=n.linspace(conf.station_info[l[0]]["lat"],conf.station_info[l[1]]["lat"],num=50)
+
+        ax.plot(lons,lats,
                 color="black",transform=ccrs.PlateCarree())
     # Plot stations
     for name, s in stations.items():
@@ -66,10 +69,10 @@ def plot_map(conf):
     plt.legend()
     plt.title("TGO Ionospheric Sounding Network")
 
-    plt.savefig("map.png", dpi=150)  # save BEFORE show
+    plt.savefig(ofname, dpi=150)  # save BEFORE show
     plt.show()
 
-    print("Saved map.png")
+    print("Saved")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Realtime digisonde ionogram")
@@ -81,4 +84,5 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    plot_map(cc.chirp_config(args.config))
+    plot_map(cc.chirp_config(args.config),set_extent=False,ofname="map_all.png")
+    plot_map(cc.chirp_config(args.config),set_extent=True,ofname="map_scand.png")
