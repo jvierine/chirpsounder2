@@ -56,6 +56,16 @@ class chirp_config:
                         "copy_to_server": "false",
                         "copy_destination": "none",
             }
+
+        cf["stations"]={
+            "station_info":'''station_info={"SGO":{"name":"SGO","lat":67.36369337350563,"lon":26.634311805059543},
+                                          "TGO":{"name":"TGO","lat":69.66174439007057,
+		     "lon":18.939127366530286},
+              "Ramfjordmoen":{"name":"Ramfjordmoen",
+	                      "lat":69.58187184247221,
+			      "lon":19.220853348827067}
+	      }'''
+            }
         
         if fname != None:
             if os.path.exists(fname):
@@ -64,12 +74,13 @@ class chirp_config:
             else:
                 print(
                     "configuration file %s doesn't exist. using default values" % (fname))
-        print("keys",list(cf.keys()))
+        #print("keys",list(cf.keys()))
         self.fname = fname
         self.plot_timings = json.loads(cf["config"]["plot_timings"])
         self.copy_to_server = json.loads(cf["transfer"]["copy_to_server"])
 
         self.debug_timings = json.loads(cf["detection"]["debug_timings"])
+        self.station_info = json.loads(cf["stations"]["station_info"])        
         self.manual_range_extent = json.loads(
             cf["lfm"]["manual_range_extent"])
 
@@ -163,3 +174,4 @@ if __name__ == "__main__":
     import sys
     cc = chirp_config(sys.argv[1])
     print(cc)
+    
