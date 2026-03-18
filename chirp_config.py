@@ -65,6 +65,12 @@ class chirp_config:
 	                      "lat":69.58187184247221,
 			      "lon":19.220853348827067}
 	      }'''
+          "links":'''
+ [
+	["SGO","TGO"],
+	["Ramfjordmoen","TGO"]
+]
+          '''
             }
         
         if fname != None:
@@ -81,6 +87,8 @@ class chirp_config:
 
         self.debug_timings = json.loads(cf["detection"]["debug_timings"])
         self.station_info = json.loads(cf["stations"]["station_info"])        
+        self.station_links = json.loads(cf["stations"]["links"])        
+
         self.manual_range_extent = json.loads(
             cf["lfm"]["manual_range_extent"])
 
