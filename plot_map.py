@@ -46,6 +46,10 @@ def plot_map(conf):
     gl.xlabel_style = {'size': 10}
     gl.ylabel_style = {'size': 10}
 
+    for l in conf.station_links:
+        ax.plot([conf.station_info[l[0]]["lon"],conf.station_info[l[1]]["lon"]],
+                [conf.station_info[l[0]]["lat"],conf.station_info[l[1]]["lat"]],
+                color="black",transform=ccrs.PlateCarree())
     # Plot stations
     for name, s in stations.items():
         lat = s["lat"]
@@ -57,10 +61,6 @@ def plot_map(conf):
             transform=ccrs.PlateCarree(),
             label=s["name"]
         )
-    for l in conf.station_links:
-        ax.plot([conf.station_info[l[0]]["lon"],conf.station_info[l[1]]["lon"]],
-                [conf.station_info[l[0]]["lat"],conf.station_info[l[1]]["lat"]],
-                color="black",transform=ccrs.PlateCarree())
 
 
     plt.legend()
