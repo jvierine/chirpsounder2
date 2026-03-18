@@ -28,7 +28,7 @@ def plot_map(conf):
     ax.add_feature(cfeature.OCEAN,alpha=0.3)
 
     # Set extent
-    ax.set_extent([-10, 40, 50, 80])
+    #ax.set_extent([-10, 40, 50, 80])
 
     # ✅ Add gridlines
     gl = ax.gridlines(
@@ -60,7 +60,7 @@ def plot_map(conf):
     for l in conf.station_links:
         ax.plot([conf.station_info[l[0]]["lon"],conf.station_info[l[1]]["lon"]],
                 [conf.station_info[l[0]]["lat"],conf.station_info[l[1]]["lat"]],
-                color="green",transform=ccrs.PlateCarree())
+                color="black",transform=ccrs.PlateCarree())
 
 
     plt.legend()
