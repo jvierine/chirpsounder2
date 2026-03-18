@@ -64,7 +64,7 @@ class chirp_config:
               "Ramfjordmoen":{"name":"Ramfjordmoen",
 	                      "lat":69.58187184247221,
 			      "lon":19.220853348827067}
-	      }'''
+	      }''',
           "links":'''
  [
 	["SGO","TGO"],
