@@ -62,14 +62,18 @@ def consolidate_files():
 
     for i in range(len(fl)-4):
         fname=fl[fidx[i]]
-        h=h5py.File(fname,"r")
-        chirp_rate=h["chirp_rate"][()]
-        chirp_time=h["chirp_time"][()]
-        f0=h["f0"][()]
-        i0=h["i0"][()]
-        snr=h["snr"][()]
-        data_minute=int(n.floor(i0/25e6/dt))
-        h.close()
+        try:
+            h=h5py.File(fname,"r")
+            chirp_rate=h["chirp_rate"][()]
+            chirp_time=h["chirp_time"][()]
+            f0=h["f0"][()]
+            i0=h["i0"][()]
+            snr=h["snr"][()]
+            data_minute=int(n.floor(i0/25e6/dt))
+            h.close()
+        except:
+            print("bad file %s"%(fname))
+            continue
 
         if (data_minute != current_minute):
             m0=current_minute*dt
@@ -91,7 +95,6 @@ def consolidate_files():
                         # deleting file that is consolidated
                         os.system("rm %s"%(files[fi]))
                 files=[]
-
         detections.append([chirp_time,i0/25e6,f0,chirp_rate,snr])
         #print(i0/25e6,chirp_rate)
         files.append(fname)
