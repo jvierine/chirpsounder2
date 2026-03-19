@@ -128,10 +128,16 @@ def plot_ionogram(conf, fn, normalize_by_frequency=True):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) == 2:
-        conf = cc.chirp_config(sys.argv[1])
-    else:
-        conf = cc.chirp_config()
+    import argparse
+    parser = argparse.ArgumentParser(description="Housekeeping program")
+    parser.add_argument(
+        "--config",
+        type=str,
+        default="examples/marieluise/tgo.ini",
+        help="Path to configuration file"
+    )
+    args = parser.parse_args()
+    conf=cc.chirp_config(args.config)
 
     if conf.realtime:
         while True:

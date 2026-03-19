@@ -137,10 +137,16 @@ def plot_propagation_range(dfs, start_t, n_hours=24,min_detections=5, pfname="/t
 
 
 while True:
-    if len(sys.argv) == 2:
-        conf = cc.chirp_config(sys.argv[1])
-    else:
-        conf = cc.chirp_config()
+    import argparse
+    parser = argparse.ArgumentParser(description="Plot range-time-frequency")
+    parser.add_argument(
+        "--config",
+        type=str,
+        default="examples/marieluise/ramfjordmoen_digisonde.ini",
+        help="Path to configuration file"
+    )
+    args = parser.parse_args()
+    conf = cc.chirp_config(args.config)
 
     dfs=[]
     files=glob.glob("/data0/2*/cdetections*.h5")
