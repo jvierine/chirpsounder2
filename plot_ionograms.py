@@ -18,7 +18,7 @@ matplotlib.use('Agg')
 p = psutil.Process()
 # Set I/O priority to idle (lowest) to avoid interrupting realtime processes
 p.ionice(psutil.IOPRIO_CLASS_IDLE)
-
+p.nice(19)
 
 def kill(conf):
     exists = os.path.isfile(conf.kill_path)
@@ -122,9 +122,9 @@ def plot_ionogram(conf, fn, normalize_by_frequency=True):
     gc.collect()
     ho.close()
     sys.stdout.flush()
-    if conf.copy_to_server:
-        os.system("rsync -av %s %s/latest_%s.png" %
-                  (img_fname, conf.copy_destination, conf.station_name))
+#    if conf.copy_to_server:
+ #       os.system("rsync -av %s %s/latest_%s.png" %
+  #                (img_fname, conf.copy_destination, conf.station_name))
 
 
 if __name__ == "__main__":

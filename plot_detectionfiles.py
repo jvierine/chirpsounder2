@@ -14,6 +14,7 @@ import sys
 p = psutil.Process()
 # Set I/O priority to idle (lowest) to avoid interrupting realtime processes
 p.ionice(psutil.IOPRIO_CLASS_IDLE)
+p.nice(19)
 
 labels={100:"US (ROTHR)",125:"Australia (JORN)"}
 
@@ -52,7 +53,7 @@ def plot_propagation_range(dfs, start_t, n_hours=24,min_detections=5, pfname="/t
 
 
 
-    fig, ax = plt.subplots(2, 1, figsize=(10, 7), sharex=True, constrained_layout=True)
+    fig, ax = plt.subplots(2, 1, figsize=(10, 14), sharex=True, constrained_layout=True)
 
     # --- TOP PANEL: range vs time (colored by frequency) ---
     sc1 = ax[0].scatter(
@@ -63,7 +64,7 @@ def plot_propagation_range(dfs, start_t, n_hours=24,min_detections=5, pfname="/t
         cmap="rainbow",
         vmin=5,vmax=25
     )
-    ax[0].set_ylim([-5e3,42e3])
+    ax[0].set_ylim([-5e3,22e3])
     cb1 = plt.colorbar(sc1, ax=ax[0])
     cb1.set_label("Frequency (MHz)")
     

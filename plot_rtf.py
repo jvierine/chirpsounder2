@@ -15,6 +15,7 @@ from datetime import datetime, timedelta
 p = psutil.Process()
 # Set I/O priority to idle (lowest) to avoid interrupting realtime processes
 p.ionice(psutil.IOPRIO_CLASS_IDLE)
+p.nice(19)
 
 def get_day_view(conf,tx,rx,dirname,sounder_type="lfm",pfname="/tmp/latest-rti.png"):
     fl=glob.glob("%s/%s/%s_ionogram-%s-%s-*.h5"%(conf.output_dir,dirname,sounder_type,tx,rx))
@@ -112,7 +113,9 @@ def get_day_view(conf,tx,rx,dirname,sounder_type="lfm",pfname="/tmp/latest-rti.p
         ranges/1e3,
         10*n.log10(M_new.T),
         shading="auto",
-        cmap="inferno"
+        cmap="gist_yarg",
+        vmin=0,
+        vmax=20
     )
     
     ax[0].set_ylabel("Propagation virtual range (km)")
