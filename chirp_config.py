@@ -12,6 +12,13 @@ class chirp_config:
     def __init__(self, fname=None):
         cf = configparser.ConfigParser()
         # initialize with default values
+
+#                        # 300 seconds is 30 GB
+#ringbuffer_max_age_sec=300
+# delete older files
+#ringbuffer_cleanup=true
+
+
         cf["config"] = {"channel": '''
 ["ch0"]
 ''',
@@ -24,6 +31,8 @@ class chirp_config:
                         "receiver_station_name": '"station_name"',
                         "plot_timings": "false",
                         "realtime": "false",
+                        "ringbuffer_max_age_min":"5",
+                        "ringbuffer_cleanup":"false",
                         "serendipitous": "false",
                         }
         cf["detection"] = {
@@ -99,6 +108,10 @@ class chirp_config:
         self.plot_timings = json.loads(cf["config"]["plot_timings"])
         self.copy_to_server = json.loads(cf["transfer"]["copy_to_server"])
 
+        self.ringbuffer_max_age_min=json.loads(cf["config"]["ringbuffer_max_age_min"])#:"300",
+        self.ringbuffer_cleanup=json.loads(cf["config"]["ringbuffer_cleanup"])#":"false",
+
+        
         self.debug_timings = json.loads(cf["detection"]["debug_timings"])
 #        print(cf["stations"]["station_info"])
         self.station_info = json.loads(cf["stations"]["station_info"])        
@@ -120,6 +133,7 @@ class chirp_config:
         self.realtime = json.loads(cf["config"]["realtime"])
         self.save_raw_voltage = json.loads(cf["lfm"]["save_raw_voltage"])
         self.data_dir = json.loads(cf["config"]["data_dir"])
+        print(self.data_dir)
 
 #        self.snr_threshold = json.loads(cf["config"]["snr_threshold"])
         
