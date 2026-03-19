@@ -12,7 +12,9 @@ class chirp_config:
     def __init__(self, fname=None):
         cf = configparser.ConfigParser()
         # initialize with default values
-        cf["config"] = {"channel": "['ch0']",
+        cf["config"] = {"channel": '''
+["ch0"]
+''',
                         "sample_rate": "25000000.0",
                         "center_freq": "12.5e6",
                         "data_dir": '"/mnt/data/juha/hf25"',
@@ -58,18 +60,30 @@ class chirp_config:
             }
 
         cf["stations"]={
-            "station_info":'''station_info={"SGO":{"name":"SGO","lat":67.36369337350563,"lon":26.634311805059543},
-                                          "TGO":{"name":"TGO","lat":69.66174439007057,
+            "station_info":'''
+
+{"SGO":{"name":"SGO",
+	             "lat":67.36369337350563,
+	             "lon":26.634311805059543},
+	      "TGO":{"name":"TGO",
+	             "lat":69.66174439007057,
 		     "lon":18.939127366530286},
-              "Ramfjordmoen":{"name":"Ramfjordmoen",
+	      "Ramfjordmoen":{"name":"Ramfjordmoen",
 	                      "lat":69.58187184247221,
-			      "lon":19.220853348827067}
-	      }''',
+			      "lon":19.220853348827067},
+	      "ROTHR":{"name":"ROTHR",
+	             "lat":36.11793762278912, 
+		     "lon":-82.5807086169964},
+	      "JORN":{"name":"JORN", 
+	             "lat":-23.853424758715892,
+		     "lon":125.07620821000198}
+	      }
+	      ''',
           "links":'''
- [
-	["SGO","TGO"],
-	["Ramfjordmoen","TGO"]
-]
+ [["SGO","TGO"],
+	["Ramfjordmoen","TGO"],
+	["ROTHR","TGO"],
+	["JORN","TGO"]]
           '''
             }
         
@@ -86,6 +100,7 @@ class chirp_config:
         self.copy_to_server = json.loads(cf["transfer"]["copy_to_server"])
 
         self.debug_timings = json.loads(cf["detection"]["debug_timings"])
+#        print(cf["stations"]["station_info"])
         self.station_info = json.loads(cf["stations"]["station_info"])        
         self.station_links = json.loads(cf["stations"]["links"])        
 
@@ -135,6 +150,7 @@ class chirp_config:
         self.range_resolution = json.loads(cf["lfm"]["range_resolution"])
         self.frequency_resolution = json.loads(
             cf["lfm"]["frequency_resolution"])
+#        print(cf["config"]["channel"])
         self.channel = json.loads(cf["config"]["channel"])
         self.step = json.loads(cf["detection"]["step"])
         self.maximum_analysis_frequency = json.loads(

@@ -13,7 +13,12 @@ import glob
 import matplotlib.pyplot as plt
 import numpy as n
 import matplotlib
+import psutil
 matplotlib.use('Agg')
+p = psutil.Process()
+# Set I/O priority to idle (lowest) to avoid interrupting realtime processes
+p.ionice(psutil.IOPRIO_CLASS_IDLE)
+
 
 def kill(conf):
     exists = os.path.isfile(conf.kill_path)
@@ -73,7 +78,7 @@ def plot_ionogram(conf, fn, normalize_by_frequency=True):
     r0 = range_gates[max_range_idx]
     fig = plt.figure(figsize=(1.5 * 8, 1.5 * 6))
     plt.pcolormesh(freqs / 1e6, range_gates, dB,
-                   vmin=0, vmax=30.0, cmap="inferno")
+                   vmin=0, vmax=20.0, cmap="gist_yarg")
     cb = plt.colorbar()
     cb.set_label("SNR (dB)")
     if "station_name" in ho.keys():
@@ -109,6 +114,7 @@ def plot_ionogram(conf, fn, normalize_by_frequency=True):
         plt.xlim([0, conf.maximum_analysis_frequency / 1e6])
     plt.tight_layout()
     plt.savefig(img_fname)
+    os.system("cp %s /tmp/latest-lfm-%s-%s.png"%(img_fname,txname,station_name))
     fig.clf()
     plt.clf()
     plt.close("all")

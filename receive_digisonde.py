@@ -289,7 +289,7 @@ def calculate_ionogram(d,
             noise_floor[j,i]=nf
             SNR[j,i,:]=(S[j,i,:]-nf)/nf
     SNR[SNR<0]=1e-9
-    plt.pcolormesh(fvec/1e6,rvec/1e3,10.0*n.log10(SNR[0,:,:].T),vmin=0,vmax=30,cmap="inferno")
+    plt.pcolormesh(fvec/1e6,rvec/1e3,10.0*n.log10(SNR[0,:,:].T),vmin=0,vmax=20,cmap="gist_yarg")
     plt.title("Digisonde %s-%s\n%s"%( transmitter_name, receiver_name, unix2date(i0/25e6)))
     plt.xlabel("Frequency (MHz)")
     plt.ylabel("One-way range (km)")
