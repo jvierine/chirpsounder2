@@ -9,12 +9,14 @@ import chirp_det as cd
 import h5py
 import re
 import psutil
+import ionowebsync
 
 p = psutil.Process()
 # Set I/O priority to idle (lowest) to avoid interrupting realtime processes
 p.ionice(psutil.IOPRIO_CLASS_IDLE)
 p.nice(19)
 
+            
 def consolidate_files():
     import argparse
     parser = argparse.ArgumentParser(description="Plot range-time-frequency")
@@ -90,6 +92,9 @@ def consolidate_files():
                 data = n.array(detections)
                 ho["data"]=data
                 ho.close()
+
+                ionowebsync.post_to_server(ofname)
+                
                 # allocate new datastructures
                 detections=[]
                 # we have now consolidated everything into one file. delete individual files
@@ -111,6 +116,7 @@ def consolidate_files():
         data = n.array(detections)
         ho["data"]=data
         ho.close()
+        ionowebsync.post_to_server(ofname)        
 
     
 if __name__ == "__main__":
