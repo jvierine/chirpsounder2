@@ -42,14 +42,22 @@ python3 detections2metadata.py --config $CONF_FILE > logs/detections2metadata.lo
 
 echo "receive_digisonde.py"
 python3 receive_digisonde.py --config $CONF_FILE > logs/digisonde.log 2>&1 &
+python3 receive_digisonde.py --config $CONF_FILE --sounding Juliusruh > logs/digisonde_julius_day.log 2>&1 &
+python3 receive_digisonde.py --config $CONF_FILE --sounding JuliusruhN > logs/digisonde_julius_night.log 2>&1 &
+
 echo "plot_rtf.py"
-python3 plot_rtf.py --config $CONF_FILE > logs/plot_rtf.log 2>&1 &
+python3 plot_rtf.py --config examples/marieluise/tgo.ini --sounding_path SGO,TGO  > logs/plot_rtf_sgotgo.log 2>&1 &
+python3 plot_rtf.py --config examples/marieluise/tgo.ini --sounding_path Ramfjordmoen,TGO  > logs/plot_rtf_rfmtgo.log 2>&1 &
+
 echo "plot_detectionfiles.py"
 python3 plot_detectionfiles.py --config $CONF_FILE > logs/plot_detectionfiles.log 2>&1 &
+
 echo "detect_chirps.py"
-$MPIRUN -np 3 python3 detect_chirps.py --config $CONF_FILE > logs/detect.log 2>&1 &
+$MPIRUN -np 2 python3 detect_chirps.py --config $CONF_FILE > logs/detect.log 2>&1 &
+
 echo "calc_ionograms.py"
 python3 calc_ionograms.py --config $CONF_FILE > logs/ionograms.log 2>&1 &
+
 echo "plot_ionograms.py"
 python3 plot_ionograms.py --config $CONF_FILE > logs/plot_ionograms.log > logs/plot_ionograms.log 2>&1 &
 
