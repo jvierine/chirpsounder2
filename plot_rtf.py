@@ -17,14 +17,18 @@ p = psutil.Process()
 p.ionice(psutil.IOPRIO_CLASS_IDLE)
 p.nice(19)
 
-def get_day_view(conf,tx,rx,dirname,sounder_type="lfm",pfname="/tmp/latest-rti.png"):
+def get_day_view(conf,tx,rx,dirname,pfname="/tmp/latest-rti.png"):
     print("creating RTI and RTF")
-    fl=glob.glob("%s/%s/%s_ionogram-%s-%s-*.h5"%(conf.output_dir,dirname,sounder_type,tx,rx))
+    fl=glob.glob("%s/%s/*_ionogram-%s-%s-*.h5"%(conf.output_dir,dirname,tx,rx))
     fl.sort()
     if len(fl)<3:
         print("not enough soundings %s %s %s"%(sounder_type,tx,rx))
         return
     h=h5py.File(fl[0],"r")
+    if "type" in h.keys() and h["type"][()].decode("utf-8") == "digisonde":
+        sounder_type="digisonde"
+    else:
+        sounder_type="lfm"
     if "ranges" in h.keys():
         ranges=h["ranges"][()]
         if ranges[1]<1e2:
@@ -56,7 +60,6 @@ def get_day_view(conf,tx,rx,dirname,sounder_type="lfm",pfname="/tmp/latest-rti.p
     M=n.zeros([n_t,n_r])
     tv=n.zeros(n_t)
     for fi,f in enumerate(fl):
-#        print(f)
         h=h5py.File(f,"r")
 #        print(h.keys())
         SNR=h["SNR"][()]
@@ -107,7 +110,7 @@ def get_day_view(conf,tx,rx,dirname,sounder_type="lfm",pfname="/tmp/latest-rti.p
     S_new = n.array(S_new)
 
     fig, ax = plt.subplots(2,1,figsize=(10,6),sharex=True)
-
+    
     # --- first plot ---
     pcm1 = ax[0].pcolormesh(
         t_new,
@@ -151,49 +154,19 @@ def get_day_view(conf,tx,rx,dirname,sounder_type="lfm",pfname="/tmp/latest-rti.p
     ax[0].set_xlim(day_start, day_end)
     ax[1].set_xlim(day_start, day_end)
 
-    
     plt.tight_layout()
     plt.savefig(pfname)
     plt.close()
 #    plt.show()
 
-def plot_rtf(conf):
+def plot_rtf(conf,tx,rx):
     tnow=time.time()
     tyesterday=tnow-24*3600
     today_dir=cd.unix2dirname(tnow)
     yesterday_dir=cd.unix2dirname(tyesterday)
     
-    fl=glob.glob("%s/%s/*_ionogram-*.h5"%(conf.output_dir,today_dir))
-    fl.sort()
-
-    types=[]
-    txs=[]
-    rxs=[]
-    for f in fl:
-#        print(f)
-        match=re.search(".*/([^_]+)_ionogram-([^-]+)-([^-]+)-.*.h5",f)
-        if len(match.groups())==3:
-            iono_type=match.group(1)
-            tx=match.group(2)
-            rx=match.group(3)
-            txs.append(tx)
-            rxs.append(rx)
-            types.append(iono_type)
-#            print(iono_type)
-#            print(tx)
- #           print(rx)
-    txs=n.unique(txs)
-    rxs=n.unique(rxs)
-    iono_types=n.unique(types)    
-  #  print(txs)
-  #  print(rxs)
-  #  print(iono_types)
-
-    for tx in txs:
-        for rx in rxs:
-            for iono_type in iono_types:
-                get_day_view(conf,tx,rx,today_dir,iono_type,pfname="/tmp/latest-rti-%s-%s.png"%(tx,rx))
-                get_day_view(conf,tx,rx,yesterday_dir,iono_type,pfname="/tmp/yesterday-rti-%s-%s.png"%(tx,rx))  
+    get_day_view(conf,tx,rx,today_dir,pfname="/tmp/latest-rti-%s-%s.png"%(tx,rx))
+    get_day_view(conf,tx,rx,yesterday_dir,pfname="/tmp/yesterday-rti-%s-%s.png"%(tx,rx))  
 
 if __name__ == "__main__":
     import argparse
@@ -204,10 +177,17 @@ if __name__ == "__main__":
         default="examples/marieluise/ramfjordmoen_digisonde.ini",
         help="Path to configuration file"
     )
+    parser.add_argument(
+        "--sounding_path",
+        type=str,
+        default="SGO,TGO",
+        help="Which sounding path to process"
+    )
     args = parser.parse_args()
     conf = cc.chirp_config(args.config)
+    tx,rx=args.sounding_path.split(",")
     import time
     
     while True:
-        plot_rtf(conf)
+        plot_rtf(conf,tx,rx)
         time.sleep(15*60)
