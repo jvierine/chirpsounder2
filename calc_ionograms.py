@@ -20,7 +20,6 @@ import os
 import os.path
 import sys
 import traceback
-#import pdb
 
 import psutil
 import os
@@ -299,6 +298,10 @@ def chirp_downconvert(conf,
             ho["z"] = zd
         ho["ch"] = ch            # channel name
         ho.close()
+        if conf.copy_to_server:
+            import ionowebsync
+            ionowebsync.push_to_server(ofname)
+            
     except:
         traceback.print_exc(file=sys.stdout)
         print("error writing file")

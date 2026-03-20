@@ -41,6 +41,7 @@ def read_config(fname="examples/marieluise/ramfjordmoen_digisonde.ini"):
     p["n_ipp"] = cfg.getint("digisonde", "n_ipp")
     p["offset_us"] = cfg.getfloat("digisonde", "offset_us")
     p["wait_for_data"] = cfg.getboolean("digisonde", "wait_for_data")
+    p["copy_to_server"] = cfg.getboolean("transfer", "copy_to_server")    
     return p
 
 
@@ -328,6 +329,10 @@ def calculate_ionogram(d,
  #   ho["fvec"]=fvec
   #  ho["rvec"]=rvec
     ho.close()
+    if p["copy_to_server"]:
+        import ionoswebsync
+        ionowebsync.push_to_server(ofname)
+    
     print("saved %s.png\nsaving %s"%(ofname,ofname))
 
     
