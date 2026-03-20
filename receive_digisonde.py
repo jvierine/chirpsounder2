@@ -4,6 +4,7 @@ import scipy.signal as ss
 import matplotlib.pyplot as plt
 import digisonde_stuff as ds
 import datetime
+from datetime import timezone
 import time
 import chirp_det as cd
 import h5py
@@ -45,10 +46,16 @@ def read_config(args):#fname="examples/marieluise/ramfjordmoen_digisonde.ini"):
 
     # how many seconds past midnight does first ionogram start
     p["start_offset"]=0
-    p["start_offset"] =json.loads(digisonde["start_offset"])
+    if "start_offset" in digisonde.keys():
+        p["start_offset"] =json.loads(digisonde["start_offset"])
 
     p["sum_ox"]=False
-    p["sum_ox"] =json.loads(digisonde["sum_ox"])
+    if "sum_ox" in digisonde.keys():
+        p["sum_ox"] =json.loads(digisonde["sum_ox"])
+        
+    p["sounding_hrs"]=[0,24]
+    if "sounding_hrs" in digisonde.keys():
+        p["sounding_hrs"] =json.loads(digisonde["sounding_hrs"])
     
     p["dec"] =json.loads(digisonde["decimation"])
     p["freq0"] = json.loads(digisonde["freq_start"])
@@ -184,7 +191,25 @@ def calculate_ionogram(d,
                        # copy_to_server=False,
                        # sum_ox=False):
 
+    start_unix_seconds=i0/25e6
+    dt = datetime.datetime.fromtimestamp(start_unix_seconds, tz=timezone.utc)
+    
+    hours = dt.hour + dt.minute/60 + dt.second/3600
+    start = p["sounding_hrs"][0]
+    end   = p["sounding_hrs"][1]
 
+    if start <= end:
+        # normal interval, e.g. 8–18
+        active = start <= hours <= end
+    else:
+        # overnight interval, e.g. 18–8
+        active = (hours >= start) or (hours <= end)
+
+    if not active:
+        print("ionogram not active according to schedule now %1.2f %1.1f-%1.1f"
+              % (hours, start, end))
+        return    
+    
     dfreq=p["dfreq"]
     freq0=p["freq0"]
     freq1=p["freq1"]
@@ -421,6 +446,7 @@ def realtime_ionogram(args):
         t0,
         p,
         ofname)
+    
 #    )
     
         
@@ -447,6 +473,7 @@ if __name__ == "__main__":
     while True:
         try:
             realtime_ionogram(args)
+            time.sleep(1)
         except:
             print("error with digisonde")
             traceback.print_exc(file=sys.stdout)
