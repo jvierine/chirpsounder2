@@ -331,7 +331,7 @@ def calculate_ionogram(d,
     ho.close()
     if p["copy_to_server"]:
         import ionoswebsync
-        ionowebsync.push_to_server(ofname)
+        ionowebsync.post_to_server(ofname)
     
     print("saved %s.png\nsaving %s"%(ofname,ofname))
 

@@ -300,7 +300,7 @@ def chirp_downconvert(conf,
         ho.close()
         if conf.copy_to_server:
             import ionowebsync
-            ionowebsync.push_to_server(ofname)
+            ionowebsync.post_to_server(ofname)
             
     except:
         traceback.print_exc(file=sys.stdout)
