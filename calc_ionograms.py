@@ -20,7 +20,25 @@ import os
 import os.path
 import sys
 import traceback
-import pdb
+#import pdb
+
+import psutil
+import os
+
+p = psutil.Process(os.getpid())
+
+# Try to increase CPU priority (may fail if not permitted)
+try:
+    p.nice(0)  # default is usually 0; you typically cannot go negative without root
+except psutil.AccessDenied:
+    pass
+
+# Set best possible I/O priority (highest allowed without root)
+try:
+    p.ionice(psutil.IOPRIO_CLASS_BE, value=0)  # Best Effort, highest level
+except psutil.AccessDenied:
+    pass
+
 
 # c library
 import chirp_lib as cl
@@ -491,10 +509,21 @@ def analyze_parfiles(conf, d):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) == 2:
-        conf = cc.chirp_config(sys.argv[1])
-    else:
-        conf = cc.chirp_config()
+    import argparse
+    parser = argparse.ArgumentParser(description="Housekeeping program")
+    parser.add_argument(
+        "--config",
+        type=str,
+        default="examples/marieluise/tgo.ini",
+        help="Path to configuration file"
+    )
+    args = parser.parse_args()
+    conf=cc.chirp_config(args.config)
+    
+#    if len(sys.argv) == 2:
+#        conf = cc.chirp_config(sys.argv[1])
+#    else:
+#        conf = cc.chirp_config()
 
     # analyze serendpituous par files immediately after a chirp is detected
     if conf.serendipitous:

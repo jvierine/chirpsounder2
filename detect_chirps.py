@@ -52,10 +52,16 @@ def scan_for_chirps(conf, cfb, block0=None):
     return(block1)
 
 if __name__ == "__main__":
-    if len(sys.argv) == 2:
-        conf = cc.chirp_config(sys.argv[1])
-    else:
-        conf = cc.chirp_config()
+    import argparse
+    parser = argparse.ArgumentParser(description="Plot range-time-frequency")
+    parser.add_argument(
+        "--config",
+        type=str,
+        default="examples/marieluise/ramfjordmoen_digisonde.ini",
+        help="Path to configuration file"
+    )
+    args = parser.parse_args()
+    conf = cc.chirp_config(args.config)
 
     cfb = c.chirp_matched_filter_bank(conf)
 

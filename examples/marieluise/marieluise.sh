@@ -18,7 +18,7 @@ MPIRUN=mpirun
 RINGBUFFER_DIR=/dev/shm/hf25
 SAMPLE_RATE=25e6
 CENTER_FREQ=12.5e6
-CONF_FILE=$INSTALL_PATH/examples/marieluise/marieluise.ini
+CONF_FILE=$INSTALL_PATH/examples/marieluise/tgo.ini
 
 cd $INSTALL_PATH
 # kill possibly existing runtime
@@ -31,35 +31,35 @@ mkdir -p logs
 
 # ram disk size. this should be compatible than your ram size
 # at least about 2 GB less than the amount of ram available.
-RINGBUFFER_SIZE=30000MB
+#RINGBUFFER_SIZE=30000MB
+echo "sync_iono_data.py"
+python3 sync_iono_data.py --config $CONF_FILE > logs/sync.log 2>&1 &
+echo "iono_housekeeping.py"
+python3 iono_housekeeping.py --config $CONF_FILE > logs/housekeeping.log 2>&1 &
 
-# start ring buffer
-drf ringbuffer -z $RINGBUFFER_SIZE $RINGBUFFER_DIR -p 2 > logs/ringbuffer.log 2>&1 &
-echo "Starting ringbuffer"
+echo "detections2metadata.py"
+python3 detections2metadata.py --config $CONF_FILE > logs/detections2metadata.log 2>&1 &
 
-# detect chirps
-# two processes seems to be enough to keep up with realtime
-$MPIRUN -np 4 python3 detect_chirps.py $CONF_FILE > logs/detect.log 2>&1 &
-echo "Starting detect_chirps.py"
-
-# find timings
-#python3 find_timings.py $CONF_FILE > logs/timings.log 2>&1 &
-#echo "Starting find_timings.py"
-# calculate ionograms
-# seems like four parallel processes work.
-# this means we can process four ionograms simultaneously!
-#$MPIRUN --oversubscribe -np 4 python3 calc_ionograms.py $CONF_FILE > logs/ionograms.log 2>&1 &
-#echo "Starting calc_ionograms.py"
-
-# plot ionograms
-python3 plot_ionograms.py $CONF_FILE > logs/plot_ionograms.log &
-echo "Starting plot_ionograms.py"
+echo "receive_digisonde.py"
+python3 receive_digisonde.py --config $CONF_FILE > logs/digisonde.log 2>&1 &
+echo "plot_rtf.py"
+python3 plot_rtf.py --config $CONF_FILE > logs/plot_rtf.log 2>&1 &
+echo "plot_detectionfiles.py"
+python3 plot_detectionfiles.py --config $CONF_FILE > logs/plot_detectionfiles.log 2>&1 &
+echo "detect_chirps.py"
+$MPIRUN -np 3 python3 detect_chirps.py --config $CONF_FILE > logs/detect.log 2>&1 &
+echo "calc_ionograms.py"
+python3 calc_ionograms.py --config $CONF_FILE > logs/ionograms.log 2>&1 &
+echo "plot_ionograms.py"
+python3 plot_ionograms.py --config $CONF_FILE > logs/plot_ionograms.log > logs/plot_ionograms.log 2>&1 &
 
 echo "Starting rx_uhd with external 1 PPS and 10 MHz. Restarting in 24 hours."
 while true;
 do
+    # TBD: change cpp program so that ini file defined USRP setup!
     ./rx_uhd_ext_gps --outdir=$RINGBUFFER_DIR > logs/thor.log 2>&1 
     sleep 5
     echo "Restarting recording (every 24 hours)."
+    echo "Rotating logs"
+    logrotate $INSTALL_PATH/examples/marieluise/tgo-logrotate.conf -s logs/rotate.status
 done
-

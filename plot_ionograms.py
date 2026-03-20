@@ -13,7 +13,12 @@ import glob
 import matplotlib.pyplot as plt
 import numpy as n
 import matplotlib
+import psutil
 matplotlib.use('Agg')
+p = psutil.Process()
+# Set I/O priority to idle (lowest) to avoid interrupting realtime processes
+p.ionice(psutil.IOPRIO_CLASS_IDLE)
+p.nice(19)
 
 def kill(conf):
     exists = os.path.isfile(conf.kill_path)
@@ -73,7 +78,7 @@ def plot_ionogram(conf, fn, normalize_by_frequency=True):
     r0 = range_gates[max_range_idx]
     fig = plt.figure(figsize=(1.5 * 8, 1.5 * 6))
     plt.pcolormesh(freqs / 1e6, range_gates, dB,
-                   vmin=0, vmax=30.0, cmap="inferno")
+                   vmin=0, vmax=20.0, cmap="gist_yarg")
     cb = plt.colorbar()
     cb.set_label("SNR (dB)")
     if "station_name" in ho.keys():
@@ -109,6 +114,7 @@ def plot_ionogram(conf, fn, normalize_by_frequency=True):
         plt.xlim([0, conf.maximum_analysis_frequency / 1e6])
     plt.tight_layout()
     plt.savefig(img_fname)
+    os.system("cp %s /tmp/latest-lfm-%s-%s.png"%(img_fname,txname,station_name))
     fig.clf()
     plt.clf()
     plt.close("all")
@@ -116,16 +122,22 @@ def plot_ionogram(conf, fn, normalize_by_frequency=True):
     gc.collect()
     ho.close()
     sys.stdout.flush()
-    if conf.copy_to_server:
-        os.system("rsync -av %s %s/latest_%s.png" %
-                  (img_fname, conf.copy_destination, conf.station_name))
+#    if conf.copy_to_server:
+ #       os.system("rsync -av %s %s/latest_%s.png" %
+  #                (img_fname, conf.copy_destination, conf.station_name))
 
 
 if __name__ == "__main__":
-    if len(sys.argv) == 2:
-        conf = cc.chirp_config(sys.argv[1])
-    else:
-        conf = cc.chirp_config()
+    import argparse
+    parser = argparse.ArgumentParser(description="Housekeeping program")
+    parser.add_argument(
+        "--config",
+        type=str,
+        default="examples/marieluise/tgo.ini",
+        help="Path to configuration file"
+    )
+    args = parser.parse_args()
+    conf=cc.chirp_config(args.config)
 
     if conf.realtime:
         while True:

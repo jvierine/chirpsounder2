@@ -14,6 +14,7 @@ import sys
 p = psutil.Process()
 # Set I/O priority to idle (lowest) to avoid interrupting realtime processes
 p.ionice(psutil.IOPRIO_CLASS_IDLE)
+p.nice(19)
 
 labels={100:"US (ROTHR)",125:"Australia (JORN)"}
 
@@ -52,7 +53,7 @@ def plot_propagation_range(dfs, start_t, n_hours=24,min_detections=5, pfname="/t
 
 
 
-    fig, ax = plt.subplots(2, 1, figsize=(10, 7), sharex=True, constrained_layout=True)
+    fig, ax = plt.subplots(2, 1, figsize=(10, 14), sharex=True, constrained_layout=True)
 
     # --- TOP PANEL: range vs time (colored by frequency) ---
     sc1 = ax[0].scatter(
@@ -63,7 +64,7 @@ def plot_propagation_range(dfs, start_t, n_hours=24,min_detections=5, pfname="/t
         cmap="rainbow",
         vmin=5,vmax=25
     )
-    ax[0].set_ylim([-5e3,42e3])
+    ax[0].set_ylim([-5e3,22e3])
     cb1 = plt.colorbar(sc1, ax=ax[0])
     cb1.set_label("Frequency (MHz)")
     
@@ -76,18 +77,19 @@ def plot_propagation_range(dfs, start_t, n_hours=24,min_detections=5, pfname="/t
     crs=n.array(dfs[gidx,3]/1e3,dtype=int)
     freqs=dfs[gidx,2]/1e6
 
-    for cr in [100,125]:
-        gidx=n.where(crs==cr)[0]
-        # --- BOTTOM PANEL: frequency vs time (colored by chirp rate) ---
-        ax[1].plot(
-            times[gidx],
-            freqs[gidx],
-            ".",
-            label="%d kHz/s"%(cr),
-            alpha=1.0,
-            ms=0.5
-        )
-    ax[1].legend()
+    # --- BOTTOM PANEL: frequency vs time (colored by chirp rate) ---
+    sc2=ax[1].scatter(
+        times,
+        freqs,
+        c=t_grp * sc.c / 1e3,
+        alpha=0.5,
+        s=0.5,
+        cmap="rainbow",
+        vmin=-5e3,
+        vmax=20e3,
+    )
+    cb2=plt.colorbar(sc2, ax=ax[1])
+    cb2.set_label("Virtual propagation distance (km)")
 
     ax[1].set_ylabel("Frequency (MHz)")
     ax[1].set_xlabel(f"Time (UTC)")
@@ -135,10 +137,16 @@ def plot_propagation_range(dfs, start_t, n_hours=24,min_detections=5, pfname="/t
 
 
 while True:
-    if len(sys.argv) == 2:
-        conf = cc.chirp_config(sys.argv[1])
-    else:
-        conf = cc.chirp_config()
+    import argparse
+    parser = argparse.ArgumentParser(description="Plot range-time-frequency")
+    parser.add_argument(
+        "--config",
+        type=str,
+        default="examples/marieluise/ramfjordmoen_digisonde.ini",
+        help="Path to configuration file"
+    )
+    args = parser.parse_args()
+    conf = cc.chirp_config(args.config)
 
     dfs=[]
     files=glob.glob("/data0/2*/cdetections*.h5")

@@ -288,8 +288,13 @@ def calculate_ionogram(d,
             nf=n.median(S[j,i,:])
             noise_floor[j,i]=nf
             SNR[j,i,:]=(S[j,i,:]-nf)/nf
-    SNR[SNR<0]=1e-9
-    plt.pcolormesh(fvec/1e6,rvec/1e3,10.0*n.log10(SNR[0,:,:].T),vmin=0,vmax=30,cmap="inferno")
+    PSNR=n.copy(SNR)
+    PSNR[PSNR<0]=1e-9
+    # smooth in frequency to make ionogram a bit less discretized..
+    for i in range(PSNR.shape[1]):
+        PSNR[0,:,ri]=n.convolve(PSNR[0,:,ri],n.repeat(1/3,3),mode="same")
+        
+    plt.pcolormesh(fvec/1e6,rvec/1e3,10.0*n.log10(PSNR[0,:,:].T),vmin=0,vmax=20,cmap="gist_yarg")
     plt.title("Digisonde %s-%s\n%s"%( transmitter_name, receiver_name, unix2date(i0/25e6)))
     plt.xlabel("Frequency (MHz)")
     plt.ylabel("One-way range (km)")
@@ -421,6 +426,9 @@ def realtime_ionogram2():
         
 if __name__ == "__main__":
     import argparse
+    import traceback
+    import sys
+    import time
     parser = argparse.ArgumentParser(description="Realtime digisonde ionogram")
     parser.add_argument(
         "--config",
@@ -431,4 +439,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     while True:
-        realtime_ionogram(args.config)
+        try:
+            realtime_ionogram(args.config)
+        except:
+            print("error with digisonde")
+            traceback.print_exc(file=sys.stdout)
+            # wait a bit. maybe the system recorvers. don't flood logs with error messages
+            time.sleep(1)

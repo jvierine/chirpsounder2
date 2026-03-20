@@ -15,8 +15,10 @@ from datetime import datetime, timedelta
 p = psutil.Process()
 # Set I/O priority to idle (lowest) to avoid interrupting realtime processes
 p.ionice(psutil.IOPRIO_CLASS_IDLE)
+p.nice(19)
 
 def get_day_view(conf,tx,rx,dirname,sounder_type="lfm",pfname="/tmp/latest-rti.png"):
+    print("creating RTI and RTF")
     fl=glob.glob("%s/%s/%s_ionogram-%s-%s-*.h5"%(conf.output_dir,dirname,sounder_type,tx,rx))
     fl.sort()
     if len(fl)<3:
@@ -54,11 +56,11 @@ def get_day_view(conf,tx,rx,dirname,sounder_type="lfm",pfname="/tmp/latest-rti.p
     M=n.zeros([n_t,n_r])
     tv=n.zeros(n_t)
     for fi,f in enumerate(fl):
-        print(f)
+#        print(f)
         h=h5py.File(f,"r")
 #        print(h.keys())
         SNR=h["SNR"][()]
-        print(SNR.shape)
+#        print(SNR.shape)
         if sounder_type == "digisonde":
             SNR=SNR[0,:,:]
         tv[fi]=h["t0"][()]
@@ -112,7 +114,9 @@ def get_day_view(conf,tx,rx,dirname,sounder_type="lfm",pfname="/tmp/latest-rti.p
         ranges/1e3,
         10*n.log10(M_new.T),
         shading="auto",
-        cmap="inferno"
+        cmap="gist_yarg",
+        vmin=3,
+        vmax=20
     )
     
     ax[0].set_ylabel("Propagation virtual range (km)")
@@ -166,7 +170,7 @@ def plot_rtf(conf):
     txs=[]
     rxs=[]
     for f in fl:
-        print(f)
+#        print(f)
         match=re.search(".*/([^_]+)_ionogram-([^-]+)-([^-]+)-.*.h5",f)
         if len(match.groups())==3:
             iono_type=match.group(1)
@@ -175,15 +179,15 @@ def plot_rtf(conf):
             txs.append(tx)
             rxs.append(rx)
             types.append(iono_type)
-            print(iono_type)
-            print(tx)
-            print(rx)
+#            print(iono_type)
+#            print(tx)
+ #           print(rx)
     txs=n.unique(txs)
     rxs=n.unique(rxs)
     iono_types=n.unique(types)    
-    print(txs)
-    print(rxs)
-    print(iono_types)
+  #  print(txs)
+  #  print(rxs)
+  #  print(iono_types)
 
     for tx in txs:
         for rx in rxs:
