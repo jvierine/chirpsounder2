@@ -9,6 +9,7 @@ import chirp_det as cd
 import h5py
 import os
 import json
+import scipy.constants as sc
 #
 # Simple simple digisonde receiver. 
 # 
@@ -16,8 +17,12 @@ import json
 #
 import configparser
 
-def read_config(fname="examples/marieluise/ramfjordmoen_digisonde.ini"):
-
+def read_config(args):#fname="examples/marieluise/ramfjordmoen_digisonde.ini"):
+    fname=args.config
+    sounder_name=args.sounder
+#    sounder_name=args.sounder
+ #   config_file=args.config#"digisonde.ini"
+    
     cfg = configparser.ConfigParser()
     cfg.read(fname)
     p = {}
@@ -28,20 +33,33 @@ def read_config(fname="examples/marieluise/ramfjordmoen_digisonde.ini"):
     p["receiver"] = json.loads(cfg["config"]["receiver_station_name"])
     p["sr"] = cfg.getint("config", "sample_rate")
     p["cf"] = cfg.getfloat("config", "center_freq")
-    
-    p["transmitter"] = json.loads(cfg["digisonde"]["transmitter_station_name"])
-    p["snr_threshold"] = cfg.getfloat("digisonde", "snr_threshold")
-    p["sounding_interval"] = cfg.getint("digisonde", "sounding_interval_sec")
 
-    p["dec"] = cfg.getint("digisonde", "decimation")
-    p["freq0"] = cfg.getfloat("digisonde", "freq_start")
-    p["freq1"] = cfg.getfloat("digisonde", "freq_stop")
-    p["dfreq"] = cfg.getfloat("digisonde", "freq_step")
-    p["ipp"] = cfg.getint("digisonde", "ipp_us")
-    p["n_ipp"] = cfg.getint("digisonde", "n_ipp")
-    p["offset_us"] = cfg.getfloat("digisonde", "offset_us")
-    p["wait_for_data"] = cfg.getboolean("digisonde", "wait_for_data")
-    p["copy_to_server"] = cfg.getboolean("transfer", "copy_to_server")    
+    if sounder_name == "":
+        digisonde=cfg["digisonde"]
+    else:
+        digisonde=cfg["digisonde-%s"%(sounder_name)]
+    
+    p["transmitter"] = json.loads(digisonde["transmitter_station_name"])
+    p["snr_threshold"] = json.loads(digisonde["snr_threshold"])#cfg.getfloat("digisonde", "snr_threshold")
+    p["sounding_interval"] = json.loads(digisonde["sounding_interval_sec"])#cfg.getint("digisonde", "sounding_interval_sec")
+
+    # how many seconds past midnight does first ionogram start
+    p["start_offset"]=0
+    p["start_offset"] =json.loads(digisonde["start_offset"])
+
+    p["sum_ox"]=False
+    p["sum_ox"] =json.loads(digisonde["sum_ox"])
+    
+    p["dec"] =json.loads(digisonde["decimation"])
+    p["freq0"] = json.loads(digisonde["freq_start"])
+    p["freq1"] = json.loads(digisonde["freq_stop"])
+    p["dfreq"] = json.loads(digisonde["freq_step"])
+    p["ipp"] = json.loads(digisonde["ipp_us"])
+    p["n_ipp"] = json.loads(digisonde["n_ipp"])
+    p["offset_us"] = json.loads(digisonde["offset_us"])
+    p["wait_for_data"] = json.loads(digisonde["wait_for_data"])
+    p["copy_to_server"] = cfg.getboolean("transfer", "copy_to_server")
+    print(p)
     return p
 
 
@@ -143,24 +161,49 @@ def decimate_10_then_fir25(x):
 
 def calculate_ionogram(d,
                        i0,
-                       dfreq=50e3,
-                       freq0=1e6,                       
-                       freq1=16e6,
-                       n_ipp=64,
-                       ipp=10000,
-                       sr=25000000,
-                       dec=250,
-                       offset_us=-320, 
-                       cf=12.5e6,
-                       max_bandwidth=30e3,
-                       mode=3,              # digisondes have many modes, we Ramfjordmoen uses mode=3
-                       wait_for_data=False,
-                       transmitter_name="Ramfjordmoen",
-                       receiver_name="Tromso",
-                       channel="ch0",
-                       snr_threshold=2,
-                       ofname="tmp.h5"):
+                       p,
+                       ofname):
+                       
+                       # dfreq=50e3,
+                       # freq0=1e6,                       
+                       # freq1=16e6,
+                       # n_ipp=64,
+                       # ipp=10000,
+                       # sr=25000000,
+                       # dec=250,
+                       # offset_us=-320, 
+                       # cf=12.5e6,
+                       # max_bandwidth=30e3,
+                       # mode=3,              # digisondes have many modes, we Ramfjordmoen uses mode=3
+                       # wait_for_data=False,
+                       # transmitter_name="Ramfjordmoen",
+                       # receiver_name="Tromso",
+                       # channel="ch0",
+                       # snr_threshold=2,
+                       # ofname="tmp.h5",
+                       # copy_to_server=False,
+                       # sum_ox=False):
 
+
+    dfreq=p["dfreq"]
+    freq0=p["freq0"]
+    freq1=p["freq1"]
+    n_ipp=p["n_ipp"]
+    max_bandwidth=30e3
+    mode=3
+    ipp=p["ipp"]
+    sr=p["sr"]
+    dec=p["dec"]
+    offset_us=p["offset_us"]
+    cf=p["cf"]
+    wait_for_data=p["wait_for_data"]
+    transmitter_name=p["transmitter"]
+    receiver_name=p["receiver"]
+    channel=p["channel"]
+    snr_threshold=p["snr_threshold"]
+    copy_to_server=p["copy_to_server"]
+    sum_ox=p["sum_ox"]
+    
     # get complementary codes transmitted by digisonde
     # mode=3 includes phase flip
     # analyze with 100 kHz receiver bandwidth
@@ -290,17 +333,24 @@ def calculate_ionogram(d,
             noise_floor[j,i]=nf
             SNR[j,i,:]=(S[j,i,:]-nf)/nf
     PSNR=n.copy(SNR)
+    if sum_ox:
+        PSNR[0,:,:]=PSNR[0,:,:]+PSNR[1,:,:]
+        
     PSNR[PSNR<0]=1e-9
     # smooth in frequency to make ionogram a bit less discretized..
     for i in range(PSNR.shape[1]):
         PSNR[0,:,ri]=n.convolve(PSNR[0,:,ri],n.repeat(1/3,3),mode="same")
+
         
-    plt.pcolormesh(fvec/1e6,rvec/1e3,10.0*n.log10(PSNR[0,:,:].T),vmin=0,vmax=20,cmap="gist_yarg")
+    plt.pcolormesh(fvec/1e6,rvec/1e3+ (1e-6*offset_us*sc.c)/1e3,10.0*n.log10(PSNR[0,:,:].T),vmin=0,vmax=20,cmap="gist_yarg")
     plt.title("Digisonde %s-%s\n%s"%( transmitter_name, receiver_name, unix2date(i0/25e6)))
     plt.xlabel("Frequency (MHz)")
     plt.ylabel("One-way range (km)")
     cb=plt.colorbar()
-    cb.set_label("O-mode SNR (dB)")
+    if sum_ox:
+        cb.set_label("O-mode SNR (dB)")
+    else:
+        cb.set_label("Total SNR (dB)")        
 #    plt.subplot(122)    
  #   plt.pcolormesh(fvec/1e6,rvec,10.0*n.log10(SNR[1,:,:].T),vmin=-10,vmax=30)#,10.0*n.log10(S[1,:,:].T))
   #  plt.title("Digisonde Ramfjordmoen-TGO (X-mode)\n%s"%(unix2date(i0/25e6)))
@@ -319,6 +369,7 @@ def calculate_ionogram(d,
     ho["noise_floor"]=noise_floor
     ho["transmitter"]=transmitter_name
     ho["receiver"]=receiver_name
+    ho["offset_us"]=offset_us
     ho.create_dataset("SNR",
                       data=SNR,
                       compression="gzip",
@@ -329,8 +380,8 @@ def calculate_ionogram(d,
  #   ho["fvec"]=fvec
   #  ho["rvec"]=rvec
     ho.close()
-    if p["copy_to_server"]:
-        import ionoswebsync
+    if copy_to_server:
+        import ionowebsync
         ionowebsync.post_to_server(ofname)
     
     print("saved %s.png\nsaving %s"%(ofname,ofname))
@@ -339,9 +390,8 @@ def calculate_ionogram(d,
 
 
 
-def realtime_ionogram(config_file="digisonde.ini"):
-
-    p = read_config(config_file)
+def realtime_ionogram(args):
+    p = read_config(args)
 
     d = drf.DigitalRFReader(p["ringbuffer_dir"])
 
@@ -351,7 +401,7 @@ def realtime_ionogram(config_file="digisonde.ini"):
     interval = p["sounding_interval"]
 
     # compute next sounding start
-    t0 = interval * sr * n.ceil(b[1] / sr / interval)
+    t0 = interval * sr * n.ceil(b[1] / sr / interval) + p["start_offset"]*sr
 
     output_dir = p["output_dir"]
     dname = "%s/%s" % (output_dir, cd.unix2dirname(t0/sr))
@@ -368,66 +418,10 @@ def realtime_ionogram(config_file="digisonde.ini"):
     calculate_ionogram(
         d,
         t0,
-        dfreq=p["dfreq"],
-        freq0=p["freq0"],
-        freq1=p["freq1"],
-        n_ipp=p["n_ipp"],
-        ipp=p["ipp"],
-        sr=p["sr"],
-        dec=p["dec"],
-        offset_us=p["offset_us"],
-        cf=p["cf"],
-        wait_for_data=p["wait_for_data"],
-        transmitter_name=p["transmitter"],
-        receiver_name=p["receiver"],
-        channel=p["channel"],
-        snr_threshold=p["snr_threshold"],
-        ofname=ofname
-    )
+        p,
+        ofname)
+#    )
     
-def realtime_ionogram2():
-    
-    # open ringbuffer directory (essentially an array of complex voltage
-    d=drf.DigitalRFReader("/dev/shm/hf25/")
-    # the first and last sample index of raw voltage
-    # index = samples since 1970 (25000000 samples second * unix seconds)
-    b=d.get_bounds("cha")
-    # start sample of next digisonde sounding
-    # sounding every 7.5 minutes)
-    # 15*30 seconds = 7.5 minutes
-    t0=15*30*25000000*n.ceil(b[1]/25000000/(15*30))
-    # store data in this directory
-    output_dir="/data1/digisonde"
-    # create directory name
-    dname="%s/%s"%(output_dir,cd.unix2dirname(t0/25e6))
-    
-    if not os.path.exists(dname):
-        os.mkdir(dname)
-    # file name of digisonde ionogram
-    ofname="%s/digisonde_ionogram-%1.2f.h5"%(dname,t0/25e6)
-    
-    if os.path.exists(ofname):
-        print("sounding already exists. skipping")
-    else:
-        # calculate this ionogram. the offset_us
-        # is determined from ground path, assuming 14 km from
-        # Ramfjordmoen to Prestvannet. Not done super carefully!
-        # Also, the offset seems to change a little bit, which is
-        # a bit worrisome. Probably something to do with the digisonde hardware
-        calculate_ionogram(d,
-                           t0,        
-                           dfreq=50e3,  # frequency step for digisonde soudning
-                           freq0=1e6,   # start frequency
-                           freq1=18e6,  # stop frequency
-                           n_ipp=64,    # how many pulses per frequency
-                           ipp=10000,   # 10 ms spacing between pulses
-                           sr=25000000, # sample rate for complex voltage
-                           dec=250,     # decimation rate
-                           offset_us=-320, # timing offset for digisonde sounding start 
-                           cf=12.5e6,   # center frequency of complex voltage
-                           wait_for_data=True, # check if we hit data bounds and wait for new data
-                           ofname=ofname)
-
         
 if __name__ == "__main__":
     import argparse
@@ -441,11 +435,17 @@ if __name__ == "__main__":
         default="examples/marieluise/ramfjordmoen_digisonde.ini",
         help="Path to digisonde configuration file"
     )
+    parser.add_argument(
+        "--sounder",
+        type=str,
+        default="",
+        help="Name of sounder"
+    )
     args = parser.parse_args()
 
     while True:
         try:
-            realtime_ionogram(args.config)
+            realtime_ionogram(args)
         except:
             print("error with digisonde")
             traceback.print_exc(file=sys.stdout)
