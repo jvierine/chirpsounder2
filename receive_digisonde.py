@@ -348,9 +348,9 @@ def calculate_ionogram(d,
     plt.ylabel("One-way range (km)")
     cb=plt.colorbar()
     if sum_ox:
-        cb.set_label("O-mode SNR (dB)")
-    else:
         cb.set_label("Total SNR (dB)")        
+    else:
+        cb.set_label("O-mode SNR (dB)")
 #    plt.subplot(122)    
  #   plt.pcolormesh(fvec/1e6,rvec,10.0*n.log10(SNR[1,:,:].T),vmin=-10,vmax=30)#,10.0*n.log10(S[1,:,:].T))
   #  plt.title("Digisonde Ramfjordmoen-TGO (X-mode)\n%s"%(unix2date(i0/25e6)))
@@ -401,6 +401,7 @@ def realtime_ionogram(args):
     interval = p["sounding_interval"]
 
     # compute next sounding start
+    # TBD fix
     t0 = interval * sr * n.ceil(b[1] / sr / interval) + p["start_offset"]*sr
 
     output_dir = p["output_dir"]
