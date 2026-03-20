@@ -425,9 +425,15 @@ def realtime_ionogram(args):
     sr = p["sr"]
     interval = p["sounding_interval"]
 
+    period_samp = int(interval * sr)
+    offset_samp = int(p["start_offset"] * sr)
+
+    # First sounding time at or after b[1], on the grid:
+    # t = offset_samp + k * period_samp
+    t0 = offset_samp + period_samp * int(n.ceil((b[1] - offset_samp) / period_samp))
     # compute next sounding start
     # TBD fix
-    t0 = interval * sr * n.ceil(b[1] / sr / interval) + p["start_offset"]*sr
+#    t0 = interval * sr * n.ceil(b[1] / sr / interval) + p["start_offset"]*sr
 
     output_dir = p["output_dir"]
     dname = "%s/%s" % (output_dir, cd.unix2dirname(t0/sr))
