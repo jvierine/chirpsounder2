@@ -24,15 +24,16 @@ def scan_for_chirps(conf, cfb, block0=None):
     d = drf.DigitalRFReader(conf.data_dir)
     channelnames = d.get_channels()
     b0 = d.get_bounds(channelnames[0])
-
+    
     # figure out what is the next block for this thread
     if block0 == None:
         block0=int(n.ceil(b0[0]/(conf.n_samples_per_block*conf.step)))
     block1 = int(n.floor(b0[1]/(conf.n_samples_per_block*conf.step)))
 
+    
     # mpi scan through dataset
     for block_idx in range(block0, block1):
-        #print('block_idx: %i' % block_idx)
+#        print('block_idx: %i' % block_idx)
         if block_idx % size == rank:
             # this is my block!
             try:
@@ -64,9 +65,15 @@ if __name__ == "__main__":
     conf = cc.chirp_config(args.config)
 
     cfb = c.chirp_matched_filter_bank(conf)
+    print("starting")
 
     if not conf.realtime:
-        scan_for_chirps(conf, cfb)
+        try:
+            scan_for_chirps(conf, cfb)
+        except:
+            print("error. catching exception.")
+            traceback.print_exc()
+            time.sleep(1)
     else:
         block1 = None
         while True:
@@ -74,6 +81,8 @@ if __name__ == "__main__":
                 print("kill.txt found, stopping detect_chirps.py")
                 sys.exit(0)
             else:
+                
                 block1=scan_for_chirps(conf, cfb, block1)
+                #print(block1)
                 time.sleep(0.001)
 
