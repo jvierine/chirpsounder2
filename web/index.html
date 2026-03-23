@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Live TGO Oblique Sounding Dashboard</title>
+
+<meta http-equiv="refresh" content="60">
+
+<style>
+    body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        color: #0f172a;
+        background: white;
+    }
+
+    h1 {
+        text-align: center;
+        padding: 20px;
+        margin: 0;
+    }
+
+    .dashboard {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        gap: 16px;
+        padding: 16px;
+    }
+
+    .card {
+        background: white;
+        border-radius: 12px;
+        padding: 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        position: relative;
+    }
+
+    .card h2 {
+        font-size: 16px;
+        margin: 8px 0 10px 0;
+        text-align: center;
+    }
+
+    img {
+        width: 100%;
+        height: auto;
+        object-fit: contain;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+    }
+    .logo{ width: 100px}
+    
+    .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+
+    @media (max-width: 600px) {
+        .grid-2 {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0,0,0,0.9);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease;
+    }
+
+    .overlay img {
+        max-width: 95vw;
+        max-height: 95vh;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        border-radius: 10px;
+        cursor: pointer;
+    }
+
+    .overlay.active {
+        opacity: 1;
+        pointer-events: all;
+    }
+</style>
+</head>
+
+<body>
+<!-- <div class=".logo"><img src="https://www.tgo.uit.no/UitLogo.png"/></div> -->
+<h1> Live TGO Oblique Sounding Dashboard</h1>
+<div id="utc-time" class="utc-time">---------- --:--:-- UTC</div>
+<center><a href="https://github.com/jvierine/chirpsounder2">github.com/jvierine/chirpsounder2</a></center>
+
+
+<style>
+  .utc-time {
+  font-size: 1.6rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  font-family: monospace;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+//  margin-top: 10px;
+
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  .utc-time.tick {
+  opacity: 0.6;
+  transform: scale(1.05);
+ }
+
+</style>
+
+<script>
+const utcEl = document.getElementById("utc-time");
+
+function updateUtcTime() {
+  const now = new Date();
+
+  const year = now.getUTCFullYear();
+  const month = String(now.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(now.getUTCDate()).padStart(2, "0");
+
+  const hours = String(now.getUTCHours()).padStart(2, "0");
+  const minutes = String(now.getUTCMinutes()).padStart(2, "0");
+  const seconds = String(now.getUTCSeconds()).padStart(2, "0");
+
+// utcEl.classList.add("tick");
+
+  utcEl.textContent =
+    `${year}-${month}-${day} ${hours}:${minutes}:${seconds} UTC`;
+
+  setTimeout(() => utcEl.classList.remove("tick"), 200);
+}
+
+updateUtcTime();
+setInterval(updateUtcTime, 1000);
+</script>
+
+
+<div class="dashboard">
+
+<div class="card">
+    <h2 id="card-title"></h2>
+
+    <div class="image-container">
+        <button id="prev-btn">←</button>
+
+        <img id="card-image" src="" alt="Looped image">
+
+        <button id="next-btn">→</button>
+    </div>
+
+    <div class="controls">
+        <button id="play-stop-btn">Stop</button>
+    </div>
+</div>
+  <script>
+const images = [
+    {
+        title: "Digisonde (Ramfjordmoen → TGO)",
+        src: "latest-digisonde-Ramfjordmoen-TGO.png"
+    },
+    {
+        title: "LFM (SGO → TGO)",
+        src: "latest-lfm-SGO-TGO.png"
+    },
+    {
+        title: "Digisonde (Juliusruh → TGO)",
+        src: "latest-digisonde-Juliusruh-TGO.png"
+    }
+];
+
+// Add more images here later if needed 👆
+
+let currentIndex = 0;
+let playing = true;
+let interval = null;
+
+const imageElement = document.getElementById("card-image");
+const titleElement = document.getElementById("card-title");
+const playStopBtn = document.getElementById("play-stop-btn");
+
+function showImage(index) {
+    titleElement.textContent = images[index].title;
+    imageElement.src = images[index].src;
+}
+
+function nextImage() {
+    currentIndex = (currentIndex + 1) % images.length;
+    showImage(currentIndex);
+}
+
+function prevImage() {
+    currentIndex =
+        (currentIndex - 1 + images.length) % images.length;
+    showImage(currentIndex);
+}
+
+function startLoop() {
+    interval = setInterval(nextImage, 2000);
+}
+
+function stopLoop() {
+    clearInterval(interval);
+}
+
+document.getElementById("next-btn").onclick = () => {
+    nextImage();
+};
+
+document.getElementById("prev-btn").onclick = () => {
+    prevImage();
+};
+
+playStopBtn.onclick = () => {
+    if (playing) {
+        stopLoop();
+        playStopBtn.textContent = "Play";
+    } else {
+        startLoop();
+        playStopBtn.textContent = "Stop";
+    }
+    playing = !playing;
+};
+
+// Initialize
+showImage(currentIndex);
+startLoop();
+</script>
+
+<!--
+    <div class="card">
+        <h2>Digisonde (Ramfjordmoen → TGO)</h2>
+        <img src="latest-digisonde-Ramfjordmoen-TGO.png">
+    </div>
+
+    <div class="card">
+        <h2>LFM (SGO → TGO)</h2>
+        <img src="latest-lfm-SGO-TGO.png">
+    </div>
+
+    <div class="card">
+          <h2>Digisonde (Juliusruh → TGO)</h2>
+        <img src="latest-digisonde-Juliusruh-TGO.png">
+    </div>
+-->
+
+    <div class="card">
+        <h2>Ramfjordmoen → TGO</h2>
+        <div class="grid-2">
+            <div>
+                <h3>Today</h3>
+                <img src="latest-rti-Ramfjordmoen-TGO.png">
+            </div>
+            <div>
+                <h3>Yesterday</h3>
+                <img src="yesterday-rti-Ramfjordmoen-TGO.png">
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>SGO → TGO</h2>
+        <div class="grid-2">
+            <div>
+                <h3>Today</h3>
+                <img src="latest-rti-SGO-TGO.png">
+            </div>
+            <div>
+                <h3>Yesterday</h3>
+                <img src="yesterday-rti-SGO-TGO.png">
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>ROTHR JORN</h2>
+        <div class="grid-2">
+            <div>
+                <h3>Today</h3>
+                <img src="rothr_jorn_today.png">
+            </div>
+            <div>
+                <h3>Yesterday</h3>
+                <img src="rothr_jorn_yesterday.png">
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Network (Scandinavia)</h2>
+        <img src="map_scand.png">
+    </div>
+    <div class="card">
+        <h2>Network (Global)</h2>
+        <img src="map_all.png">
+    </div>
+
+    
+</div>
+
+<div class="overlay" id="overlay">
+    <img id="overlayImg" src="">
+</div>
+
+<script>
+    const overlay = document.getElementById('overlay');
+    const overlayImg = document.getElementById('overlayImg');
+
+    document.querySelectorAll('img').forEach(img => {
+        img.addEventListener('click', () => {
+            if (overlay.classList.contains('active') && overlayImg.src === img.src) {
+                overlay.classList.remove('active');
+                overlayImg.src = '';
+            } else {
+                overlay.classList.add('active');
+                overlayImg.src = img.src;
+            }
+        });
+    });
+
+    overlay.addEventListener('click', () => {
+        overlay.classList.remove('active');
+        overlayImg.src = '';
+    });
+</script>
+
+</body>
+</html>
+

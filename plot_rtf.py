@@ -22,7 +22,7 @@ def get_day_view(conf,tx,rx,dirname,pfname="/tmp/latest-rti.png"):
     fl=glob.glob("%s/%s/*_ionogram-%s-%s-*.h5"%(conf.output_dir,dirname,tx,rx))
     fl.sort()
     if len(fl)<3:
-        print("not enough soundings %s %s %s"%(sounder_type,tx,rx))
+        print("not enough soundings %s %s"%(tx,rx))
         return
     h=h5py.File(fl[0],"r")
     if "type" in h.keys() and h["type"][()].decode("utf-8") == "digisonde":
