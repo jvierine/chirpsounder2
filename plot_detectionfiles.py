@@ -132,7 +132,7 @@ def plot_propagation_range(dfs, start_t, n_hours=24,min_detections=5, pfname="/t
     plt.xticks(rotation=45)
 
     fig.align_ylabels(ax)
-    plt.show()
+#    plt.show()
     plt.savefig(pfname)
     plt.close()
     print("saved %s"%(pfname))
@@ -155,7 +155,7 @@ while True:
     conf = cc.chirp_config(args.config)
 
     dfs=[]
-    files=glob.glob("/data0/2*/cdetections*.h5")
+    files=glob.glob("%s/2*/cdetections*.h5"%(conf.output_dir))
     files.sort()
     
     n_days=2
