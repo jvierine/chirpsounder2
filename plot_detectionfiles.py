@@ -64,15 +64,18 @@ def plot_propagation_range(dfs, start_t, n_hours=24,min_detections=5, pfname="/t
         cmap="rainbow",
         vmin=5,vmax=25
     )
-    ax[0].set_ylim([-5e3,22e3])
+    ax[0].set_ylim([-5e3,17.5e3])
     cb1 = plt.colorbar(sc1, ax=ax[0])
     cb1.set_label("Frequency (MHz)")
     
-
+    # grey band
+    ax[0].axhspan(3900, 5500, color='grey', alpha=0.2, label='Cyprus', zorder=0)
+    ax[0].axhspan(13500, 16900,color='grey', alpha=0.1, label='Australia', zorder=0)
+    ax[0].axhspan(6.3e3, 10e3, color='grey', alpha=0.3, label='US', zorder=0)    
     
     ax[0].set_ylabel("One-way virtual propagation range (km)")
     # ax[0].set_ylim([0, 42000])
-
+    ax[0].legend()
 
     crs=n.array(dfs[gidx,3]/1e3,dtype=int)
     freqs=dfs[gidx,2]/1e6
@@ -88,6 +91,8 @@ def plot_propagation_range(dfs, start_t, n_hours=24,min_detections=5, pfname="/t
         vmin=-5e3,
         vmax=20e3,
     )
+
+
     cb2=plt.colorbar(sc2, ax=ax[1])
     cb2.set_label("Virtual propagation distance (km)")
 
@@ -127,6 +132,7 @@ def plot_propagation_range(dfs, start_t, n_hours=24,min_detections=5, pfname="/t
     plt.xticks(rotation=45)
 
     fig.align_ylabels(ax)
+    plt.show()
     plt.savefig(pfname)
     plt.close()
     print("saved %s"%(pfname))
