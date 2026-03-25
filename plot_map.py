@@ -29,7 +29,7 @@ def plot_map(conf, set_extent=True, ofname="map.png"):
 
     # Set extent
     if set_extent:
-        ax.set_extent([-10, 40, 50, 80])
+        ax.set_extent([-10, 40, 45, 90])
 
     # ✅ Add gridlines
     gl = ax.gridlines(
