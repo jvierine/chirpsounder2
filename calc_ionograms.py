@@ -347,7 +347,8 @@ def analyze_realtime(conf, d):
     """
     st = conf.sounder_timings[rank]
     n_sounders = len(st)
-
+    last_t0=-1
+    last_cid=-1
     while True:    
         if kill(conf):
             print("kill.txt found, stopping calc_ionograms.py")
@@ -382,31 +383,35 @@ def analyze_realtime(conf, d):
                         best_wait_time = wait_time
                         best_id = cid
                         best_txname=txname
+                        
                 rep = np.float128(st[best_sounder]["rep"])
                 chirpt = np.float128(st[best_sounder]["chirpt"])
                 chirp_rate = st[best_sounder]["chirp-rate"]
                 next_t0 = float(best_t0)
                 txname=best_txname
+                
                 print("Rank %d chirp id %d name %s analyzing chirp-rate %1.2f kHz/s chirpt %1.4f rep %1.2f" %
                     (rank ,best_id ,txname, chirp_rate / 1e3, chirpt, rep))
                 i0 = int(next_t0 * conf.sample_rate)
                 realtime_req = conf.sample_rate / chirp_rate
+                
                 print("Buffer extent %1.2f-%1.2f launching next chirp at %1.2f %s" % (b[0]/conf.sample_rate,
                                                                                       b[1]/conf.sample_rate,
                                                                                       next_t0,
                                                                                       cd.unix2datestr(next_t0)))
-
-
-                chirp_downconvert(conf,
-                                  next_t0,
-                                  d,
-                                  i0,
-                                  ch,
-                                  chirp_rate,
-                                  realtime_req=realtime_req,
-                                  dec=conf.decimation,
-                                  txname=txname,
-                                  cid=best_id)
+                if (next_t0 != last_t0) and (last_cid != best_id):
+                    chirp_downconvert(conf,
+                                      next_t0,
+                                      d,
+                                      i0,
+                                      ch,
+                                      chirp_rate,
+                                      realtime_req=realtime_req,
+                                      dec=conf.decimation,
+                                      txname=txname,
+                                      cid=best_id)
+                    last_cid=best_id
+                    last_t0=next_t0
 
 
 def get_next_chirp_par_file(conf, d, ch):
