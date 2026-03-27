@@ -43,7 +43,7 @@ if __name__ == "__main__":
     fftlen = 1024 * 2 * 2 * 2 * 2 * 2 * 2 * 2
     print("fftlen %d freqeuency resolution %f (kHz)" %
           (fftlen, sr / fftlen / 1e3))
-    wfun = n.array(ss.hann(fftlen), dtype=n.float32)
+    wfun = n.array(ss.windows.hann(fftlen), dtype=n.float32)
     S = n.zeros(fftlen, dtype=n.float32)
 
     dt = int(sr) * 60

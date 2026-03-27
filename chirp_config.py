@@ -31,7 +31,7 @@ class chirp_config:
                         "receiver_station_name": '"station_name"',
                         "plot_timings": "false",
                         "realtime": "false",
-                        "ringbuffer_max_age_min":"5",
+                        "ringbuffer_max_age_min":"4",
                         "ringbuffer_cleanup":"false",
                         "serendipitous": "false",
                         }

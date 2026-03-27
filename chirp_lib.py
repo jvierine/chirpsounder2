@@ -41,7 +41,7 @@ class chirp_downconvert:
         self.dec2 = filter_len * dec
         self.m = n.array(n.arange(filter_len * dec) - dec, dtype=n.float32)
         # windowed low pass filter
-        self.wfun = n.array(ss.hann(len(self.m)) * n.sin(self.om0 *
+        self.wfun = n.array(ss.windows.hann(len(self.m)) * n.sin(self.om0 *
                             (self.m + 1e-6)) / (n.pi * (self.m + 1e-6)), dtype=n.float32)
         # the window function could be twice the decimation rate
         self.chirpt = 0.0
