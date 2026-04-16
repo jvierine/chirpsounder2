@@ -13,7 +13,6 @@ def housekeeping(conf):
             os.system(cmd)            
             cmd="find %s -type f -mmin +%d -name 'tmp*rf*.h5' -delete"%(conf.data_dir,conf.ringbuffer_max_age_min)
             print(cmd)            
-            print("check the command and uncomment line starting with os.system to execute. disabled by default, as this is a dangerous command if you have the wrong data directory!")
             os.system(cmd)
             time.sleep(1)
         

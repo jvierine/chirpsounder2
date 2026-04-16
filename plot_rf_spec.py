@@ -22,7 +22,7 @@ if __name__ == "__main__":
     d = drf.DigitalRFReader(conf.data_dir)
     b = d.get_bounds(conf.channel[0])
     dt = n.floor((b[1] - b[0] - conf.sample_rate) / n_spec)
-    wf = n.array(ss.hann(n_fft), dtype=n.float32)
+    wf = n.array(ss.windows.hann(n_fft), dtype=n.float32)
     S = n.zeros([n_fft, n_spec], dtype=n.float32)
     i0 = b[0] + conf.sample_rate
     rms_voltage = 0.0

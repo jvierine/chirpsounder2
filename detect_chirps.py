@@ -23,7 +23,11 @@ def kill(conf):
 def scan_for_chirps(conf, cfb, block0=None):
     d = drf.DigitalRFReader(conf.data_dir)
     channelnames = d.get_channels()
-    b0 = d.get_bounds(channelnames[0])
+    try:
+        b0 = d.get_bounds(channelnames[0])
+    except:
+        print("no data")
+        return None
     
     # figure out what is the next block for this thread
     if block0 == None:
@@ -48,8 +52,9 @@ def scan_for_chirps(conf, cfb, block0=None):
                 print("%d/%d Analyzing %s speed %1.2f * realtime" % 
                       (rank+1, size, c.unix2datestr(i0 / conf.sample_rate), size * analysis_time / (cput1 - cput0)))
             except Exception as e:
-                print(e)
-                traceback.print_exc()
+                print("Skipping block, as we are not realtime")
+#                print(e)
+ #               traceback.print_exc()
     return(block1)
 
 if __name__ == "__main__":
@@ -81,8 +86,12 @@ if __name__ == "__main__":
                 print("kill.txt found, stopping detect_chirps.py")
                 sys.exit(0)
             else:
-                
-                block1=scan_for_chirps(conf, cfb, block1)
-                #print(block1)
-                time.sleep(0.001)
+                try:
+                    block1=scan_for_chirps(conf, cfb, block1)
+                    #print(block1)
+                    time.sleep(0.001)
+                except:
+                    print("problem. retrying in a bit.")
+                    time.sleep(60)
+
 

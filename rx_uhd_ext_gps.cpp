@@ -287,29 +287,32 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     //auto run_duration = std::chrono::seconds(30);  // 24 hours
     auto end_time = start_time + run_duration;
 
-    const double guard = 0.2; // 200 ms 
-    while (true)
-    {
-      auto now = std::chrono::system_clock::now();
-      auto secs = std::chrono::time_point_cast<std::chrono::seconds>(now);
-      auto frac = std::chrono::duration<double>(now - secs).count();
-
-      if (frac < (1.0 - guard))
-      {
-        // safe to schedule
-        time_t pc_secs = secs.time_since_epoch().count();
-
-        std::cout << "PC time now: " << pc_secs << " + " << frac << " sec\n";
-        std::cout << "Setting USRP time to: " << pc_secs+1 << " at next PPS";
-        // schedule time reset on next PPS
-        usrp->set_time_next_pps(uhd::time_spec_t(pc_secs + 1));
-
-        break;
-      }
-
-      // too close to next second → wait a bit
-      std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    uhd::time_spec_t last_pps = usrp->get_time_last_pps();
+    std::cout << "last_pps: " << last_pps.get_real_secs() << "\n";
+    std::cout << "waiting for next pps\n";
+    while (usrp->get_time_last_pps() == last_pps) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
+    
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    //const double guard = 0.3; // 200 ms 
+    //    while (true)
+    //{
+    auto now = std::chrono::system_clock::now();
+    auto secs = std::chrono::time_point_cast<std::chrono::seconds>(now);
+    auto frac = std::chrono::duration<double>(now - secs).count();
+
+    // safe to schedule
+    time_t pc_secs = secs.time_since_epoch().count();
+    
+    std::cout << "PC time now: " << pc_secs << " + " << frac << " sec\n";
+    std::cout << "Setting USRP time to: " << pc_secs+1 << " at next PPS\n";
+    // schedule time reset on next PPS
+    usrp->set_time_next_pps(uhd::time_spec_t(pc_secs + 1));
+    //	std::cout << "Setting USRP time to: " << pc_secs+1 << " at next PPS";
+    // too close to next second → wait a bit
+    //    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+
     
 
     // Wait for it to apply

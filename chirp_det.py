@@ -84,7 +84,7 @@ class chirp_matched_filter_bank:
         # centered around zero frequency
         self.chirps = []
         self.wf = n.array(
-            ss.hann(self.conf.n_samples_per_block), dtype=n.float32)
+            ss.windows.hann(self.conf.n_samples_per_block), dtype=n.float32)
         for cr in self.conf.chirp_rates:
             print("creating filter with chirp-rate %1.2f kHz/s" % (cr / 1e3))
             chirp_vec = n.array(self.wf * n.conj(self.chirpf(cr=cr)))
