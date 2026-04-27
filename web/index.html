@@ -20,6 +20,22 @@
         margin: 0;
     }
 
+ 
+.header {
+  display: flex;
+  align-items: center; /* vertically aligns logo and text */
+  justify-content: center; /* centers the whole block horizontally */
+}
+
+.logo {
+/*  height: 200px; */
+  margin-right: 12px;
+}
+
+.headertext {
+  font-size: 24px; /* optional styling */
+  font-weight: bold;
+}
     .dashboard {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
@@ -62,14 +78,29 @@
             grid-template-columns: 1fr;
         }
     }
-
-    .overlay {
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh; /* fill full viewport height */
+    background: rgba(0,0,0,0.3);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+ /*   .overlay {
         position: fixed;
         top: 0;
         left: 0;
-        width: 100vw;
-        height: 100vh;
-        background: rgba(0,0,0,0.9);
+        width: 100%;
+        height: auto;
+	# 100vh;
+        background: rgba(0,0,0,0.3);
         display: flex;
         justify-content: center;
         align-items: center;
@@ -88,8 +119,33 @@
         border-radius: 10px;
         cursor: pointer;
     }
+*/
 
-    .overlay.active {
+.overlay {
+    position: fixed;
+    inset: 0; /* shorthand for top:0; left:0; right:0; bottom:0 */
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0,0,0,0.3);
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    z-index: 9999;
+
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+.overlay img {
+    max-width: 95vw;
+    max-height: 95vh;
+    border-radius: 10px;
+    object-fit: contain;
+    cursor: pointer;
+}
+.overlay.active {
         opacity: 1;
         pointer-events: all;
     }
@@ -97,8 +153,8 @@
 </head>
 
 <body>
-<!-- <div class=".logo"><img src="https://www.tgo.uit.no/UitLogo.png"/></div> -->
-<h1> Live TGO Oblique Sounding Dashboard</h1>
+
+<center><div class="header">  <img class="logo" src="https://www.tgo.uit.no/UitLogo.png"/><div class="headertext"> Live TGO Oblique Sounding Dashboard</div></div></center>
 <div id="utc-time" class="utc-time">---------- --:--:-- UTC</div>
 <center><a href="https://github.com/jvierine/chirpsounder2">github.com/jvierine/chirpsounder2</a></center>
 
@@ -154,6 +210,7 @@ setInterval(updateUtcTime, 1000);
 
 <div class="dashboard">
 
+<!--  
 <div class="card">
     <h2 id="card-title"></h2>
 
@@ -242,7 +299,7 @@ playStopBtn.onclick = () => {
 showImage(currentIndex);
 startLoop();
 </script>
-
+-->
 <!--
     <div class="card">
         <h2>Digisonde (Ramfjordmoen → TGO)</h2>
@@ -260,7 +317,22 @@ startLoop();
     </div>
 -->
 
-    <div class="card">
+    
+<!--    <div class="card">
+        <h2>Ramfjordmoen → TGO</h2>
+        <div class="grid-2">
+            <div>
+                <h3>Today</h3>
+                <img src="latest-rti-Ramfjordmoen-DMB.png">
+            </div>
+            <div>
+                <h3>Yesterday</h3>
+                <img src="yesterday-rti-Ramfjordmoen-DMB.png">
+            </div>
+        </div>
+    </div>
+-->
+<!--    <div class="card">
         <h2>Ramfjordmoen → TGO</h2>
         <div class="grid-2">
             <div>
@@ -273,8 +345,24 @@ startLoop();
             </div>
         </div>
     </div>
+-->
 
     <div class="card">
+        <h2>Ramfjordmoen → DMB</h2>
+        <div class="grid-2">
+            <div>
+                <h3>Today</h3>
+                <img src="latest-rti-Ramfjordmoen-DMB.png">
+            </div>
+            <div>
+                <h3>Yesterday</h3>
+                <img src="yesterday-rti-Ramfjordmoen-DMB.png">
+            </div>
+        </div>
+    </div>
+    
+    
+<!--    <div class="card">
         <h2>SGO → TGO</h2>
         <div class="grid-2">
             <div>
@@ -286,10 +374,24 @@ startLoop();
                 <img src="yesterday-rti-SGO-TGO.png">
             </div>
         </div>
-    </div>
+    </div>-->
 
     <div class="card">
-        <h2>ROTHR JORN</h2>
+        <h2>SGO → DMB</h2>
+        <div class="grid-2">
+            <div>
+                <h3>Today</h3>
+                <img src="latest-rti-SGO-DMB.png">
+            </div>
+            <div>
+                <h3>Yesterday</h3>
+                <img src="yesterday-rti-SGO-DMB.png">
+            </div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <h2>Long range (Cyprus, Australia, US)</h2>
         <div class="grid-2">
             <div>
                 <h3>Today</h3>
@@ -302,6 +404,21 @@ startLoop();
         </div>
     </div>
 
+<!--
+    <div class="card">
+        <h2>Long range (Cyprus, Australia, US)</h2>
+        <div class="grid-2">
+            <div>
+                <h3>Today</h3>
+                <img src="rothr_jorn_today.png">
+            </div>
+            <div>
+                <h3>Yesterday</h3>
+                <img src="rothr_jorn_yesterday.png">
+            </div>
+        </div>
+    </div>
+    -->
     <div class="card">
         <h2>Network (Scandinavia)</h2>
         <img src="map_scand.png">
@@ -310,6 +427,69 @@ startLoop();
         <h2>Network (Global)</h2>
         <img src="map_all.png">
     </div>
+
+    <!--
+    <div class="card">
+        <h2>Ramfjordmoen → TGO</h2>
+        <img src="latest-digisonde-Ramfjordmoen-TGO.png"/>
+    </div>-->
+
+    <div class="card">
+        <h2>Ramfjordmoen → DMB</h2>
+        <img src="latest-digisonde-Ramfjordmoen-DMB.png"/>
+    </div>
+    <!--
+    <div class="card">
+        <h2>SGO → TGO</h2>
+        <img src="latest-lfm-SGO-TGO.png"/>      
+    </div>-->
+
+    <div class="card">
+        <h2>SGO → Dombås</h2>
+        <img src="latest-lfm-SGO-DMB.png"/>      
+    </div>    
+        <!--
+    <div class="card">
+        <h2>Juliusruh → TGO</h2>
+        <img src="latest-digisonde-Juliusruh-TGO.png"/>      
+    </div>    
+-->
+    <div class="card">
+        <h2>Juliusruh → DMB</h2>
+        <img src="latest-digisonde-Juliusruh-DMB.png"/>      
+    </div>    
+
+    
+<!--        
+<div class="card">
+        <h2>Thule → TGO</h2>
+        <img src="latest-digisonde-THJ76-TGO.png"/>      
+    </div>    -->
+	
+	<!--        
+        <div class="card">
+        <h2>Dourbes → TGO</h2>
+        <img src="latest-digisonde-DB049-TGO.png"/>      
+	</div>
+-->
+
+        <div class="card">
+        <h2>Dourbes → DMB</h2>
+        <img src="latest-digisonde-DB049-DMB.png"/>      
+	</div>
+
+	<!--        
+        <div class="card">
+        <h2>Chilton → TGO</h2>
+        <img src="latest-digisonde-Chilton-TGO.png"/>      
+    </div>    
+-->
+        <div class="card">
+        <h2>Chilton → DMB</h2>
+        <img src="latest-digisonde-Chilton-DMB.png"/>      
+    </div>    
+
+
 
     
 </div>
