@@ -19,7 +19,7 @@ def get_cpu_temperatures_c() -> dict:
             continue
         if in_coretemp_block and stripped.startswith("Adapter:"):
             continue
-        if in_coretemp_block and stripped and not line.startswith((" ", "\t")) and not stripped.startswith("coretemp-isa-"):
+        if in_coretemp_block and stripped and ":" not in stripped and not stripped.startswith("coretemp-isa-"):
             break
         if not in_coretemp_block:
             continue
