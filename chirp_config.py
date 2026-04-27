@@ -98,6 +98,11 @@ class chirp_config:
         
         if fname != None:
             if os.path.exists(fname):
+                fname = os.path.abspath(fname)
+                shared_fname = os.path.join(os.path.dirname(fname), "server.ini")
+                if shared_fname != fname and os.path.exists(shared_fname):
+                    print("reading %s" % (shared_fname))
+                    cf.read(shared_fname)
                 print("reading %s" % (fname))
                 cf.read(fname)
             else:
