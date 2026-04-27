@@ -1,0 +1,16 @@
+[Unit]
+Description=Chirpsounder Dombas receiver
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/tgo/src/chirpsounder2
+ExecStart=/usr/bin/bash /home/tgo/src/chirpsounder2/examples/marieluise/dombas.sh
+Restart=always
+RestartSec=5
+KillMode=control-group
+TimeoutStopSec=20
+
+[Install]
+WantedBy=default.target
