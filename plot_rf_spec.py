@@ -129,11 +129,12 @@ def collect_plot_data(reader: drf.DigitalRFReader, conf: cc.chirp_config, args: 
 def draw_plot(fig: plt.Figure, axes, conf: cc.chirp_config, args: argparse.Namespace, data: dict) -> None:
     axes[0].clear()
     axes[1].clear()
-    for extra_ax in fig.axes[2:]:
-        extra_ax.remove()
+    if hasattr(fig, "_rfspec_colorbar") and fig._rfspec_colorbar is not None:
+        fig._rfspec_colorbar.remove()
+        fig._rfspec_colorbar = None
 
     pcm = axes[0].pcolormesh(data["tvec"], data["fvec"], data["dB"], vmin=-10, vmax=50.0, cmap="plasma", shading="auto")
-    fig.colorbar(pcm, ax=axes[0], label="Relative power (dB)")
+    fig._rfspec_colorbar = fig.colorbar(pcm, ax=axes[0], label="Relative power (dB)")
     axes[0].set_title(f"$V_{{\\mathrm{{RMS}}}}={data['rms_voltage']:1.6f}$ (ADC units)")
     axes[0].set_xlabel("Time (s)")
     axes[0].set_ylabel("Frequency (MHz)")
@@ -165,7 +166,9 @@ def main() -> None:
     conf = load_config(args)
     reader = drf.DigitalRFReader(conf.data_dir)
 
-    fig, axes = plt.subplots(2, 1, figsize=(11, 8), constrained_layout=True)
+    fig, axes = plt.subplots(2, 1, figsize=(11, 8))
+    fig._rfspec_colorbar = None
+    fig.tight_layout()
 
     if args.refresh_sec > 0:
         plt.ion()
