@@ -47,23 +47,44 @@ def plot_map(conf, set_extent=True, ofname="map.png"):
     gl.xlabel_style = {'size': 10}
     gl.ylabel_style = {'size': 10}
 
-    for l in conf.station_links:
+    # Filter for DOB and TGO only
+    target_stations = {"DOB", "TGO"}
+    filtered_links = [l for l in conf.station_links if l[0] in target_stations or l[1] in target_stations]
+    stations_to_plot = target_stations.copy()
+    
+    # Add stations that connect to DOB or TGO
+    for l in filtered_links:
+        stations_to_plot.add(l[0])
+        stations_to_plot.add(l[1])
+    
+    # Plot links
+    for l in filtered_links:
+        print(l)
         lons=n.linspace(conf.station_info[l[0]]["lon"],conf.station_info[l[1]]["lon"],num=50)
         lats=n.linspace(conf.station_info[l[0]]["lat"],conf.station_info[l[1]]["lat"],num=50)
 
+        # Determine link color based on destination
+        if l[1] == "TGO" or l[0] == "TGO":
+            color = "orange"
+        elif l[1] == "DOB" or l[0] == "DOB":
+            color = "green"
+        else:
+            color = "black"
+        
         ax.plot(lons,lats,
-                color="black",transform=ccrs.PlateCarree())
+                color=color,transform=ccrs.PlateCarree())
     # Plot stations
     for name, s in stations.items():
-        lat = s["lat"]
-        lon = s["lon"]
+        if name in stations_to_plot:
+            lat = s["lat"]
+            lon = s["lon"]
 
-        ax.plot(
-            lon, lat,
-            marker='o',
-            transform=ccrs.PlateCarree(),
-            label=s["name"]
-        )
+            ax.plot(
+                lon, lat,
+                marker='o',
+                transform=ccrs.PlateCarree(),
+                label=s["name"]
+            )
 
 
     plt.legend()
