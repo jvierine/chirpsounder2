@@ -49,6 +49,12 @@ def parse_args() -> argparse.Namespace:
         default=100.0,
         help="Length of raw RF to plot in milliseconds.",
     )
+    parser.add_argument(
+        "--refresh-sec",
+        type=float,
+        default=0.0,
+        help="Automatically refresh the plot every N seconds. Set <= 0 for a one-shot plot.",
+    )
     return parser.parse_args()
 
 
@@ -67,23 +73,19 @@ def load_config(args: argparse.Namespace) -> cc.chirp_config:
     return conf
 
 
-def main() -> None:
-    args = parse_args()
-    conf = load_config(args)
-
-    reader = drf.DigitalRFReader(conf.data_dir)
+def collect_plot_data(reader: drf.DigitalRFReader, conf: cc.chirp_config, args: argparse.Namespace) -> dict:
     channel = conf.channel[0]
     bounds = reader.get_bounds(channel)
-
     n_spec = args.n_spec
     n_avg = args.n_avg
     n_fft = args.n_fft
     raw_n_samples = max(1, int(round(conf.sample_rate * args.raw_duration_ms / 1000.0)))
 
-    dt = int(n.floor((bounds[1] - bounds[0] - conf.sample_rate) / n_spec))
+    dt = max(1, int(n.floor((bounds[1] - bounds[0] - conf.sample_rate) / n_spec)))
     wf = n.array(ss.windows.hann(n_fft), dtype=n.float32)
     spec = n.zeros([n_fft, n_spec], dtype=n.float32)
-    i0 = int(bounds[0] + conf.sample_rate)
+    latest_span = (n_spec - 1) * dt + n_avg * n_fft
+    i0 = max(int(bounds[0] + conf.sample_rate), int(bounds[1] - conf.sample_rate - latest_span))
     rms_voltage = 0.0
     n_rms_voltage = 0.0
     tvec = n.zeros(n_spec)
@@ -109,15 +111,30 @@ def main() -> None:
 
         tvec[i] = i * dt / conf.sample_rate
 
-    dB = 10.0 * n.log10(spec)
+    dB = 10.0 * n.log10(n.maximum(spec, 1e-12))
     dB = dB - n.nanmedian(dB)
-    rms_voltage = n.sqrt(rms_voltage / n_rms_voltage)
+    rms_voltage = n.sqrt(rms_voltage / max(n_rms_voltage, 1.0))
+    raw_t = None if raw_z is None else n.arange(raw_z.size) / conf.sample_rate * 1e3
 
-    fig, axes = plt.subplots(2, 1, figsize=(11, 8), constrained_layout=True)
+    return {
+        "tvec": tvec,
+        "fvec": fvec,
+        "dB": dB,
+        "rms_voltage": rms_voltage,
+        "raw_t": raw_t,
+        "raw_z": raw_z,
+    }
 
-    pcm = axes[0].pcolormesh(tvec, fvec, dB, vmin=-10, vmax=50.0, cmap="plasma", shading="auto")
+
+def draw_plot(fig: plt.Figure, axes, conf: cc.chirp_config, args: argparse.Namespace, data: dict) -> None:
+    axes[0].clear()
+    axes[1].clear()
+    for extra_ax in fig.axes[2:]:
+        extra_ax.remove()
+
+    pcm = axes[0].pcolormesh(data["tvec"], data["fvec"], data["dB"], vmin=-10, vmax=50.0, cmap="plasma", shading="auto")
     fig.colorbar(pcm, ax=axes[0], label="Relative power (dB)")
-    axes[0].set_title(f"$V_{{\\mathrm{{RMS}}}}={rms_voltage:1.6f}$ (ADC units)")
+    axes[0].set_title(f"$V_{{\\mathrm{{RMS}}}}={data['rms_voltage']:1.6f}$ (ADC units)")
     axes[0].set_xlabel("Time (s)")
     axes[0].set_ylabel("Frequency (MHz)")
     axes[0].set_ylim(
@@ -127,10 +144,9 @@ def main() -> None:
         ]
     )
 
-    if raw_z is not None:
-        raw_t = n.arange(raw_z.size) / conf.sample_rate * 1e3
-        axes[1].plot(raw_t, raw_z.real, label="Re", linewidth=0.8)
-        axes[1].plot(raw_t, raw_z.imag, label="Im", linewidth=0.8)
+    if data["raw_z"] is not None:
+        axes[1].plot(data["raw_t"], data["raw_z"].real, label="Re", linewidth=0.8)
+        axes[1].plot(data["raw_t"], data["raw_z"].imag, label="Im", linewidth=0.8)
         axes[1].set_title(f"Raw RF, {args.raw_duration_ms:g} ms")
         axes[1].set_xlabel("Time (ms)")
         axes[1].set_ylabel("ADC units")
@@ -141,7 +157,26 @@ def main() -> None:
         axes[1].set_xlabel("Time (ms)")
         axes[1].set_ylabel("ADC units")
 
-    plt.show()
+    fig.canvas.draw_idle()
+
+
+def main() -> None:
+    args = parse_args()
+    conf = load_config(args)
+    reader = drf.DigitalRFReader(conf.data_dir)
+
+    fig, axes = plt.subplots(2, 1, figsize=(11, 8), constrained_layout=True)
+
+    if args.refresh_sec > 0:
+        plt.ion()
+        while plt.fignum_exists(fig.number):
+            data = collect_plot_data(reader, conf, args)
+            draw_plot(fig, axes, conf, args, data)
+            plt.pause(args.refresh_sec)
+    else:
+        data = collect_plot_data(reader, conf, args)
+        draw_plot(fig, axes, conf, args, data)
+        plt.show()
 
 
 if __name__ == "__main__":
