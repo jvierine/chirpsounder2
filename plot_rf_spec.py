@@ -8,6 +8,7 @@ from pathlib import Path
 
 import digital_rf as drf
 import matplotlib.pyplot as plt
+from matplotlib.gridspec import GridSpec
 import numpy as n
 import scipy.signal as ss
 
@@ -126,19 +127,17 @@ def collect_plot_data(reader: drf.DigitalRFReader, conf: cc.chirp_config, args: 
     }
 
 
-def draw_plot(fig: plt.Figure, axes, conf: cc.chirp_config, args: argparse.Namespace, data: dict) -> None:
-    axes[0].clear()
-    axes[1].clear()
-    if hasattr(fig, "_rfspec_colorbar") and fig._rfspec_colorbar is not None:
-        fig._rfspec_colorbar.remove()
-        fig._rfspec_colorbar = None
+def draw_plot(fig: plt.Figure, spec_ax, raw_ax, cbar_ax, conf: cc.chirp_config, args: argparse.Namespace, data: dict) -> None:
+    spec_ax.clear()
+    raw_ax.clear()
+    cbar_ax.clear()
 
-    pcm = axes[0].pcolormesh(data["tvec"], data["fvec"], data["dB"], vmin=-10, vmax=50.0, cmap="plasma", shading="auto")
-    fig._rfspec_colorbar = fig.colorbar(pcm, ax=axes[0], label="Relative power (dB)")
-    axes[0].set_title(f"$V_{{\\mathrm{{RMS}}}}={data['rms_voltage']:1.6f}$ (ADC units)")
-    axes[0].set_xlabel("Time (s)")
-    axes[0].set_ylabel("Frequency (MHz)")
-    axes[0].set_ylim(
+    pcm = spec_ax.pcolormesh(data["tvec"], data["fvec"], data["dB"], vmin=-10, vmax=50.0, cmap="plasma", shading="auto")
+    fig.colorbar(pcm, cax=cbar_ax, label="Relative power (dB)")
+    spec_ax.set_title(f"$V_{{\\mathrm{{RMS}}}}={data['rms_voltage']:1.6f}$ (ADC units)")
+    spec_ax.set_xlabel("Time (s)")
+    spec_ax.set_ylabel("Frequency (MHz)")
+    spec_ax.set_ylim(
         [
             -conf.sample_rate / 2.0 / 1e6 + conf.center_freq / 1e6,
             conf.sample_rate / 2.0 / 1e6 + conf.center_freq / 1e6,
@@ -146,17 +145,17 @@ def draw_plot(fig: plt.Figure, axes, conf: cc.chirp_config, args: argparse.Names
     )
 
     if data["raw_z"] is not None:
-        axes[1].plot(data["raw_t"], data["raw_z"].real, label="Re", linewidth=0.8)
-        axes[1].plot(data["raw_t"], data["raw_z"].imag, label="Im", linewidth=0.8)
-        axes[1].set_title(f"Raw RF, {args.raw_duration_ms:g} ms")
-        axes[1].set_xlabel("Time (ms)")
-        axes[1].set_ylabel("ADC units")
-        axes[1].legend(loc="upper right")
+        raw_ax.plot(data["raw_t"], data["raw_z"].real, label="Re", linewidth=0.8)
+        raw_ax.plot(data["raw_t"], data["raw_z"].imag, label="Im", linewidth=0.8)
+        raw_ax.set_title(f"Raw RF, {args.raw_duration_ms:g} ms")
+        raw_ax.set_xlabel("Time (ms)")
+        raw_ax.set_ylabel("ADC units")
+        raw_ax.legend(loc="upper right")
     else:
-        axes[1].text(0.5, 0.5, "Raw RF unavailable", ha="center", va="center", transform=axes[1].transAxes)
-        axes[1].set_title(f"Raw RF, {args.raw_duration_ms:g} ms")
-        axes[1].set_xlabel("Time (ms)")
-        axes[1].set_ylabel("ADC units")
+        raw_ax.text(0.5, 0.5, "Raw RF unavailable", ha="center", va="center", transform=raw_ax.transAxes)
+        raw_ax.set_title(f"Raw RF, {args.raw_duration_ms:g} ms")
+        raw_ax.set_xlabel("Time (ms)")
+        raw_ax.set_ylabel("ADC units")
 
     fig.canvas.draw_idle()
 
@@ -166,19 +165,22 @@ def main() -> None:
     conf = load_config(args)
     reader = drf.DigitalRFReader(conf.data_dir)
 
-    fig, axes = plt.subplots(2, 1, figsize=(11, 8))
-    fig._rfspec_colorbar = None
+    fig = plt.figure(figsize=(11, 8))
+    gs = GridSpec(2, 2, figure=fig, width_ratios=[30, 1], height_ratios=[3, 2])
+    spec_ax = fig.add_subplot(gs[0, 0])
+    raw_ax = fig.add_subplot(gs[1, 0])
+    cbar_ax = fig.add_subplot(gs[0, 1])
     fig.tight_layout()
 
     if args.refresh_sec > 0:
         plt.ion()
         while plt.fignum_exists(fig.number):
             data = collect_plot_data(reader, conf, args)
-            draw_plot(fig, axes, conf, args, data)
+            draw_plot(fig, spec_ax, raw_ax, cbar_ax, conf, args, data)
             plt.pause(args.refresh_sec)
     else:
         data = collect_plot_data(reader, conf, args)
-        draw_plot(fig, axes, conf, args, data)
+        draw_plot(fig, spec_ax, raw_ax, cbar_ax, conf, args, data)
         plt.show()
 
 
