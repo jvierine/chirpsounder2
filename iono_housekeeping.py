@@ -8,16 +8,27 @@ import matplotlib.pyplot as plt
 import numpy as n
 
 
-def get_cpu_temperature_c() -> float:
+def get_cpu_temperatures_c() -> dict:
     out = subprocess.check_output(["sensors"], text=True)
-    temps = []
+    temps = {}
+    in_coretemp_block = False
     for line in out.splitlines():
-        match = re.search(r"\+([0-9]+(?:\.[0-9]+)?)°C", line)
+        stripped = line.strip()
+        if stripped.startswith("coretemp-isa-"):
+            in_coretemp_block = True
+            continue
+        if in_coretemp_block and stripped.startswith("Adapter:"):
+            continue
+        if in_coretemp_block and stripped and not line.startswith((" ", "\t")) and not stripped.startswith("coretemp-isa-"):
+            break
+        if not in_coretemp_block:
+            continue
+        match = re.search(r"^([^:]+):\s+\+([0-9]+(?:\.[0-9]+)?)°C", stripped)
         if match:
-            temps.append(float(match.group(1)))
+            temps[match.group(1).strip()] = float(match.group(2))
     if not temps:
-        raise RuntimeError("could not parse CPU temperature from sensors output")
-    return max(temps)
+        raise RuntimeError("could not parse coretemp CPU temperatures from sensors output")
+    return temps
 
 
 def get_disk_usage_percent(path: str) -> float:
@@ -30,24 +41,32 @@ def get_disk_usage_percent(path: str) -> float:
     return float(usep.rstrip("%"))
 
 
-def save_pc_status_plot(conf, t_hist, temp_hist, disk_hist):
+def save_pc_status_plot(conf, t_hist, temp_histories, disk_hist):
     station = conf.station_name
     out_path = f"/tmp/latest-{station}-pc.png"
     t_arr = n.array(t_hist, dtype=float)
-    temp_arr = n.array(temp_hist, dtype=float)
     disk_arr = n.array(disk_hist, dtype=float)
-    t_minutes = (t_arr - t_arr[-1]) / 60.0 if len(t_arr) else n.array([])
+    t_hours = (t_arr - t_arr[-1]) / 3600.0 if len(t_arr) else n.array([])
+    keep = t_hours >= -24.0 if len(t_hours) else n.array([], dtype=bool)
 
     fig, axes = plt.subplots(2, 1, figsize=(6, 4.5), dpi=120, constrained_layout=True)
-    axes[0].plot(t_minutes, temp_arr, color="tab:red", linewidth=1.5)
+    for label in sorted(temp_histories.keys()):
+        temp_arr = n.array(temp_histories[label], dtype=float)
+        if temp_arr.size != keep.size:
+            continue
+        axes[0].plot(t_hours[keep], temp_arr[keep], linewidth=1.2, label=label)
     axes[0].set_ylabel("CPU temp (C)")
     axes[0].set_title(f"{station} PC status")
+    axes[0].set_xlim(-24, 0)
     axes[0].grid(True, alpha=0.3)
+    if temp_histories:
+        axes[0].legend(loc="upper left", fontsize=7, ncols=2)
 
-    axes[1].plot(t_minutes, disk_arr, color="tab:blue", linewidth=1.5)
+    axes[1].plot(t_hours[keep], disk_arr[keep], color="tab:blue", linewidth=1.5)
     axes[1].set_ylabel("Disk use (%)")
-    axes[1].set_xlabel("Minutes from now")
+    axes[1].set_xlabel("Hours from now")
     axes[1].set_ylim(0, 100)
+    axes[1].set_xlim(-24, 0)
     axes[1].grid(True, alpha=0.3)
     axes[1].text(
         0.02,
@@ -62,27 +81,32 @@ def save_pc_status_plot(conf, t_hist, temp_hist, disk_hist):
     plt.close(fig)
 
 
-def update_pc_status(conf, t_hist, temp_hist, disk_hist):
+def update_pc_status(conf, t_hist, temp_histories, disk_hist):
     now = time.time()
     try:
-        cpu_temp_c = get_cpu_temperature_c()
+        cpu_temps = get_cpu_temperatures_c()
     except Exception as e:
         print(f"sensors failed: {e}")
-        cpu_temp_c = n.nan
+        cpu_temps = {}
     try:
         disk_usage_percent = get_disk_usage_percent(conf.output_dir)
     except Exception as e:
         print(f"df -h failed: {e}")
         disk_usage_percent = n.nan
 
+    prev_len = len(t_hist)
     t_hist.append(now)
-    temp_hist.append(cpu_temp_c)
     disk_hist.append(disk_usage_percent)
-    save_pc_status_plot(conf, t_hist, temp_hist, disk_hist)
+    for label in cpu_temps.keys():
+        if label not in temp_histories:
+            temp_histories[label] = collections.deque([n.nan] * prev_len, maxlen=24 * 60)
+    for label in list(temp_histories.keys()):
+        temp_histories[label].append(cpu_temps.get(label, n.nan))
+    save_pc_status_plot(conf, t_hist, temp_histories, disk_hist)
 
 def housekeeping(conf):
     t_hist = collections.deque(maxlen=24 * 60)
-    temp_hist = collections.deque(maxlen=24 * 60)
+    temp_histories = {}
     disk_hist = collections.deque(maxlen=24 * 60)
     while True:
         if conf.ringbuffer_cleanup:
@@ -96,7 +120,7 @@ def housekeeping(conf):
             print(cmd)            
             os.system(cmd)
             time.sleep(1)
-        update_pc_status(conf, t_hist, temp_hist, disk_hist)
+        update_pc_status(conf, t_hist, temp_histories, disk_hist)
         time.sleep(60)
 
 
