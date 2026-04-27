@@ -108,6 +108,8 @@ def housekeeping(conf):
     t_hist = collections.deque(maxlen=24 * 60)
     temp_histories = {}
     disk_hist = collections.deque(maxlen=24 * 60)
+    pc_status_period_s = 60
+    next_pc_status_time = 0.0
     while True:
         if conf.ringbuffer_cleanup:
             print("cleaning files older than %d"%(conf.ringbuffer_max_age_min))
@@ -119,9 +121,11 @@ def housekeeping(conf):
             cmd="find %s -type f -mmin +%d -name 'tmp*rf*.h5' -delete"%(conf.data_dir,conf.ringbuffer_max_age_min)
             print(cmd)            
             os.system(cmd)
-            time.sleep(1)
-        update_pc_status(conf, t_hist, temp_histories, disk_hist)
-        time.sleep(60)
+        now = time.time()
+        if now >= next_pc_status_time:
+            update_pc_status(conf, t_hist, temp_histories, disk_hist)
+            next_pc_status_time = now + pc_status_period_s
+        time.sleep(1)
 
 
 if __name__ == "__main__":
