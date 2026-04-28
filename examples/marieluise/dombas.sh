@@ -53,8 +53,8 @@ python3 receive_digisonde.py --config $CONF_FILE --sounder Dourbes > logs/digiso
 #python3 plot_rtf.py --config examples/marieluise/tgo.ini --sounding_path SGO,TGO  > logs/plot_rtf_sgotgo.log 2>&1 &
 #python3 plot_rtf.py --config examples/marieluise/tgo.ini --sounding_path Ramfjordmoen,TGO  > logs/plot_rtf_rfmtgo.log 2>&1 &
 
-#echo "plot_detectionfiles.py"
-#python3 plot_detectionfiles.py --config $CONF_FILE > logs/plot_detectionfiles.log 2>&1 &
+echo "plot_detectionfiles.py"
+python3 plot_detectionfiles.py --config $CONF_FILE > logs/plot_detectionfiles.log 2>&1 &
 
 echo "detect_chirps.py"
 $MPIRUN -np 2 python3 detect_chirps.py --config $CONF_FILE > logs/detect.log 2>&1 &
