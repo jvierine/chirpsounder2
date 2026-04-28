@@ -3,6 +3,9 @@
 # Realtime search for digisonde complementary-code pairs.
 #
 import argparse
+import contextlib
+import datetime
+import io
 import os
 import os.path
 import sys
@@ -15,7 +18,6 @@ import numpy as n
 from mpi4py import MPI
 
 import chirp_config as cc
-import chirp_det as cd
 import digisonde_stuff as ds
 
 
@@ -26,6 +28,18 @@ rank = comm.Get_rank()
 
 def kill(conf):
     return os.path.isfile(conf.kill_path)
+
+
+def unix2date(x):
+    return datetime.datetime.utcfromtimestamp(float(x))
+
+
+def unix2datestr(x):
+    return unix2date(x).strftime('%Y-%m-%d %H:%M:%S')
+
+
+def unix2dirname(x):
+    return unix2date(x).strftime('%Y-%m-%d')
 
 
 def decimate_average(x, dec):
@@ -60,6 +74,7 @@ class digisonde_code_search:
         self.raw_len = int(round(self.max_pair_s * self.conf.sample_rate))
         self.threshold_snr = float(args.threshold_snr)
         self.store_all = args.store_all
+        self.verbose = args.verbose
         self.max_lag_s = float(args.max_lag_s)
         self.dec = int(round(self.conf.sample_rate / self.search_sample_rate))
         self.raw_t = n.arange(self.raw_len, dtype=n.float64) / self.conf.sample_rate
@@ -81,13 +96,14 @@ class digisonde_code_search:
         for ipp_s in self.ipps:
             self.templates[ipp_s] = make_code_pair(self.search_sample_rate, ipp_s)
 
-        if rank == 0:
+        if self.verbose and rank == 0:
             print("digisonde search frequencies %1.3f-%1.3f MHz step %1.1f kHz (%d total)" %
                   (self.freqs[0] / 1e6, self.freqs[-1] / 1e6,
                    args.freq_step / 1e3, len(self.freqs)))
             print("MPI ranks %d, block %1.1f ms, max lag %1.1f s" %
                   (size, 1e3 * self.block_s, self.max_lag_s))
-        print("%d/%d searching %d frequencies" % (rank + 1, size, len(self.rank_freqs)))
+        if self.verbose:
+            print("%d/%d searching %d frequencies" % (rank + 1, size, len(self.rank_freqs)))
 
     def next_realtime_block(self, d, ch, block_idx):
         bounds = d.get_bounds(ch)
@@ -105,7 +121,7 @@ class digisonde_code_search:
             skipped_to = int(n.floor((readable_end - self.max_lag_s * self.conf.sample_rate) /
                                      self.block_samples))
             skipped_to = max(first_block, skipped_to)
-            if skipped_to > block_idx and rank == 0:
+            if self.verbose and skipped_to > block_idx and rank == 0:
                 print("realtime catch-up: skipping %d 10 ms blocks" % (skipped_to - block_idx))
             block_idx = skipped_to
 
@@ -124,7 +140,7 @@ class digisonde_code_search:
 
     def store_detection(self, ch, i0, freq, ipp_s, snr, corr, z, pair_len):
         t0 = i0 / self.conf.sample_rate
-        dname = "%s/%s" % (self.conf.output_dir, cd.unix2dirname(t0))
+        dname = "%s/%s" % (self.conf.output_dir, unix2dirname(t0))
         if not os.path.exists(dname):
             try:
                 os.mkdir(dname)
@@ -135,7 +151,7 @@ class digisonde_code_search:
         ofname = "%s/digisonde-search-%s-%dms-%07dkHz-%d.h5" % (
             dname, ch, ipp_ms, int(round(freq / 1e3)), int(i0))
         if os.path.exists(ofname):
-            return
+            return ofname
 
         with h5py.File(ofname, "w") as ho:
             ho["type"] = "digisonde_search"
@@ -161,6 +177,14 @@ class digisonde_code_search:
                 compression="gzip",
                 compression_opts=3,
                 shuffle=True)
+        return ofname
+
+    def print_detection(self, ch, i0, freq, ipp_s, snr, corr, ofname):
+        print("%d/%d digisonde candidate %s ch=%s freq=%1.3f MHz ipp=%d ms snr=%1.2f corr=%1.3e%+1.3ej file=%s" %
+              (rank + 1, size,
+               unix2datestr(i0 / self.conf.sample_rate),
+               ch, freq / 1e6, int(round(1e3 * ipp_s)), snr,
+               n.real(corr), n.imag(corr), ofname))
 
     def search_block(self, d, ch, block_idx):
         i0 = block_idx * self.block_samples
@@ -173,8 +197,11 @@ class digisonde_code_search:
 
             for ipp_s in self.ipps:
                 snr, corr, pair_len = self.score_pair(z, ipp_s)
-                if self.store_all or snr >= self.threshold_snr:
-                    self.store_detection(ch, i0, freq, ipp_s, snr, corr, z, pair_len)
+                confident = snr >= self.threshold_snr
+                if self.store_all or confident:
+                    ofname = self.store_detection(ch, i0, freq, ipp_s, snr, corr, z, pair_len)
+                if confident:
+                    self.print_detection(ch, i0, freq, ipp_s, snr, corr, ofname)
                     detections += 1
         return detections
 
@@ -209,13 +236,14 @@ def scan(conf, searcher, block0=None):
         cput0 = time.time()
         try:
             ndet = searcher.search_block(d, ch, block_idx)
-            cput1 = time.time()
-            data_time = searcher.block_s
-            speed = data_time / (cput1 - cput0)
-            print("%d/%d %s block %d detections %d speed %1.3f * realtime" %
-                  (rank + 1, size,
-                   cd.unix2datestr(block_idx * searcher.block_samples / conf.sample_rate),
-                   block_idx, ndet, speed))
+            if searcher.verbose:
+                cput1 = time.time()
+                data_time = searcher.block_s
+                speed = data_time / (cput1 - cput0)
+                print("%d/%d %s block %d detections %d speed %1.3f * realtime" %
+                      (rank + 1, size,
+                       unix2datestr(block_idx * searcher.block_samples / conf.sample_rate),
+                       block_idx, ndet, speed))
         except Exception:
             print("%d/%d skipping block %d" % (rank + 1, size, block_idx))
             traceback.print_exc(file=sys.stdout)
@@ -253,10 +281,11 @@ def realtime_scan(conf, searcher):
             elapsed = cput1 - cput0
             skip_blocks = max(1, int(n.ceil(elapsed / searcher.block_s)))
             block_idx = next_block + skip_blocks
-            print("%d/%d %s block %d detections %d, elapsed %1.3f s, skip %d blocks" %
-                  (rank + 1, size,
-                   cd.unix2datestr(next_block * searcher.block_samples / conf.sample_rate),
-                   next_block, ndet, elapsed, skip_blocks - 1))
+            if searcher.verbose:
+                print("%d/%d %s block %d detections %d, elapsed %1.3f s, skip %d blocks" %
+                      (rank + 1, size,
+                       unix2datestr(next_block * searcher.block_samples / conf.sample_rate),
+                       next_block, ndet, elapsed, skip_blocks - 1))
         except Exception:
             print("problem. retrying in a bit.")
             traceback.print_exc(file=sys.stdout)
@@ -284,9 +313,14 @@ if __name__ == "__main__":
     parser.add_argument("--threshold-snr", type=float, default=None)
     parser.add_argument("--max-lag-s", type=float, default=60.0)
     parser.add_argument("--store-all", action="store_true")
+    parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
 
-    conf = cc.chirp_config(args.config)
+    if args.verbose:
+        conf = cc.chirp_config(args.config)
+    else:
+        with contextlib.redirect_stdout(io.StringIO()):
+            conf = cc.chirp_config(args.config)
     if args.threshold_snr is None:
         args.threshold_snr = conf.threshold_snr
 
