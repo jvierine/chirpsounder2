@@ -49,9 +49,8 @@ python3 receive_digisonde.py --config $CONF_FILE --sounder JuliusruhN > logs/dig
 python3 receive_digisonde.py --config $CONF_FILE --sounder Chilton > logs/digisonde_chilton.log 2>&1 &
 python3 receive_digisonde.py --config $CONF_FILE --sounder Dourbes > logs/digisonde_dourbes.log 2>&1 &
 
-#echo "plot_rtf.py"
-#python3 plot_rtf.py --config examples/marieluise/tgo.ini --sounding_path SGO,TGO  > logs/plot_rtf_sgotgo.log 2>&1 &
-#python3 plot_rtf.py --config examples/marieluise/tgo.ini --sounding_path Ramfjordmoen,TGO  > logs/plot_rtf_rfmtgo.log 2>&1 &
+echo "plot_rtf.py"
+python3 plot_rtf.py --config $CONF_FILE > logs/plot_rtf.log 2>&1 &
 
 echo "plot_detectionfiles.py"
 python3 plot_detectionfiles.py --config $CONF_FILE > logs/plot_detectionfiles.log 2>&1 &

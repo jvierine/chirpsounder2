@@ -3,6 +3,7 @@ import h5py
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import glob
+import os
 import numpy as n
 import scipy.constants as sc
 import psutil
@@ -17,6 +18,16 @@ p.ionice(psutil.IOPRIO_CLASS_IDLE)
 p.nice(19)
 
 labels={100:"US (ROTHR)",125:"Australia (JORN)"}
+
+
+def needs_daily_plot(pfname, now=None):
+    if now is None:
+        import time
+        now = time.time()
+    if not os.path.exists(pfname):
+        return True
+    day_start = n.floor(now/24/3600)*24*3600
+    return os.path.getmtime(pfname) < day_start
 
 
 def plot_propagation_range(dfs, start_t, n_hours=24,min_detections=5, pfname="/tmp/dets.png", station_name="TGO"):
@@ -177,16 +188,20 @@ while True:
     t_day_prev=t_day_now-24*3600
 
     station_name = conf.station_name
+    yesterday_pfname="/tmp/latest-rothr_jorn_yesterday-%s.png" % (station_name)
     plot_propagation_range(
         dfs,
         t_day_now,
         n_hours=24,
         pfname="/tmp/latest-rothr_jorn_today-%s.png" % (station_name),
         station_name=station_name)
-    plot_propagation_range(
-        dfs,
-        t_day_prev,
-        n_hours=24,
-        pfname="/tmp/latest-rothr_jorn_yesterday-%s.png" % (station_name),
-        station_name=station_name)
+    if needs_daily_plot(yesterday_pfname, now=tnow):
+        plot_propagation_range(
+            dfs,
+            t_day_prev,
+            n_hours=24,
+            pfname=yesterday_pfname,
+            station_name=station_name)
+    else:
+        print("skipping up-to-date %s"%(yesterday_pfname))
     time.sleep(15*60)

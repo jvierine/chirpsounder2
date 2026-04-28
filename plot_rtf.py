@@ -17,6 +17,14 @@ p = psutil.Process()
 p.ionice(psutil.IOPRIO_CLASS_IDLE)
 p.nice(19)
 
+def needs_daily_plot(pfname, now=None):
+    if now is None:
+        now = time.time()
+    if not os.path.exists(pfname):
+        return True
+    day_start = n.floor(now/24/3600)*24*3600
+    return os.path.getmtime(pfname) < day_start
+
 def get_day_view(conf,tx,rx,dirname,pfname="/tmp/latest-rti.png"):
     print("creating RTI and RTF")
     fl=glob.glob("%s/%s/*_ionogram-%s-%s-*.h5"%(conf.output_dir,dirname,tx,rx))
@@ -164,9 +172,17 @@ def plot_rtf(conf,tx,rx):
     tyesterday=tnow-24*3600
     today_dir=cd.unix2dirname(tnow)
     yesterday_dir=cd.unix2dirname(tyesterday)
+    yesterday_pfname="/tmp/yesterday-rti-%s-%s.png"%(tx,rx)
     
     get_day_view(conf,tx,rx,today_dir,pfname="/tmp/latest-rti-%s-%s.png"%(tx,rx))
-    get_day_view(conf,tx,rx,yesterday_dir,pfname="/tmp/yesterday-rti-%s-%s.png"%(tx,rx))  
+    if needs_daily_plot(yesterday_pfname, now=tnow):
+        get_day_view(conf,tx,rx,yesterday_dir,pfname=yesterday_pfname)
+    else:
+        print("skipping up-to-date %s"%(yesterday_pfname))
+
+def plot_rtf_links(conf, links):
+    for tx, rx in links:
+        plot_rtf(conf, tx, rx)
 
 if __name__ == "__main__":
     import argparse
@@ -180,14 +196,25 @@ if __name__ == "__main__":
     parser.add_argument(
         "--sounding_path",
         type=str,
-        default="SGO,TGO",
-        help="Which sounding path to process"
+        default="",
+        help="Optional single sounding path to process, e.g. SGO,TGO. If omitted, use [rtf] links from config."
     )
     args = parser.parse_args()
     conf = cc.chirp_config(args.config)
-    tx,rx=args.sounding_path.split(",")
+    if args.sounding_path != "":
+        links = [args.sounding_path.split(",")]
+    else:
+        links = conf.rtf_links
+    if len(links) == 0:
+        print("no RTF links configured")
+        exit(0)
     import time
+    plot_period_s = 15*60
+    next_plot_time = 0.0
     
     while True:
-        plot_rtf(conf,tx,rx)
-        time.sleep(15*60)
+        now = time.time()
+        if now >= next_plot_time:
+            plot_rtf_links(conf, links)
+            next_plot_time = time.time() + plot_period_s
+        time.sleep(max(1.0, min(60.0, next_plot_time - time.time())))

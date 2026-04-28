@@ -8,10 +8,10 @@ $refreshSeconds = 60;
 // Configure plot type ordering here. The first matching regex wins.
 $plotTypeOrder = [
     'ionogram' => '/^latest-(digisonde|lfm)-/i',
-    'map' => '/^map(_all|_scand)?\.png$/i',
     'rti' => '/^(latest|yesterday)-rti-/i',
     'summary' => '/^(latest-)?rothr_jorn_|^latest_/i',
     'other' => '/.*/',
+    'map' => '/^map(_all|_scand)?\.png$/i',
     'pc status' => '/-pc\.png$/i',
 ];
 
