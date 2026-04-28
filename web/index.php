@@ -10,7 +10,7 @@ $plotTypeOrder = [
     'ionogram' => '/^latest-(digisonde|lfm)-/i',
     'map' => '/^map(_all|_scand)?\.png$/i',
     'rti' => '/^(latest|yesterday)-rti-/i',
-    'summary' => '/^(rothr_jorn_|latest_)/i',
+    'summary' => '/^(latest-)?rothr_jorn_|^latest_/i',
     'other' => '/.*/',
     'pc status' => '/-pc\.png$/i',
 ];
@@ -61,6 +61,12 @@ function label_from_filename(string $filename, array $stationLabels): string
         return $day . ' RTI ' . station_label($m[2], $stationLabels) . ' -> ' . $m[3];
     }
 
+    if (preg_match('/^(?:latest-)?rothr_jorn_(today|yesterday)(?:-([^.]+))?\.png$/i', $filename, $m)) {
+        $day = strtolower($m[1]) === 'today' ? 'Today' : 'Yesterday';
+        $receiver = isset($m[2]) && $m[2] !== '' ? ' -> ' . $m[2] : '';
+        return 'ROTHR/JORN Overview ' . $day . $receiver;
+    }
+
     if (preg_match('/^-?map_all\.png$/i', $filename)) {
         return 'Network Map Global';
     }
@@ -97,6 +103,14 @@ function station_sort_key(string $filename, string $plotType, array $stationLabe
         $lower = strtolower($filename);
         if (isset($mapOrder[$lower])) {
             return $mapOrder[$lower];
+        }
+    }
+
+    if ($plotType === 'summary') {
+        if (preg_match('/^(?:latest-)?rothr_jorn_(today|yesterday)(?:-([^.]+))?\.png$/i', $filename, $m)) {
+            $dayRank = strtolower($m[1]) === 'today' ? '0' : '1';
+            $receiver = isset($m[2]) ? strtolower($m[2]) : '';
+            return 'rothr_jorn ' . $receiver . ' ' . $dayRank;
         }
     }
 
