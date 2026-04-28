@@ -67,6 +67,9 @@ class chirp_config:
                         "copy_to_server": "false",
                         "copy_destination": "none",
             }
+        cf["rtf"] = {
+            "links": "[]",
+        }
 
         cf["stations"]={
             "station_info":'''
@@ -121,6 +124,7 @@ class chirp_config:
 #        print(cf["stations"]["station_info"])
         self.station_info = json.loads(cf["stations"]["station_info"])        
         self.station_links = json.loads(cf["stations"]["links"])        
+        self.rtf_links = json.loads(cf["rtf"]["links"])
 
         self.manual_range_extent = json.loads(
             cf["lfm"]["manual_range_extent"])
