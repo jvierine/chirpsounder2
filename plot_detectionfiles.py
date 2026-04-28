@@ -176,6 +176,17 @@ while True:
     t_day_now=n.floor(tnow/24/3600)*24*3600
     t_day_prev=t_day_now-24*3600
 
-    plot_propagation_range(dfs, t_day_now, n_hours=24, pfname="/tmp/rothr_jorn_today.png", station_name=conf.station_name)
-    plot_propagation_range(dfs, t_day_prev, n_hours=24, pfname="/tmp/rothr_jorn_yesterday.png", station_name=conf.station_name)
+    station_name = conf.station_name
+    plot_propagation_range(
+        dfs,
+        t_day_now,
+        n_hours=24,
+        pfname="/tmp/rothr_jorn_today-%s.png" % (station_name),
+        station_name=station_name)
+    plot_propagation_range(
+        dfs,
+        t_day_prev,
+        n_hours=24,
+        pfname="/tmp/rothr_jorn_yesterday-%s.png" % (station_name),
+        station_name=station_name)
     time.sleep(15*60)

@@ -7,6 +7,7 @@ UPLOAD_TARGET_DIR="${UPLOAD_TARGET_DIR:-/var/www/html}"
 APACHE_CONF_DIR="${APACHE_CONF_DIR:-/etc/apache2/conf-available}"
 APACHE_SERVICE="${APACHE_SERVICE:-apache2}"
 APACHE_CONF_NAME="${APACHE_CONF_NAME:-upload-limit}"
+SUDO="${SUDO:-sudo}"
 FILES_TO_DEPLOY=(
     "${SCRIPT_DIR}/index.php:${IONO_TARGET_DIR}"
     "${SCRIPT_DIR}/upload_h5.php:${UPLOAD_TARGET_DIR}"
@@ -21,22 +22,22 @@ for file_spec in "${FILES_TO_DEPLOY[@]}"; do
         exit 1
     fi
 
-    mkdir -p "$target_dir"
+    $SUDO mkdir -p "$target_dir"
     target_file="${target_dir}/$(basename "$source_file")"
     echo "Deploying $source_file to $target_file"
-    install -m 0644 "$source_file" "$target_file"
+    $SUDO install -m 0644 "$source_file" "$target_file"
 done
 
 if command -v a2enconf >/dev/null 2>&1; then
     echo "Enabling Apache config $APACHE_CONF_NAME"
-    a2enconf "$APACHE_CONF_NAME" >/dev/null
+    $SUDO a2enconf "$APACHE_CONF_NAME" >/dev/null
 fi
 
 echo "Restarting Apache service $APACHE_SERVICE"
 if command -v systemctl >/dev/null 2>&1; then
-    systemctl restart "$APACHE_SERVICE"
+    $SUDO systemctl restart "$APACHE_SERVICE"
 else
-    service "$APACHE_SERVICE" restart
+    $SUDO service "$APACHE_SERVICE" restart
 fi
 
 echo "Deployed locally to $IONO_TARGET_DIR, $UPLOAD_TARGET_DIR, and $APACHE_CONF_DIR"
