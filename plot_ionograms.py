@@ -138,10 +138,12 @@ if __name__ == "__main__":
         help="Path to configuration file"
     )
     args = parser.parse_args()
-    conf=cc.chirp_config(args.config)
+    conf_path = args.config
+    conf=cc.chirp_config(conf_path)
 
     if conf.realtime:
         while True:
+            conf = cc.chirp_config(conf_path)
             if kill(conf):
                 print("kill.txt found, stopping plot_ionograms.py")
                 sys.exit(0)
@@ -157,6 +159,7 @@ if __name__ == "__main__":
                         # new enough file
                         if t_now - t_file < 48 * 3600.0:
                             plot_ionogram(conf, fn)
+                            conf = cc.chirp_config(conf_path)
 
                     except:
                         print("error with %s" % (fn))
@@ -167,6 +170,7 @@ if __name__ == "__main__":
         for fn in fl:
             try:
                 plot_ionogram(conf, fn)
+                conf = cc.chirp_config(conf_path)
             except:
                 print("error with %s" % (fn))
                 print(traceback.format_exc())
