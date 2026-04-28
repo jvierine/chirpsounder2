@@ -110,11 +110,11 @@ foreach (glob($imageGlob) ?: [] as $path) {
         continue;
     }
     $mtime = filemtime($path);
-    if ($mtime === false || $mtime < $cutoff) {
-        continue;
-    }
     $filename = basename($path);
     $plotType = detect_plot_type($filename, $plotTypeOrder);
+    if ($mtime === false || ($plotType !== 'map' && $mtime < $cutoff)) {
+        continue;
+    }
     $cards[] = [
         'filename' => $filename,
         'path' => $path,
