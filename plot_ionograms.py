@@ -28,7 +28,7 @@ def plot_ionogram(conf, fn, normalize_by_frequency=True):
     ho = h5py.File(fn, "r")
     t0 = float(n.copy(ho[("t0")]))
     ch = ho["ch"][()]
-    print(ch)
+#    print(ch)
     ch = ch.decode('utf-8')
     if not "id" in ho.keys():
         print("id not in keys")
