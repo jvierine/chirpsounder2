@@ -9,7 +9,7 @@ import json
 
 
 class chirp_config:
-    def __init__(self, fname=None):
+    def __init__(self, fname=None, read_shared=True):
         cf = configparser.ConfigParser()
         # initialize with default values
 
@@ -103,7 +103,7 @@ class chirp_config:
             if os.path.exists(fname):
                 fname = os.path.abspath(fname)
                 shared_fname = os.path.join(os.path.dirname(fname), "server.ini")
-                if shared_fname != fname and os.path.exists(shared_fname):
+                if read_shared and shared_fname != fname and os.path.exists(shared_fname):
                     print("reading %s" % (shared_fname))
                     cf.read(shared_fname)
                 print("reading %s" % (fname))

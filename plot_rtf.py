@@ -55,17 +55,20 @@ def get_day_view(conf,tx,rx,dirname,pfname="/tmp/latest-rti.png"):
     SNR=h["SNR"][()]
 
     if sounder_type == "digisonde":
-        n_r=SNR.shape[2]
-        n_f=SNR.shape[1]
+        n_r=min(len(ranges), SNR.shape[2])
+        n_f=min(len(freqs), SNR.shape[1])
         # O-mode only
         SNR=SNR[0,:,:]
     else:
-        n_r=SNR.shape[1]
-        n_f=SNR.shape[0]
+        n_r=min(len(ranges), SNR.shape[1])
+        n_f=min(len(freqs), SNR.shape[0])
+    ranges = ranges[:n_r]
+    freqs = freqs[:n_f]
+    h.close()
 
     n_t=len(fl)
-    S=n.zeros([n_t,n_r])
-    M=n.zeros([n_t,n_r])
+    S=n.full([n_t,n_r], n.nan)
+    M=n.full([n_t,n_r], n.nan)
     tv=n.zeros(n_t)
     for fi,f in enumerate(fl):
         h=h5py.File(f,"r")
@@ -75,8 +78,10 @@ def get_day_view(conf,tx,rx,dirname,pfname="/tmp/latest-rti.png"):
         if sounder_type == "digisonde":
             SNR=SNR[0,:,:]
         tv[fi]=h["t0"][()]
-        for ri in range(n_r):
-            col = SNR[:, ri]
+        cur_n_r = min(n_r, SNR.shape[1])
+        cur_n_f = min(n_f, SNR.shape[0])
+        for ri in range(cur_n_r):
+            col = SNR[:cur_n_f, ri]
 
             if n.all(n.isnan(col)):
                 # case: all NaN → set outputs to NaN
@@ -85,7 +90,7 @@ def get_day_view(conf,tx,rx,dirname,pfname="/tmp/latest-rti.png"):
             else:
                 # normal case
                 M[fi, ri] = n.nanmax(col)
-                S[fi, ri] = freqs[n.nanargmax(col)]
+                S[fi, ri] = freqs[:cur_n_f][n.nanargmax(col)]
                 
 #            S[fi,ri]=freqs[n.nanargmax(SNR[:,ri])]
  #           M[fi,ri]=n.nanmax(SNR[:,ri])
@@ -182,7 +187,21 @@ def plot_rtf(conf,tx,rx):
 
 def plot_rtf_links(conf, links):
     for tx, rx in links:
+        print("plotting RTF %s -> %s"%(tx, rx))
         plot_rtf(conf, tx, rx)
+
+def normalize_links(links):
+    normalized = []
+    for link in links:
+        if isinstance(link, str):
+            parts = link.split(",")
+        else:
+            parts = list(link)
+        if len(parts) != 2:
+            print("skipping invalid RTF link %s"%(link))
+            continue
+        normalized.append([parts[0], parts[1]])
+    return normalized
 
 if __name__ == "__main__":
     import argparse
@@ -197,17 +216,22 @@ if __name__ == "__main__":
         "--sounding_path",
         type=str,
         default="",
-        help="Optional single sounding path to process, e.g. SGO,TGO. If omitted, use [rtf] links from config."
+        help="Fallback single sounding path, e.g. SGO,TGO. [rtf] links from config take precedence."
     )
     args = parser.parse_args()
-    conf = cc.chirp_config(args.config)
-    if args.sounding_path != "":
-        links = [args.sounding_path.split(",")]
+    conf = cc.chirp_config(args.config, read_shared=False)
+    if len(conf.rtf_links) > 0:
+        links = normalize_links(conf.rtf_links)
+        print("using [rtf] links from config")
+    elif args.sounding_path != "":
+        links = normalize_links([args.sounding_path])
+        print("using fallback --sounding_path")
     else:
-        links = conf.rtf_links
+        links = []
     if len(links) == 0:
         print("no RTF links configured")
         exit(0)
+    print("RTF links: %s"%(links))
     import time
     plot_period_s = 15*60
     next_plot_time = 0.0
