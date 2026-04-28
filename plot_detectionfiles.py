@@ -181,12 +181,12 @@ while True:
         dfs,
         t_day_now,
         n_hours=24,
-        pfname="/tmp/rothr_jorn_today-%s.png" % (station_name),
+        pfname="/tmp/latest-rothr_jorn_today-%s.png" % (station_name),
         station_name=station_name)
     plot_propagation_range(
         dfs,
         t_day_prev,
         n_hours=24,
-        pfname="/tmp/rothr_jorn_yesterday-%s.png" % (station_name),
+        pfname="/tmp/latest-rothr_jorn_yesterday-%s.png" % (station_name),
         station_name=station_name)
     time.sleep(15*60)
