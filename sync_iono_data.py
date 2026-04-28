@@ -18,4 +18,5 @@ if conf.copy_to_server != True:
     exit(0)
 while True:
     os.system("rsync -av /tmp/latest*.png %s"%(conf.copy_destination))
+    os.system("rsync -av /tmp/yesterday*.png %s"%(conf.copy_destination))
     time.sleep(60)
