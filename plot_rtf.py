@@ -25,6 +25,37 @@ def needs_daily_plot(pfname, now=None):
     day_start = n.floor(now/24/3600)*24*3600
     return os.path.getmtime(pfname) < day_start
 
+def read_ionogram(h):
+    if "type" in h.keys():
+        htype = h["type"][()]
+        if hasattr(htype, "decode"):
+            htype = htype.decode("utf-8")
+        sounder_type = "digisonde" if htype == "digisonde" else "lfm"
+    else:
+        sounder_type = "lfm"
+
+    if "ranges" in h.keys():
+        ranges = h["ranges"][()]
+        if len(ranges) > 1 and ranges[1] < 1e2:
+            ranges = ranges*1e3
+    else:
+        ranges = h["rvec"][()]
+        if len(ranges) > 1 and ranges[1] < 1e2:
+            ranges = ranges*1e3
+
+    if "freqs" in h.keys():
+        freqs = h["freqs"][()]
+    else:
+        freqs = h["fvec"][()]
+
+    snr = h["SNR"][()]
+    if sounder_type == "digisonde":
+        snr = snr[0, :, :]
+
+    n_f = min(len(freqs), snr.shape[0])
+    n_r = min(len(ranges), snr.shape[1])
+    return ranges[:n_r], freqs[:n_f], snr[:n_f, :n_r], h["t0"][()]
+
 def get_day_view(conf,tx,rx,dirname,pfname="/tmp/latest-rti.png"):
     print("creating RTI and RTF")
     fl=glob.glob("%s/%s/*_ionogram-%s-%s-*.h5"%(conf.output_dir,dirname,tx,rx))
@@ -32,69 +63,44 @@ def get_day_view(conf,tx,rx,dirname,pfname="/tmp/latest-rti.png"):
     if len(fl)<3:
         print("not enough soundings %s %s"%(tx,rx))
         return
-    h=h5py.File(fl[0],"r")
-    if "type" in h.keys() and h["type"][()].decode("utf-8") == "digisonde":
-        sounder_type="digisonde"
-    else:
-        sounder_type="lfm"
-    if "ranges" in h.keys():
-        ranges=h["ranges"][()]
-        if ranges[1]<1e2:
-            ranges=ranges*1e3        
-    else:
-        ranges=h["rvec"][()]
-        # km -> m
-        if ranges[1]<1e2:
-            ranges=ranges*1e3
-            
-    if "freqs" in h.keys():        
-        freqs=h["freqs"][()]
-    else:
-        freqs=h["fvec"][()]
-        
-    SNR=h["SNR"][()]
 
-    if sounder_type == "digisonde":
-        n_r=min(len(ranges), SNR.shape[2])
-        n_f=min(len(freqs), SNR.shape[1])
-        # O-mode only
-        SNR=SNR[0,:,:]
-    else:
-        n_r=min(len(ranges), SNR.shape[1])
-        n_f=min(len(freqs), SNR.shape[0])
-    ranges = ranges[:n_r]
-    freqs = freqs[:n_f]
-    h.close()
+    with h5py.File(fl[-1], "r") as h:
+        ranges, freqs, snr, t0 = read_ionogram(h)
+    range_keys = n.array(n.round(ranges), dtype=n.int64)
+    if len(range_keys) == 0:
+        print("no range gates %s %s"%(tx,rx))
+        return
+    ranges = n.array(ranges, dtype=n.float64)
+    range_to_idx = {rk: ri for ri, rk in enumerate(range_keys)}
+    n_r = len(ranges)
 
     n_t=len(fl)
     S=n.full([n_t,n_r], n.nan)
     M=n.full([n_t,n_r], n.nan)
     tv=n.zeros(n_t)
     for fi,f in enumerate(fl):
-        h=h5py.File(f,"r")
-#        print(h.keys())
-        SNR=h["SNR"][()]
-#        print(SNR.shape)
-        if sounder_type == "digisonde":
-            SNR=SNR[0,:,:]
-        tv[fi]=h["t0"][()]
-        cur_n_r = min(n_r, SNR.shape[1])
-        cur_n_f = min(n_f, SNR.shape[0])
+        with h5py.File(f, "r") as h:
+            cur_ranges, cur_freqs, SNR, tv[fi] = read_ionogram(h)
+        cur_n_r = SNR.shape[1]
+        cur_n_f = SNR.shape[0]
+        cur_keys = n.array(n.round(cur_ranges[:cur_n_r]), dtype=n.int64)
         for ri in range(cur_n_r):
+            out_ri = range_to_idx.get(cur_keys[ri])
+            if out_ri is None:
+                continue
             col = SNR[:cur_n_f, ri]
 
             if n.all(n.isnan(col)):
                 # case: all NaN → set outputs to NaN
-                S[fi, ri] = n.nan
-                M[fi, ri] = n.nan
+                S[fi, out_ri] = n.nan
+                M[fi, out_ri] = n.nan
             else:
                 # normal case
-                M[fi, ri] = n.nanmax(col)
-                S[fi, ri] = freqs[:cur_n_f][n.nanargmax(col)]
+                M[fi, out_ri] = n.nanmax(col)
+                S[fi, out_ri] = cur_freqs[:cur_n_f][n.nanargmax(col)]
                 
 #            S[fi,ri]=freqs[n.nanargmax(SNR[:,ri])]
  #           M[fi,ri]=n.nanmax(SNR[:,ri])
-        h.close()
 
 
     # convert unix time to datetime
