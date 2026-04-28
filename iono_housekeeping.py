@@ -2,6 +2,7 @@ import chirp_config as cc
 import collections
 import os
 import re
+import shutil
 import subprocess
 import time
 import matplotlib.pyplot as plt
@@ -41,7 +42,19 @@ def get_disk_usage_percent(path: str) -> float:
     return float(usep.rstrip("%"))
 
 
-def save_pc_status_plot(conf, t_hist, temp_histories, disk_hist):
+def get_gpsdo_lock_status() -> dict:
+    if shutil.which("lbe-142x") is None:
+        return {}
+    out = subprocess.check_output(["lbe-142x", "--status"], text=True, timeout=10)
+    status = {}
+    for label in ["GPS Lock", "PLL Lock"]:
+        match = re.search(r"^\s*%s:\s*(Yes|No)\s*$" % re.escape(label), out, re.MULTILINE)
+        if match:
+            status[label] = 100.0 if match.group(1) == "Yes" else 0.0
+    return status
+
+
+def save_pc_status_plot(conf, t_hist, temp_histories, disk_hist, gpsdo_histories):
     station = conf.station_name
     out_path = f"/tmp/latest-{station}-pc.png"
     t_arr = n.array(t_hist, dtype=float)
@@ -49,7 +62,7 @@ def save_pc_status_plot(conf, t_hist, temp_histories, disk_hist):
     t_hours = (t_arr - t_arr[-1]) / 3600.0 if len(t_arr) else n.array([])
     keep = t_hours >= -24.0 if len(t_hours) else n.array([], dtype=bool)
 
-    fig, axes = plt.subplots(2, 1, figsize=(6, 4.5), dpi=120, constrained_layout=True)
+    fig, axes = plt.subplots(3, 1, figsize=(6, 6.0), dpi=120, constrained_layout=True)
     for label in sorted(temp_histories.keys()):
         temp_arr = n.array(temp_histories[label], dtype=float)
         if temp_arr.size != keep.size:
@@ -77,11 +90,36 @@ def save_pc_status_plot(conf, t_hist, temp_histories, disk_hist):
         va="top",
         ha="left",
     )
+
+    for label in sorted(gpsdo_histories.keys()):
+        gpsdo_arr = n.array(gpsdo_histories[label], dtype=float)
+        if gpsdo_arr.size != keep.size:
+            continue
+        axes[2].step(t_hours[keep], gpsdo_arr[keep], where="post", linewidth=1.5, label=label)
+    axes[2].set_ylabel("GPSDO lock")
+    axes[2].set_xlabel("Hours from now")
+    axes[2].set_ylim(-5, 105)
+    axes[2].set_yticks([0, 100])
+    axes[2].set_yticklabels(["No", "Yes"])
+    axes[2].set_xlim(-24, 0)
+    axes[2].grid(True, alpha=0.3)
+    if gpsdo_histories:
+        axes[2].legend(loc="lower left", fontsize=7, ncols=2)
+    else:
+        axes[2].text(
+            0.02,
+            0.92,
+            "lbe-142x not found",
+            transform=axes[2].transAxes,
+            fontsize=8,
+            va="top",
+            ha="left",
+        )
     fig.savefig(out_path)
     plt.close(fig)
 
 
-def update_pc_status(conf, t_hist, temp_histories, disk_hist):
+def update_pc_status(conf, t_hist, temp_histories, disk_hist, gpsdo_histories):
     now = time.time()
     try:
         cpu_temps = get_cpu_temperatures_c()
@@ -93,6 +131,11 @@ def update_pc_status(conf, t_hist, temp_histories, disk_hist):
     except Exception as e:
         print(f"df -h failed: {e}")
         disk_usage_percent = n.nan
+    try:
+        gpsdo_status = get_gpsdo_lock_status()
+    except Exception as e:
+        print(f"lbe-142x --status failed: {e}")
+        gpsdo_status = {}
 
     prev_len = len(t_hist)
     t_hist.append(now)
@@ -102,12 +145,18 @@ def update_pc_status(conf, t_hist, temp_histories, disk_hist):
             temp_histories[label] = collections.deque([n.nan] * prev_len, maxlen=24 * 60)
     for label in list(temp_histories.keys()):
         temp_histories[label].append(cpu_temps.get(label, n.nan))
-    save_pc_status_plot(conf, t_hist, temp_histories, disk_hist)
+    for label in gpsdo_status.keys():
+        if label not in gpsdo_histories:
+            gpsdo_histories[label] = collections.deque([n.nan] * prev_len, maxlen=24 * 60)
+    for label in list(gpsdo_histories.keys()):
+        gpsdo_histories[label].append(gpsdo_status.get(label, n.nan))
+    save_pc_status_plot(conf, t_hist, temp_histories, disk_hist, gpsdo_histories)
 
 def housekeeping(conf):
     t_hist = collections.deque(maxlen=24 * 60)
     temp_histories = {}
     disk_hist = collections.deque(maxlen=24 * 60)
+    gpsdo_histories = {}
     pc_status_period_s = 60
     next_pc_status_time = 0.0
     while True:
@@ -123,7 +172,7 @@ def housekeeping(conf):
             os.system(cmd)
         now = time.time()
         if now >= next_pc_status_time:
-            update_pc_status(conf, t_hist, temp_histories, disk_hist)
+            update_pc_status(conf, t_hist, temp_histories, disk_hist, gpsdo_histories)
             next_pc_status_time = now + pc_status_period_s
         time.sleep(1)
 
