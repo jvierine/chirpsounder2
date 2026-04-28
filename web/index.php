@@ -1,22 +1,32 @@
 <?php
 $dashboardTitle = 'Live TGO Oblique Sounding Dashboard';
-$imageGlob = '/var/www/html/iono/latest*.png';
+$imageGlob = '/var/www/html/iono/*.png';
 $imageBaseUrl = '/iono';
 $maxAgeHours = 48;
 $refreshSeconds = 60;
 
 // Configure plot type ordering here. The first matching regex wins.
 $plotTypeOrder = [
-    'pc status' => '/-pc\.png$/i',
-    'digisonde' => '/^latest-digisonde-/i',
-    'lfm' => '/^latest-lfm-/i',
-    'rti' => '/^latest-rti-/i',
+    'ionogram' => '/^latest-(digisonde|lfm)-/i',
+    'map' => '/^map(_all|_scand)?\.png$/i',
+    'rti' => '/^(latest|yesterday)-rti-/i',
+    'summary' => '/^(rothr_jorn_|latest_)/i',
     'other' => '/.*/',
+    'pc status' => '/-pc\.png$/i',
+];
+
+$stationLabels = [
+    'DB049' => 'Dourbes',
+    'TH76' => 'Thule',
+    'THJ76' => 'Thule',
 ];
 
 function detect_plot_type(string $filename, array $plotTypeOrder): string
 {
     foreach ($plotTypeOrder as $label => $pattern) {
+        if ($label === 'other') {
+            continue;
+        }
         if (preg_match($pattern, $filename)) {
             return $label;
         }
@@ -31,13 +41,66 @@ function plot_type_rank(string $plotType, array $plotTypeOrder): int
     return $index === false ? count($labels) : $index;
 }
 
-function label_from_filename(string $filename): string
+function station_label(string $station, array $stationLabels): string
 {
+    return $stationLabels[$station] ?? $station;
+}
+
+function label_from_filename(string $filename, array $stationLabels): string
+{
+    if (preg_match('/^latest-digisonde-([^-]+)-([^.]+)\.png$/i', $filename, $m)) {
+        return 'Digisonde ' . station_label($m[1], $stationLabels) . ' -> ' . $m[2];
+    }
+
+    if (preg_match('/^latest-lfm-([^-]+)-([^.]+)\.png$/i', $filename, $m)) {
+        return 'LFM ' . station_label($m[1], $stationLabels) . ' -> ' . $m[2];
+    }
+
+    if (preg_match('/^(latest|yesterday)-rti-([^-]+)-([^.]+)\.png$/i', $filename, $m)) {
+        $day = strtolower($m[1]) === 'yesterday' ? 'Yesterday' : 'Latest';
+        return $day . ' RTI ' . station_label($m[2], $stationLabels) . ' -> ' . $m[3];
+    }
+
+    if (preg_match('/^-?map_all\.png$/i', $filename)) {
+        return 'Network Map Global';
+    }
+
+    if (preg_match('/^-?map_scand\.png$/i', $filename)) {
+        return 'Network Map Scandinavia';
+    }
+
+    if (preg_match('/^-?map\.png$/i', $filename)) {
+        return 'Network Map';
+    }
+
     $stem = preg_replace('/\.png$/i', '', $filename);
     $stem = preg_replace('/^latest-/', '', $stem);
     $label = str_replace(['_', '-'], ' ', $stem);
     $label = preg_replace('/\s+/', ' ', $label ?? '');
     return ucwords(trim((string)$label));
+}
+
+function station_sort_key(string $filename, string $plotType, array $stationLabels): string
+{
+    if ($plotType === 'ionogram') {
+        if (preg_match('/^latest-(?:digisonde|lfm)-([^-]+)-([^.]+)\.png$/i', $filename, $m)) {
+            return strtolower(station_label($m[1], $stationLabels) . ' ' . $m[2]);
+        }
+    }
+
+    if ($plotType === 'map') {
+        $mapOrder = [
+            'map.png' => '000 map',
+            'map_all.png' => '001 map all',
+            'map_scand.png' => '002 map scand',
+        ];
+        $lower = strtolower($filename);
+        if (isset($mapOrder[$lower])) {
+            return $mapOrder[$lower];
+        }
+    }
+
+    return strtolower($filename);
 }
 
 $cutoff = time() - ($maxAgeHours * 3600);
@@ -57,7 +120,8 @@ foreach (glob($imageGlob) ?: [] as $path) {
         'path' => $path,
         'plotType' => $plotType,
         'plotTypeRank' => plot_type_rank($plotType, $plotTypeOrder),
-        'title' => label_from_filename($filename),
+        'sortKey' => station_sort_key($filename, $plotType, $stationLabels),
+        'title' => label_from_filename($filename, $stationLabels),
         'mtime' => $mtime,
         'url' => rtrim($imageBaseUrl, '/') . '/' . rawurlencode($filename),
     ];
@@ -67,8 +131,8 @@ usort($cards, static function (array $a, array $b): int {
     if ($a['plotTypeRank'] !== $b['plotTypeRank']) {
         return $a['plotTypeRank'] <=> $b['plotTypeRank'];
     }
-    if ($a['mtime'] !== $b['mtime']) {
-        return $b['mtime'] <=> $a['mtime'];
+    if ($a['sortKey'] !== $b['sortKey']) {
+        return strcmp($a['sortKey'], $b['sortKey']);
     }
     return strcmp($a['filename'], $b['filename']);
 });
@@ -180,6 +244,8 @@ usort($cards, static function (array $a, array $b): int {
     .overlay img {
         max-width: 95vw;
         max-height: 95vh;
+        width: auto;
+        height: auto;
         border-radius: 10px;
         object-fit: contain;
         cursor: pointer;
@@ -188,6 +254,10 @@ usort($cards, static function (array $a, array $b): int {
     .overlay.active {
         opacity: 1;
         pointer-events: all;
+    }
+
+    body.overlay-open {
+        overflow: hidden;
     }
 
     .empty-state {
@@ -225,7 +295,7 @@ setInterval(updateUtcTime, 1000);
 
 <?php if (!$cards): ?>
 <div class="empty-state">
-    No <code>latest*.png</code> files newer than <?php echo (int)$maxAgeHours; ?> hours were found in
+    No <code>*.png</code> files newer than <?php echo (int)$maxAgeHours; ?> hours were found in
     <code><?php echo htmlspecialchars($imageGlob, ENT_QUOTES, 'UTF-8'); ?></code>.
 </div>
 <?php else: ?>
@@ -250,20 +320,37 @@ setInterval(updateUtcTime, 1000);
 <script>
 const overlay = document.getElementById('overlay');
 const overlayImg = document.getElementById('overlayImg');
+
+function openOverlay(src, alt) {
+    overlayImg.src = src;
+    overlayImg.alt = alt || 'Expanded plot';
+    overlay.classList.add('active');
+    document.body.classList.add('overlay-open');
+}
+
+function closeOverlay() {
+    overlay.classList.remove('active');
+    document.body.classList.remove('overlay-open');
+    overlayImg.src = '';
+}
+
 document.querySelectorAll('img.dashboard-image').forEach(img => {
-    img.addEventListener('click', () => {
-        if (overlay.classList.contains('active') && overlayImg.src === img.src) {
-            overlay.classList.remove('active');
-            overlayImg.src = '';
-        } else {
-            overlay.classList.add('active');
-            overlayImg.src = img.src;
-        }
+    img.addEventListener('click', event => {
+        event.preventDefault();
+        openOverlay(img.src, img.alt);
     });
 });
-overlay.addEventListener('click', () => {
-    overlay.classList.remove('active');
-    overlayImg.src = '';
+
+overlay.addEventListener('click', event => {
+    if (event.target === overlay || event.target === overlayImg) {
+        closeOverlay();
+    }
+});
+
+document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+        closeOverlay();
+    }
 });
 </script>
 </body>
