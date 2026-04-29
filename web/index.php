@@ -5,33 +5,57 @@ $imageBaseUrl = '/iono';
 $maxAgeHours = 48;
 $refreshSeconds = 60;
 
-// Configure plot type ordering here. The first matching regex wins.
+$receiverStations = ['TGO', 'DOB'];
+
 $plotTypeOrder = [
     'ionogram' => '/^latest-(digisonde|lfm)-/i',
     'rti' => '/^(latest|yesterday)-rti-/i',
     'summary' => '/^(latest-)?rothr_jorn_|^latest_/i',
-    'other' => '/.*/',
     'map' => '/^map(_all|_scand)?\.png$/i',
     'pc status' => '/-pc\.png$/i',
+    'other' => '/.*/',
 ];
 
 $stationLabels = [
     'DB049' => 'Dourbes',
     'TH76' => 'Thule',
     'THJ76' => 'Thule',
+    'TGO' => 'TGO',
+    'DOB' => 'DOB',
 ];
 
 function detect_plot_type(string $filename, array $plotTypeOrder): string
 {
     foreach ($plotTypeOrder as $label => $pattern) {
-        if ($label === 'other') {
-            continue;
-        }
-        if (preg_match($pattern, $filename)) {
-            return $label;
-        }
+        if ($label === 'other') continue;
+        if (preg_match($pattern, $filename)) return $label;
     }
     return 'other';
+}
+
+function detect_receiver_station(string $filename, array $receiverStations): ?string
+{
+    foreach ($receiverStations as $receiver) {
+        $r = preg_quote($receiver, '/');
+
+        if (preg_match('/^latest-(?:digisonde|lfm)-[^-]+-' . $r . '\.png$/i', $filename)) {
+            return $receiver;
+        }
+
+        if (preg_match('/^(?:latest|yesterday)-rti-[^-]+-' . $r . '\.png$/i', $filename)) {
+            return $receiver;
+        }
+
+        if (preg_match('/^(?:latest-)?rothr_jorn_(?:today|yesterday)-' . $r . '\.png$/i', $filename)) {
+            return $receiver;
+        }
+
+        if (preg_match('/-' . $r . '-pc\.png$/i', $filename)) {
+            return $receiver;
+        }
+    }
+
+    return null;
 }
 
 function plot_type_rank(string $plotType, array $plotTypeOrder): int
@@ -67,18 +91,6 @@ function label_from_filename(string $filename, array $stationLabels): string
         return 'ROTHR/JORN Overview ' . $day . $receiver;
     }
 
-    if (preg_match('/^-?map_all\.png$/i', $filename)) {
-        return 'Network Map Global';
-    }
-
-    if (preg_match('/^-?map_scand\.png$/i', $filename)) {
-        return 'Network Map Scandinavia';
-    }
-
-    if (preg_match('/^-?map\.png$/i', $filename)) {
-        return 'Network Map';
-    }
-
     $stem = preg_replace('/\.png$/i', '', $filename);
     $stem = preg_replace('/^latest-/', '', $stem);
     $label = str_replace(['_', '-'], ' ', $stem);
@@ -94,18 +106,6 @@ function station_sort_key(string $filename, string $plotType, array $stationLabe
         }
     }
 
-    if ($plotType === 'map') {
-        $mapOrder = [
-            'map.png' => '000 map',
-            'map_all.png' => '001 map all',
-            'map_scand.png' => '002 map scand',
-        ];
-        $lower = strtolower($filename);
-        if (isset($mapOrder[$lower])) {
-            return $mapOrder[$lower];
-        }
-    }
-
     if ($plotType === 'summary') {
         if (preg_match('/^(?:latest-)?rothr_jorn_(today|yesterday)(?:-([^.]+))?\.png$/i', $filename, $m)) {
             $dayRank = strtolower($m[1]) === 'today' ? '0' : '1';
@@ -118,18 +118,20 @@ function station_sort_key(string $filename, string $plotType, array $stationLabe
 }
 
 $cutoff = time() - ($maxAgeHours * 3600);
-$cards = [];
+$cardsByReceiver = array_fill_keys($receiverStations, []);
+
 foreach (glob($imageGlob) ?: [] as $path) {
-    if (!is_file($path)) {
-        continue;
-    }
+    if (!is_file($path)) continue;
+
     $mtime = filemtime($path);
     $filename = basename($path);
     $plotType = detect_plot_type($filename, $plotTypeOrder);
-    if ($mtime === false || ($plotType !== 'map' && $mtime < $cutoff)) {
-        continue;
-    }
-    $cards[] = [
+    $receiver = detect_receiver_station($filename, $receiverStations);
+
+    if ($receiver === null) continue;
+    if ($mtime === false || $mtime < $cutoff) continue;
+
+    $cardsByReceiver[$receiver][] = [
         'filename' => $filename,
         'path' => $path,
         'plotType' => $plotType,
@@ -141,15 +143,26 @@ foreach (glob($imageGlob) ?: [] as $path) {
     ];
 }
 
-usort($cards, static function (array $a, array $b): int {
-    if ($a['plotTypeRank'] !== $b['plotTypeRank']) {
-        return $a['plotTypeRank'] <=> $b['plotTypeRank'];
+foreach ($cardsByReceiver as &$cards) {
+    usort($cards, static function (array $a, array $b): int {
+        if ($a['plotTypeRank'] !== $b['plotTypeRank']) {
+            return $a['plotTypeRank'] <=> $b['plotTypeRank'];
+        }
+        if ($a['sortKey'] !== $b['sortKey']) {
+            return strcmp($a['sortKey'], $b['sortKey']);
+        }
+        return strcmp($a['filename'], $b['filename']);
+    });
+}
+unset($cards);
+
+$hasCards = false;
+foreach ($cardsByReceiver as $cards) {
+    if ($cards) {
+        $hasCards = true;
+        break;
     }
-    if ($a['sortKey'] !== $b['sortKey']) {
-        return strcmp($a['sortKey'], $b['sortKey']);
-    }
-    return strcmp($a['filename'], $b['filename']);
-});
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -165,16 +178,11 @@ usort($cards, static function (array $a, array $b): int {
         background: white;
     }
 
-    h1 {
-        text-align: center;
-        padding: 20px;
-        margin: 0;
-    }
-
     .header {
         display: flex;
         align-items: center;
         justify-content: center;
+        padding: 20px 20px 8px 20px;
     }
 
     .logo {
@@ -185,6 +193,49 @@ usort($cards, static function (array $a, array $b): int {
     .headertext {
         font-size: 24px;
         font-weight: bold;
+    }
+
+    .utc-time {
+        font-size: 1.6rem;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        font-family: monospace;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .tabs {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        margin: 18px 16px 6px 16px;
+        flex-wrap: wrap;
+    }
+
+    .tab-button {
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        color: #0f172a;
+        padding: 10px 22px;
+        border-radius: 999px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 600;
+    }
+
+    .tab-button.active {
+        background: #0f172a;
+        color: white;
+        border-color: #0f172a;
+    }
+
+    .tab-panel {
+        display: none;
+    }
+
+    .tab-panel.active {
+        display: block;
     }
 
     .dashboard {
@@ -221,23 +272,6 @@ usort($cards, static function (array $a, array $b): int {
         object-fit: contain;
         border-radius: 8px;
         cursor: pointer;
-        transition: transform 0.2s ease;
-    }
-
-    .utc-time {
-        font-size: 1.6rem;
-        font-weight: 600;
-        letter-spacing: 0.06em;
-        font-family: monospace;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        transition: opacity 0.2s ease, transform 0.2s ease;
-    }
-
-    .utc-time.tick {
-        opacity: 0.6;
-        transform: scale(1.05);
     }
 
     .overlay {
@@ -286,12 +320,20 @@ usort($cards, static function (array $a, array $b): int {
 </style>
 </head>
 <body>
-<center><div class="header"><img class="logo" src="https://www.tgo.uit.no/UitLogo.png" alt="UiT logo"><div class="headertext"><?php echo htmlspecialchars($dashboardTitle, ENT_QUOTES, 'UTF-8'); ?></div></div></center>
+
+<center>
+    <div class="header">
+        <img class="logo" src="https://www.tgo.uit.no/UitLogo.png" alt="UiT logo">
+        <div class="headertext"><?php echo htmlspecialchars($dashboardTitle, ENT_QUOTES, 'UTF-8'); ?></div>
+    </div>
+</center>
+
 <div id="utc-time" class="utc-time">---------- --:--:-- UTC</div>
 <center><a href="https://github.com/jvierine/chirpsounder2">github.com/jvierine/chirpsounder2</a></center>
 
 <script>
 const utcEl = document.getElementById("utc-time");
+
 function updateUtcTime() {
   const now = new Date();
   const year = now.getUTCFullYear();
@@ -301,30 +343,49 @@ function updateUtcTime() {
   const minutes = String(now.getUTCMinutes()).padStart(2, "0");
   const seconds = String(now.getUTCSeconds()).padStart(2, "0");
   utcEl.textContent = `${year}-${month}-${day} ${hours}:${minutes}:${seconds} UTC`;
-  setTimeout(() => utcEl.classList.remove("tick"), 200);
 }
 updateUtcTime();
 setInterval(updateUtcTime, 1000);
 </script>
 
-<?php if (!$cards): ?>
+<?php if (!$hasCards): ?>
 <div class="empty-state">
-    No <code>*.png</code> files newer than <?php echo (int)$maxAgeHours; ?> hours were found in
+    No receiver-station <code>*.png</code> files newer than <?php echo (int)$maxAgeHours; ?> hours were found in
     <code><?php echo htmlspecialchars($imageGlob, ENT_QUOTES, 'UTF-8'); ?></code>.
 </div>
 <?php else: ?>
-<div class="dashboard">
-<?php foreach ($cards as $card): ?>
-    <div class="card" data-plot-type="<?php echo htmlspecialchars($card['plotType'], ENT_QUOTES, 'UTF-8'); ?>">
-        <h2><?php echo htmlspecialchars($card['title'], ENT_QUOTES, 'UTF-8'); ?></h2>
-        <div class="card-meta">
-            <?php echo htmlspecialchars($card['plotType'], ENT_QUOTES, 'UTF-8'); ?>
-            | updated <?php echo gmdate('Y-m-d H:i:s', (int)$card['mtime']); ?> UTC
-        </div>
-        <img class="dashboard-image" src="<?php echo htmlspecialchars($card['url'], ENT_QUOTES, 'UTF-8'); ?>" alt="<?php echo htmlspecialchars($card['title'], ENT_QUOTES, 'UTF-8'); ?>">
-    </div>
+
+<div class="tabs">
+<?php foreach ($receiverStations as $i => $receiver): ?>
+    <button class="tab-button <?php echo $i === 0 ? 'active' : ''; ?>" data-tab="<?php echo htmlspecialchars($receiver, ENT_QUOTES, 'UTF-8'); ?>">
+        <?php echo htmlspecialchars($receiver, ENT_QUOTES, 'UTF-8'); ?>
+    </button>
 <?php endforeach; ?>
 </div>
+
+<?php foreach ($receiverStations as $i => $receiver): ?>
+<section class="tab-panel <?php echo $i === 0 ? 'active' : ''; ?>" id="tab-<?php echo htmlspecialchars($receiver, ENT_QUOTES, 'UTF-8'); ?>">
+    <?php if (!$cardsByReceiver[$receiver]): ?>
+        <div class="empty-state">
+            No plots found for receiver station <strong><?php echo htmlspecialchars($receiver, ENT_QUOTES, 'UTF-8'); ?></strong>.
+        </div>
+    <?php else: ?>
+        <div class="dashboard">
+        <?php foreach ($cardsByReceiver[$receiver] as $card): ?>
+            <div class="card" data-receiver="<?php echo htmlspecialchars($receiver, ENT_QUOTES, 'UTF-8'); ?>" data-plot-type="<?php echo htmlspecialchars($card['plotType'], ENT_QUOTES, 'UTF-8'); ?>">
+                <h2><?php echo htmlspecialchars($card['title'], ENT_QUOTES, 'UTF-8'); ?></h2>
+                <div class="card-meta">
+                    <?php echo htmlspecialchars($card['plotType'], ENT_QUOTES, 'UTF-8'); ?>
+                    | updated <?php echo gmdate('Y-m-d H:i:s', (int)$card['mtime']); ?> UTC
+                </div>
+                <img class="dashboard-image" src="<?php echo htmlspecialchars($card['url'], ENT_QUOTES, 'UTF-8'); ?>" alt="<?php echo htmlspecialchars($card['title'], ENT_QUOTES, 'UTF-8'); ?>">
+            </div>
+        <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+</section>
+<?php endforeach; ?>
+
 <?php endif; ?>
 
 <div class="overlay" id="overlay">
@@ -332,6 +393,18 @@ setInterval(updateUtcTime, 1000);
 </div>
 
 <script>
+document.querySelectorAll('.tab-button').forEach(button => {
+    button.addEventListener('click', () => {
+        const tab = button.dataset.tab;
+
+        document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+
+        button.classList.add('active');
+        document.getElementById('tab-' + tab).classList.add('active');
+    });
+});
+
 const overlay = document.getElementById('overlay');
 const overlayImg = document.getElementById('overlayImg');
 
@@ -367,5 +440,6 @@ document.addEventListener('keydown', event => {
     }
 });
 </script>
+
 </body>
 </html>
