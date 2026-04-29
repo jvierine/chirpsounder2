@@ -171,9 +171,12 @@ def housekeeping(conf):
             print(cmd)            
             os.system(cmd)
         now = time.time()
-        if now >= next_pc_status_time:
-            update_pc_status(conf, t_hist, temp_histories, disk_hist, gpsdo_histories)
-            next_pc_status_time = now + pc_status_period_s
+#        try:
+ #           if now >= next_pc_status_time:
+  #              update_pc_status(conf, t_hist, temp_histories, disk_hist, gpsdo_histories)
+   #             next_pc_status_time = now + pc_status_period_s
+    #    except:
+     #       print("plotting crapped out. fix fix fix, but it doesn't affect ringbuffer cleanup.")
         time.sleep(1)
 
 
