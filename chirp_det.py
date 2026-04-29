@@ -100,14 +100,14 @@ class chirp_matched_filter_bank:
         self.fft_object = pyfftw.FFTW(
             self.fftin, self.fftout,
             direction='FFTW_FORWARD',
-            flags=('FFTW_MEASURE',),
+            flags=('FFTW_ESTIMATE',),
             threads=1
         )
         
         self.ifft_object = pyfftw.FFTW(
             self.fftout, self.fftin,       # reversed!
             direction='FFTW_BACKWARD',
-            flags=('FFTW_MEASURE',),
+            flags=('FFTW_ESTIMATE',),
             threads=1
         )
 

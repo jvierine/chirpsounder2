@@ -390,16 +390,18 @@ def analyze_realtime(conf, d):
                 next_t0 = float(best_t0)
                 txname=best_txname
                 
-                print("Rank %d chirp id %d name %s analyzing chirp-rate %1.2f kHz/s chirpt %1.4f rep %1.2f" %
-                    (rank ,best_id ,txname, chirp_rate / 1e3, chirpt, rep))
+
                 i0 = int(next_t0 * conf.sample_rate)
                 realtime_req = conf.sample_rate / chirp_rate
                 
-                print("Buffer extent %1.2f-%1.2f launching next chirp at %1.2f %s" % (b[0]/conf.sample_rate,
-                                                                                      b[1]/conf.sample_rate,
-                                                                                      next_t0,
-                                                                                      cd.unix2datestr(next_t0)))
-                if (next_t0 != last_t0) and (last_cid != best_id):
+                if (next_t0 != last_t0) or (last_cid != best_id):
+                    print("Rank %d chirp id %d name %s analyzing chirp-rate %1.2f kHz/s chirpt %1.4f rep %1.2f" %
+                          (rank ,best_id ,txname, chirp_rate / 1e3, chirpt, rep))
+                    print("Buffer extent %1.2f-%1.2f launching next chirp at %1.2f %s" % (b[0]/conf.sample_rate,
+                                                                                          b[1]/conf.sample_rate,
+                                                                                          next_t0,
+                                                                                          cd.unix2datestr(next_t0)))
+                    
                     chirp_downconvert(conf,
                                       next_t0,
                                       d,
@@ -553,6 +555,7 @@ if __name__ == "__main__":
             try:
                 d = drf.DigitalRFReader(conf.data_dir)
                 analyze_realtime(conf, d)
+                time.sleep(1)
             except:
                 print("error in calc_ionograms.py. trying to restart")
                 traceback.print_exc(file=sys.stdout)
