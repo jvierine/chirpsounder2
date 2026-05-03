@@ -91,8 +91,8 @@ def plot_map(conf, set_extent=True, ofname="map.png"):
     plt.legend(fontsize=12)
     plt.title("Ionospheric Sounding Network", fontsize=20)
 
-    plt.savefig(ofname)#, dpi=150)  # save BEFORE show
-    #plt.show()
+    plt.savefig(ofname, dpi=150)  # save BEFORE show
+    plt.show()
 
     print("Saved")
 
@@ -106,5 +106,5 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    plot_map(cc.chirp_config(args.config),set_extent=False,ofname="map_all.pdf")
-    plot_map(cc.chirp_config(args.config),set_extent=True,ofname="map_scand.pdf")
+    plot_map(cc.chirp_config(args.config),set_extent=False,ofname="map_all.png")
+    plot_map(cc.chirp_config(args.config),set_extent=True,ofname="map_scand.png")
