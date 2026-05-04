@@ -34,7 +34,6 @@ def set_publication_style() -> None:
             "xtick.labelsize": 12,
             "ytick.labelsize": 12,
             "legend.fontsize": 12,
-            "colorbar.labelsize": 13,
             "figure.dpi": 120,
             "savefig.dpi": 300,
         }
