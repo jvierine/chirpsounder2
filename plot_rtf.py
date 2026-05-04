@@ -10,7 +10,7 @@ import time
 import matplotlib.dates as mdates
 from datetime import datetime
 import psutil
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 p = psutil.Process()
 # Set I/O priority to idle (lowest) to avoid interrupting realtime processes
@@ -24,6 +24,9 @@ def needs_daily_plot(pfname, now=None):
         return True
     day_start = n.floor(now/24/3600)*24*3600
     return os.path.getmtime(pfname) < day_start
+
+def parse_utc_day(day):
+    return datetime.strptime(day, "%Y-%m-%d").replace(tzinfo=timezone.utc)
 
 def read_ionogram(h):
     if "type" in h.keys():
@@ -56,10 +59,21 @@ def read_ionogram(h):
     n_r = min(len(ranges), snr.shape[1])
     return ranges[:n_r], freqs[:n_f], snr[:n_f, :n_r], h["t0"][()]
 
-def get_day_view(conf,tx,rx,dirname,pfname="/tmp/latest-rti.png"):
-    print("creating RTI and RTF")
-    fl=glob.glob("%s/%s/*_ionogram-%s-%s-*.h5"%(conf.output_dir,dirname,tx,rx))
+def get_ionogram_files(data_dir, tx, rx, dirname=None):
+    if dirname is None:
+        pattern = "%s/2*/*_ionogram-%s-%s-*.h5" % (data_dir, tx, rx)
+    else:
+        pattern = "%s/%s/*_ionogram-%s-%s-*.h5" % (data_dir, dirname, tx, rx)
+    fl = glob.glob(pattern)
     fl.sort()
+    return fl
+
+def get_t0(path):
+    with h5py.File(path, "r") as h:
+        return h["t0"][()]
+
+def plot_ionogram_files(fl, tx, rx, pfname="/tmp/latest-rti.png", x_start=None, x_end=None, title_span=None):
+    print("creating RTI and RTF")
     if len(fl)<3:
         print("not enough soundings %s %s"%(tx,rx))
         return
@@ -160,41 +174,92 @@ def get_day_view(conf,tx,rx,dirname,pfname="/tmp/latest-rti.png"):
     cb2.set_label("Frequency (MHz)")
 
     # --- time formatting ---
-    ax[1].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+    if x_start is not None and x_end is not None and (x_end - x_start).total_seconds() > 24*3600:
+        ax[1].xaxis.set_major_formatter(mdates.DateFormatter("%m-%d\n%H:%M"))
+    else:
+        ax[1].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
     ax[1].xaxis.set_major_locator(mdates.AutoDateLocator())
 
-    start_date = datetime.utcfromtimestamp(tv[0]).strftime("%Y-%m-%d")
-    ax[0].set_title("%s-%s %s"%(tx,rx,start_date))#Date: {start_date}
+    if title_span is None:
+        title_span = datetime.utcfromtimestamp(tv[0]).strftime("%Y-%m-%d")
+    ax[0].set_title("%s-%s %s"%(tx,rx,title_span))#Date: {start_date}
     ax[1].set_xlabel(f"Time (UTC)")
 
-    # full day
-    day_start = t_new.min().replace(hour=0, minute=0, second=0, microsecond=0)
-    day_end = day_start + timedelta(days=1)
-    ax[0].set_xlim(day_start, day_end)
-    ax[1].set_xlim(day_start, day_end)
+    if x_start is None or x_end is None:
+        # full day
+        x_start = t_new.min().replace(hour=0, minute=0, second=0, microsecond=0)
+        x_end = x_start + timedelta(days=1)
+    ax[0].set_xlim(x_start, x_end)
+    ax[1].set_xlim(x_start, x_end)
 
     plt.tight_layout()
     plt.savefig(pfname)
     plt.close()
+    print("saved %s"%(pfname))
 #    plt.show()
 
-def plot_rtf(conf,tx,rx):
+def get_day_view(conf,tx,rx,dirname,pfname="/tmp/latest-rti.png",data_dir=None):
+    data_dir = data_dir or conf.output_dir
+    fl = get_ionogram_files(data_dir, tx, rx, dirname=dirname)
+    plot_ionogram_files(fl, tx, rx, pfname=pfname)
+
+def get_range_view(conf, tx, rx, start_day, end_day, pfname="/tmp/rti.png", data_dir=None):
+    data_dir = data_dir or conf.output_dir
+    end_exclusive = end_day + timedelta(days=1)
+    start_t = start_day.timestamp()
+    end_t = end_exclusive.timestamp()
+    fl = []
+    for path in get_ionogram_files(data_dir, tx, rx):
+        t0 = get_t0(path)
+        if start_t <= t0 < end_t:
+            fl.append(path)
+    title_span = "%s to %s UTC" % (
+        start_day.strftime("%Y-%m-%d"),
+        end_day.strftime("%Y-%m-%d"),
+    )
+    plot_ionogram_files(
+        fl,
+        tx,
+        rx,
+        pfname=pfname,
+        x_start=start_day.replace(tzinfo=None),
+        x_end=end_exclusive.replace(tzinfo=None),
+        title_span=title_span)
+
+def plot_rtf(conf,tx,rx,data_dir=None):
     tnow=time.time()
     tyesterday=tnow-24*3600
     today_dir=cd.unix2dirname(tnow)
     yesterday_dir=cd.unix2dirname(tyesterday)
     yesterday_pfname="/tmp/yesterday-rti-%s-%s.png"%(tx,rx)
     
-    get_day_view(conf,tx,rx,today_dir,pfname="/tmp/latest-rti-%s-%s.png"%(tx,rx))
+    get_day_view(conf,tx,rx,today_dir,pfname="/tmp/latest-rti-%s-%s.png"%(tx,rx),data_dir=data_dir)
     if needs_daily_plot(yesterday_pfname, now=tnow):
-        get_day_view(conf,tx,rx,yesterday_dir,pfname=yesterday_pfname)
+        get_day_view(conf,tx,rx,yesterday_dir,pfname=yesterday_pfname,data_dir=data_dir)
     else:
         print("skipping up-to-date %s"%(yesterday_pfname))
 
-def plot_rtf_links(conf, links):
+def plot_rtf_links(conf, links, data_dir=None):
     for tx, rx in links:
         print("plotting RTF %s -> %s"%(tx, rx))
-        plot_rtf(conf, tx, rx)
+        plot_rtf(conf, tx, rx, data_dir=data_dir)
+
+def plot_rtf_link_range(conf, links, start_day, end_day, data_dir=None):
+    for tx, rx in links:
+        print("plotting RTF %s -> %s"%(tx, rx))
+        get_range_view(
+            conf,
+            tx,
+            rx,
+            start_day,
+            end_day,
+            pfname="/tmp/rti-%s-%s-%s_to_%s.png" % (
+                tx,
+                rx,
+                start_day.strftime("%Y-%m-%d"),
+                end_day.strftime("%Y-%m-%d"),
+            ),
+            data_dir=data_dir)
 
 def normalize_links(links):
     normalized = []
@@ -224,8 +289,29 @@ if __name__ == "__main__":
         default="",
         help="Fallback single sounding path, e.g. SGO,TGO. [rtf] links from config take precedence."
     )
+    parser.add_argument(
+        "--data-dir",
+        type=str,
+        default=None,
+        help="Directory containing dated ionogram subdirectories. Defaults to config output_dir."
+    )
+    parser.add_argument(
+        "--start",
+        type=str,
+        default=None,
+        help="First UTC day to plot, formatted YYYY-MM-DD. Enables one-shot date-range mode."
+    )
+    parser.add_argument(
+        "--end",
+        type=str,
+        default=None,
+        help="Last UTC day to include in the same plot, formatted YYYY-MM-DD. Inclusive. Defaults to --start."
+    )
     args = parser.parse_args()
+    if args.end is not None and args.start is None:
+        parser.error("--end requires --start")
     conf = cc.chirp_config(args.config, read_shared=False)
+    data_dir = args.data_dir or conf.output_dir
     if len(conf.rtf_links) > 0:
         links = normalize_links(conf.rtf_links)
         print("using [rtf] links from config")
@@ -238,6 +324,13 @@ if __name__ == "__main__":
         print("no RTF links configured")
         exit(0)
     print("RTF links: %s"%(links))
+    if args.start is not None:
+        start_day = parse_utc_day(args.start)
+        end_day = parse_utc_day(args.end or args.start)
+        if end_day < start_day:
+            raise ValueError("--end must be on or after --start")
+        plot_rtf_link_range(conf, links, start_day, end_day, data_dir=data_dir)
+        exit(0)
     import time
     plot_period_s = 15*60
     next_plot_time = 0.0
@@ -245,6 +338,6 @@ if __name__ == "__main__":
     while True:
         now = time.time()
         if now >= next_plot_time:
-            plot_rtf_links(conf, links)
+            plot_rtf_links(conf, links, data_dir=data_dir)
             next_plot_time = time.time() + plot_period_s
         time.sleep(max(1.0, min(60.0, next_plot_time - time.time())))
