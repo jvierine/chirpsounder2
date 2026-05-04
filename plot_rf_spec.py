@@ -140,7 +140,7 @@ def collect_plot_data(reader: drf.DigitalRFReader, conf: cc.chirp_config, args: 
     dB = 10.0 * n.log10(n.maximum(spec, 1e-12))
     dB = dB - n.nanmedian(dB)
     rms_voltage = n.sqrt(rms_voltage / max(n_rms_voltage, 1.0))
-    raw_t = None if raw_z is None else n.arange(raw_z.size) / conf.sample_rate
+    raw_t = None if raw_z is None else n.arange(raw_z.size) / conf.sample_rate * 1e3
 
     return {
         "tvec": tvec,
@@ -160,7 +160,7 @@ def draw_plot(fig: plt.Figure, spec_ax, raw_ax, cbar_ax, conf: cc.chirp_config, 
     pcm = spec_ax.pcolormesh(data["tvec"], data["fvec"], data["dB"], vmin=-10, vmax=50.0, cmap="plasma", shading="auto")
     fig.colorbar(pcm, cax=cbar_ax, label="Relative power (dB)")
     spec_ax.set_title(f"$V_{{\\mathrm{{RMS}}}}={data['rms_voltage']:1.6f}$ (ADC units)")
-    spec_ax.set_xlabel("")
+    spec_ax.set_xlabel("Time (s)")
     spec_ax.set_ylabel("Frequency (MHz)")
     spec_ax.set_ylim(
         [
@@ -169,19 +169,17 @@ def draw_plot(fig: plt.Figure, spec_ax, raw_ax, cbar_ax, conf: cc.chirp_config, 
         ]
     )
 
-    plt.setp(spec_ax.get_xticklabels(), visible=False)
-
     if data["raw_z"] is not None:
         raw_ax.plot(data["raw_t"], data["raw_z"].real, label="Re", linewidth=0.8)
         raw_ax.plot(data["raw_t"], data["raw_z"].imag, label="Im", linewidth=0.8)
-        raw_ax.set_title(f"Raw RF, {args.raw_duration_ms / 1000:g} s")
-        raw_ax.set_xlabel("Time (s)")
+        raw_ax.set_title(f"Raw RF, {args.raw_duration_ms:g} ms")
+        raw_ax.set_xlabel("Time (ms)")
         raw_ax.set_ylabel("ADC units")
         raw_ax.legend(loc="upper right")
     else:
         raw_ax.text(0.5, 0.5, "Raw RF unavailable", ha="center", va="center", transform=raw_ax.transAxes)
-        raw_ax.set_title(f"Raw RF, {args.raw_duration_ms / 1000:g} s")
-        raw_ax.set_xlabel("Time (s)")
+        raw_ax.set_title(f"Raw RF, {args.raw_duration_ms:g} ms")
+        raw_ax.set_xlabel("Time (ms)")
         raw_ax.set_ylabel("ADC units")
 
     fig.canvas.draw_idle()
@@ -201,9 +199,10 @@ def main() -> None:
     fig = plt.figure(figsize=(7.2, 5.2))
     gs = GridSpec(2, 2, figure=fig, width_ratios=[30, 1], height_ratios=[3, 2])
     spec_ax = fig.add_subplot(gs[0, 0])
-    raw_ax = fig.add_subplot(gs[1, 0], sharex=spec_ax)
+    raw_ax = fig.add_subplot(gs[1, 0])
     cbar_ax = fig.add_subplot(gs[0, 1])
     fig.tight_layout()
+    fig.subplots_adjust(hspace=0.4)
 
     while True:
         timestamp = time.strftime("%Y%m%d_%H%M%S")
