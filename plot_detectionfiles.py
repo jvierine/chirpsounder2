@@ -43,6 +43,26 @@ def read_detection_files(files):
     return n.concatenate(dfs, axis=0)
 
 
+def detection_filter_indices(times, min_detections=5, max_dt=0.033):
+    rtimes = n.round(times)
+    order = n.argsort(rtimes, kind="mergesort")
+    sorted_rtimes = rtimes[order]
+    group_start = n.r_[0, n.flatnonzero(n.diff(sorted_rtimes)) + 1]
+    group_end = n.r_[group_start[1:], len(order)]
+    keep = []
+    for start, end in zip(group_start, group_end):
+        idx0 = order[start:end]
+        if len(idx0) <= min_detections:
+            continue
+        median_time = n.median(times[idx0])
+        idx = idx0[n.abs(times[idx0] - median_time) < max_dt]
+        if len(idx) > min_detections:
+            keep.append(idx)
+    if len(keep) == 0:
+        return n.array([], dtype=int)
+    return n.concatenate(keep)
+
+
 def needs_daily_plot(pfname, now=None):
     if now is None:
         import time
@@ -61,20 +81,10 @@ def plot_propagation_range(dfs, start_t, n_hours=24,min_detections=5, pfname="/t
         print("no detections in requested window for %s" % (pfname))
         return
     
-    gidx=n.array([],dtype=int)
-
     # filter soundings so that only ones with sufficiently many detections are shown
-    rtimes=n.round(dfs[:,0])
-    utimes=n.unique(rtimes)
     print("filtering")
-    for ut in utimes:
-        idx0=n.where(rtimes==ut)[0]# & (n.abs(dfs[:,0]-ut)<0.1) )[0]
-        median_time=n.median( dfs[idx0,0] )
-        # less than 10 km  separation between points
-        idx=n.where( (rtimes==ut)&( n.abs(dfs[:,0]-median_time)<0.033 ) )[0]# & (n.abs(dfs[:,0]-ut)<0.1) )[0]
-#        print(ut,len(idx))
-        if len(idx)>min_detections:
-            gidx=n.concatenate((gidx,idx))
+    # less than 10 km separation between points
+    gidx = detection_filter_indices(dfs[:, 0], min_detections=min_detections, max_dt=0.033)
 
     if len(gidx) == 0:
         print("no soundings with more than %d detections for %s" % (min_detections, pfname))
@@ -116,7 +126,7 @@ def plot_propagation_range(dfs, start_t, n_hours=24,min_detections=5, pfname="/t
     
     ax[0].set_ylabel("One-way virtual propagation range (km)")
     # ax[0].set_ylim([0, 42000])
-    ax[0].legend()
+    ax[0].legend(loc="upper right")
 
     crs=n.array(dfs[gidx,3]/1e3,dtype=int)
     freqs=dfs[gidx,2]/1e6
