@@ -5,6 +5,7 @@
 #
 import argparse
 from pathlib import Path
+import time
 
 import digital_rf as drf
 import matplotlib
@@ -202,17 +203,13 @@ def main() -> None:
     cbar_ax = fig.add_subplot(gs[0, 1])
     fig.tight_layout()
 
-    if args.refresh_sec > 0:
-        plt.ion()
-        while plt.fignum_exists(fig.number):
-            data = collect_plot_data(reader, conf, args)
-            draw_plot(fig, spec_ax, raw_ax, cbar_ax, conf, args, data)
-            save_plot(fig, args.output)
-            plt.pause(args.refresh_sec)
-    else:
+    while True:
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        output_file = f"{args.output}_{timestamp}.png"
         data = collect_plot_data(reader, conf, args)
         draw_plot(fig, spec_ax, raw_ax, cbar_ax, conf, args, data)
-        save_plot(fig, args.output)
+        save_plot(fig, output_file)
+        time.sleep(10)
 
 
 if __name__ == "__main__":
