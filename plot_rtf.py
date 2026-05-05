@@ -76,6 +76,23 @@ def get_t0(path):
     with h5py.File(path, "r") as h:
         return h["t0"][()]
 
+def get_ionogram_files_in_time_range(data_dir, tx, rx, start_t, end_t):
+    day_start = n.floor(start_t/24/3600)*24*3600
+    day_end = n.floor(end_t/24/3600)*24*3600
+    fl = []
+    day_t = day_start
+    while day_t <= day_end:
+        fl.extend(get_ionogram_files(data_dir, tx, rx, dirname=cd.unix2dirname(day_t)))
+        day_t += 24*3600
+    fl.sort()
+
+    range_files = []
+    for path in fl:
+        t0 = get_t0(path)
+        if start_t <= t0 < end_t:
+            range_files.append(path)
+    return range_files
+
 def regrid_snr_to_ranges(cur_ranges, snr, ref_ranges):
     cur_ranges = n.asarray(cur_ranges, dtype=n.float64)
     ref_ranges = n.asarray(ref_ranges, dtype=n.float64)
@@ -189,7 +206,7 @@ def plot_ionogram_files(
     M_new = M_new[:, range_idx]
     S_new = S_new[:, range_idx]
 
-    fig, ax = plt.subplots(2,1,figsize=(10,6),sharex=True)
+    fig, ax = plt.subplots(2,1,figsize=(10,6),sharex=True,sharey=True)
     
     # --- first plot ---
     pcm1 = ax[0].pcolormesh(
@@ -202,9 +219,9 @@ def plot_ionogram_files(
         vmax=20
     )
     
-    ax[0].set_ylabel("Propagation virtual range (km)", fontsize=14)
+    #ax[0].set_ylabel("Propagation virtual range (km)", fontsize=14)
     cb1 = plt.colorbar(pcm1, ax=ax[0])
-    cb1.set_label("SNR (dB)", fontsize=14)
+    cb1.set_label("SNR (dB)", fontsize=16)
 
     
     # --- second plot ---
@@ -216,10 +233,11 @@ def plot_ionogram_files(
         cmap="rainbow",
         shading="auto"
     )
-    ax[1].set_ylabel("Propagation virtual range (km)", fontsize=14)
+    #ax[1].set_ylabel("Propagation virtual range (km)", fontsize=14)
     cb2 = plt.colorbar(pcm2, ax=ax[1])
-    cb2.set_label("Frequency (MHz)", fontsize=14)
+    cb2.set_label("Frequency (MHz)", fontsize=16)
 
+    fig.supylabel("Propagation virtual range (km)", fontsize=16)
     # --- time formatting ---
     if x_start is not None and x_end is not None and (x_end - x_start).total_seconds() > 24*3600:
         ax[1].xaxis.set_major_formatter(mdates.DateFormatter("%m-%d\n%H:%M"))
@@ -230,7 +248,7 @@ def plot_ionogram_files(
     if title_span is None:
         title_span = datetime.utcfromtimestamp(tv[0]).strftime("%Y-%m-%d")
     ax[0].set_title("%s-%s %s"%(tx,rx,title_span), fontsize=20)#Date: {start_date}
-    ax[1].set_xlabel(f"Time (UTC)", fontsize=14)
+    ax[1].set_xlabel(f"Time (UTC)", fontsize=16)
 
     if x_start is None or x_end is None:
         # full day
@@ -266,11 +284,7 @@ def get_range_view(conf, tx, rx, start_day, end_day, pfname="/tmp/rti.png", data
     end_exclusive = end_day + timedelta(days=1)
     start_t = start_day.timestamp()
     end_t = end_exclusive.timestamp()
-    fl = []
-    for path in get_ionogram_files(data_dir, tx, rx):
-        t0 = get_t0(path)
-        if start_t <= t0 < end_t:
-            fl.append(path)
+    fl = get_ionogram_files_in_time_range(data_dir, tx, rx, start_t, end_t)
     title_span = "%s to %s UTC" % (
         start_day.strftime("%Y-%m-%d"),
         end_day.strftime("%Y-%m-%d"),
@@ -286,18 +300,34 @@ def get_range_view(conf, tx, rx, start_day, end_day, pfname="/tmp/rti.png", data
         range_min_km=range_min_km,
         range_max_km=range_max_km)
 
+def get_recent_view(conf, tx, rx, n_hours=48, pfname="/tmp/latest-rti.png", data_dir=None, range_min_km=None, range_max_km=None):
+    data_dir = data_dir or conf.output_dir
+    end_t = time.time()
+    start_t = end_t - n_hours*3600
+    fl = get_ionogram_files_in_time_range(data_dir, tx, rx, start_t, end_t)
+    x_start = datetime.utcfromtimestamp(start_t)
+    x_end = datetime.utcfromtimestamp(end_t)
+    plot_ionogram_files(
+        fl,
+        tx,
+        rx,
+        pfname=pfname,
+        x_start=x_start,
+        x_end=x_end,
+        title_span="last %d hours UTC"%(n_hours),
+        range_min_km=range_min_km,
+        range_max_km=range_max_km)
+
 def plot_rtf(conf,tx,rx,data_dir=None,range_min_km=None,range_max_km=None):
-    tnow=time.time()
-    tyesterday=tnow-24*3600
-    today_dir=cd.unix2dirname(tnow)
-    yesterday_dir=cd.unix2dirname(tyesterday)
-    yesterday_pfname="/tmp/yesterday-rti-%s-%s.png"%(tx,rx)
-    
-    get_day_view(conf,tx,rx,today_dir,pfname="/tmp/latest-rti-%s-%s.png"%(tx,rx),data_dir=data_dir,range_min_km=range_min_km,range_max_km=range_max_km)
-    if needs_daily_plot(yesterday_pfname, now=tnow):
-        get_day_view(conf,tx,rx,yesterday_dir,pfname=yesterday_pfname,data_dir=data_dir,range_min_km=range_min_km,range_max_km=range_max_km)
-    else:
-        print("skipping up-to-date %s"%(yesterday_pfname))
+    get_recent_view(
+        conf,
+        tx,
+        rx,
+        n_hours=48,
+        pfname="/tmp/latest-rti-%s-%s.png"%(tx,rx),
+        data_dir=data_dir,
+        range_min_km=range_min_km,
+        range_max_km=range_max_km)
 
 def plot_rtf_links(conf, links, data_dir=None, range_min_km=None, range_max_km=None):
     for tx, rx in links:
