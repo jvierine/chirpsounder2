@@ -204,7 +204,7 @@ def plot_ionogram_files(
     
     #ax[0].set_ylabel("Propagation virtual range (km)", fontsize=14)
     cb1 = plt.colorbar(pcm1, ax=ax[0])
-    cb1.set_label("SNR (dB)", fontsize=14)
+    cb1.set_label("SNR (dB)", fontsize=16)
 
     
     # --- second plot ---
@@ -218,9 +218,9 @@ def plot_ionogram_files(
     )
     #ax[1].set_ylabel("Propagation virtual range (km)", fontsize=14)
     cb2 = plt.colorbar(pcm2, ax=ax[1])
-    cb2.set_label("Frequency (MHz)", fontsize=14)
+    cb2.set_label("Frequency (MHz)", fontsize=16)
 
-    fig.supylabel("Propagation virtual range (km)", fontsize=14)
+    fig.supylabel("Propagation virtual range (km)", fontsize=16)
     # --- time formatting ---
     if x_start is not None and x_end is not None and (x_end - x_start).total_seconds() > 24*3600:
         ax[1].xaxis.set_major_formatter(mdates.DateFormatter("%m-%d\n%H:%M"))
@@ -231,7 +231,7 @@ def plot_ionogram_files(
     if title_span is None:
         title_span = datetime.utcfromtimestamp(tv[0]).strftime("%Y-%m-%d")
     ax[0].set_title("%s-%s %s"%(tx,rx,title_span), fontsize=20)#Date: {start_date}
-    ax[1].set_xlabel(f"Time (UTC)", fontsize=14)
+    ax[1].set_xlabel(f"Time (UTC)", fontsize=16)
 
     if x_start is None or x_end is None:
         # full day
