@@ -219,7 +219,7 @@ def plot_ionogram_files(
         vmax=20
     )
     
-    #ax[0].set_ylabel("Propagation virtual range (km)", fontsize=14)
+    ax[0].set_ylabel("Propagation virtual range (km)", fontsize=16)
     cb1 = plt.colorbar(pcm1, ax=ax[0])
     cb1.set_label("SNR (dB)", fontsize=16)
 
@@ -233,11 +233,10 @@ def plot_ionogram_files(
         cmap="rainbow",
         shading="auto"
     )
-    #ax[1].set_ylabel("Propagation virtual range (km)", fontsize=14)
+    ax[1].set_ylabel("Propagation virtual range (km)", fontsize=16)
     cb2 = plt.colorbar(pcm2, ax=ax[1])
     cb2.set_label("Frequency (MHz)", fontsize=16)
 
-    fig.supylabel("Propagation virtual range (km)", fontsize=16)
     # --- time formatting ---
     if x_start is not None and x_end is not None and (x_end - x_start).total_seconds() > 24*3600:
         ax[1].xaxis.set_major_formatter(mdates.DateFormatter("%m-%d\n%H:%M"))
