@@ -450,10 +450,12 @@ if (savedTab !== null) {
 
 const overlay = document.getElementById('overlay');
 const overlayImg = document.getElementById('overlayImg');
+let currentOverlayImage = null;
 
-function openOverlay(src, alt) {
-    overlayImg.src = src;
-    overlayImg.alt = alt || 'Expanded plot';
+function openOverlayFromImage(img) {
+    currentOverlayImage = img;
+    overlayImg.src = img.src;
+    overlayImg.alt = img.alt || 'Expanded plot';
     overlay.classList.add('active');
     document.body.classList.add('overlay-open');
 }
@@ -462,12 +464,34 @@ function closeOverlay() {
     overlay.classList.remove('active');
     document.body.classList.remove('overlay-open');
     overlayImg.src = '';
+    currentOverlayImage = null;
+}
+
+function activePanelImages() {
+    const activePanel = document.querySelector('.tab-panel.active');
+    if (!activePanel) return [];
+    return Array.from(activePanel.querySelectorAll('img.dashboard-image'));
+}
+
+function navigateOverlay(step) {
+    if (!overlay.classList.contains('active')) return;
+    const images = activePanelImages();
+    if (images.length === 0) return;
+
+    let index = images.indexOf(currentOverlayImage);
+    if (index < 0) {
+        index = images.findIndex(img => img.src === overlayImg.src);
+    }
+    if (index < 0) index = 0;
+
+    const nextIndex = (index + step + images.length) % images.length;
+    openOverlayFromImage(images[nextIndex]);
 }
 
 document.querySelectorAll('img.dashboard-image').forEach(img => {
     img.addEventListener('click', event => {
         event.preventDefault();
-        openOverlay(img.src, img.alt);
+        openOverlayFromImage(img);
     });
 });
 
@@ -480,6 +504,10 @@ overlay.addEventListener('click', event => {
 document.addEventListener('keydown', event => {
     if (event.key === 'Escape') {
         closeOverlay();
+    } else if (event.key === 'ArrowLeft') {
+        navigateOverlay(-1);
+    } else if (event.key === 'ArrowRight') {
+        navigateOverlay(1);
     }
 });
 </script>
