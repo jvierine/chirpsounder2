@@ -44,18 +44,19 @@ def plot_map(conf, set_extent=True, ofname="map.png"):
     # Customize labels
     gl.top_labels = False
     gl.right_labels = False
-    gl.xlabel_style = {'size': 10}
-    gl.ylabel_style = {'size': 10}
+    gl.xlabel_style = {'size': 14}
+    gl.ylabel_style = {'size': 14}
 
     # Filter for DOB and TGO only
     target_stations = {"DOB", "TGO"}
-    filtered_links = [l for l in conf.station_links if l[0] in target_stations or l[1] in target_stations]
+    filtered_links = [l for l in conf.station_links if (l[0] in target_stations or l[1] in target_stations)]
     stations_to_plot = target_stations.copy()
-    
+
     # Add stations that connect to DOB or TGO
     for l in filtered_links:
         stations_to_plot.add(l[0])
         stations_to_plot.add(l[1])
+
     
     # Plot links
     for l in filtered_links:
@@ -87,8 +88,8 @@ def plot_map(conf, set_extent=True, ofname="map.png"):
             )
 
 
-    plt.legend()
-    plt.title("TGO Ionospheric Sounding Network")
+    plt.legend(fontsize=12)
+    plt.title("Ionospheric Sounding Network", fontsize=20)
 
     plt.savefig(ofname, dpi=150)  # save BEFORE show
     plt.show()

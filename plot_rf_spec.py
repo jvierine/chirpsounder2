@@ -5,8 +5,13 @@
 #
 import argparse
 from pathlib import Path
+import time
 
 import digital_rf as drf
+import matplotlib
+
+matplotlib.use("Agg")
+
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import numpy as n
@@ -19,6 +24,21 @@ import chirp_det as cd
 DEFAULT_CONFIG = Path(__file__).resolve().parent / "examples" / "marieluise" / "dombas.ini"
 DEFAULT_DATA_DIR = "/dev/shm/hf25"
 DEFAULT_CHANNEL = "ch0"
+
+
+def set_publication_style() -> None:
+    plt.rcParams.update(
+        {
+            "font.size": 13,
+            "axes.titlesize": 14,
+            "axes.labelsize": 14,
+            "xtick.labelsize": 12,
+            "ytick.labelsize": 12,
+            "legend.fontsize": 12,
+            "figure.dpi": 120,
+            "savefig.dpi": 300,
+        }
+    )
 
 
 def parse_args() -> argparse.Namespace:
@@ -55,6 +75,11 @@ def parse_args() -> argparse.Namespace:
         type=float,
         default=0.0,
         help="Automatically refresh the plot every N seconds. Set <= 0 for a one-shot plot.",
+    )
+    parser.add_argument(
+        "--output",
+        default="/tmp/latest-rf-spec.png",
+        help="Output plot filename.",
     )
     return parser.parse_args()
 
@@ -160,28 +185,32 @@ def draw_plot(fig: plt.Figure, spec_ax, raw_ax, cbar_ax, conf: cc.chirp_config, 
     fig.canvas.draw_idle()
 
 
+def save_plot(fig: plt.Figure, output: str) -> None:
+    fig.savefig(output, bbox_inches="tight")
+    print(f"saved {output}")
+
+
 def main() -> None:
     args = parse_args()
+    set_publication_style()
     conf = load_config(args)
     reader = drf.DigitalRFReader(conf.data_dir)
 
-    fig = plt.figure(figsize=(11, 8))
+    fig = plt.figure(figsize=(7.2, 5.2))
     gs = GridSpec(2, 2, figure=fig, width_ratios=[30, 1], height_ratios=[3, 2])
     spec_ax = fig.add_subplot(gs[0, 0])
     raw_ax = fig.add_subplot(gs[1, 0])
     cbar_ax = fig.add_subplot(gs[0, 1])
     fig.tight_layout()
+    fig.subplots_adjust(hspace=0.4)
 
-    if args.refresh_sec > 0:
-        plt.ion()
-        while plt.fignum_exists(fig.number):
-            data = collect_plot_data(reader, conf, args)
-            draw_plot(fig, spec_ax, raw_ax, cbar_ax, conf, args, data)
-            plt.pause(args.refresh_sec)
-    else:
+    while True:
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        output_file = f"{args.output}_{timestamp}.png"
         data = collect_plot_data(reader, conf, args)
         draw_plot(fig, spec_ax, raw_ax, cbar_ax, conf, args, data)
-        plt.show()
+        save_plot(fig, output_file)
+        time.sleep(10)
 
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@ $receiverStations = ['TGO', 'DOB'];
 $plotTypeOrder = [
     'ionogram' => '/^latest-(digisonde|lfm)-/i',
     'rti' => '/^(latest|yesterday)-rti-/i',
-    'summary' => '/^(latest-)?rothr_jorn_|^latest_/i',
+    'summary' => '/^(?:(?:latest|yesterday)-rothr_jorn-|(?:latest-)?rothr_jorn_|latest_)/i',
     'map' => '/^map(_all|_scand)?\.png$/i',
     'pc status' => '/-pc\.png$/i',
     'other' => '/.*/',
@@ -43,6 +43,10 @@ function detect_receiver_station(string $filename, array $receiverStations): ?st
         }
 
         if (preg_match('/^(?:latest|yesterday)-rti-[^-]+-' . $r . '\.png$/i', $filename)) {
+            return $receiver;
+        }
+
+        if (preg_match('/^(?:latest|yesterday)-rothr_jorn-' . $r . '\.png$/i', $filename)) {
             return $receiver;
         }
 
@@ -85,6 +89,12 @@ function label_from_filename(string $filename, array $stationLabels): string
         return $day . ' RTI ' . station_label($m[2], $stationLabels) . ' -> ' . $m[3];
     }
 
+    if (preg_match('/^(latest|yesterday)-rothr_jorn(?:-([^.]+))?\.png$/i', $filename, $m)) {
+        $day = strtolower($m[1]) === 'latest' ? 'Latest' : 'Yesterday';
+        $receiver = isset($m[2]) && $m[2] !== '' ? ' -> ' . $m[2] : '';
+        return 'ROTHR/JORN Overview ' . $day . $receiver;
+    }
+
     if (preg_match('/^(?:latest-)?rothr_jorn_(today|yesterday)(?:-([^.]+))?\.png$/i', $filename, $m)) {
         $day = strtolower($m[1]) === 'today' ? 'Today' : 'Yesterday';
         $receiver = isset($m[2]) && $m[2] !== '' ? ' -> ' . $m[2] : '';
@@ -107,6 +117,12 @@ function station_sort_key(string $filename, string $plotType, array $stationLabe
     }
 
     if ($plotType === 'summary') {
+        if (preg_match('/^(latest|yesterday)-rothr_jorn(?:-([^.]+))?\.png$/i', $filename, $m)) {
+            $dayRank = strtolower($m[1]) === 'latest' ? '0' : '1';
+            $receiver = isset($m[2]) ? strtolower($m[2]) : '';
+            return 'rothr_jorn ' . $receiver . ' ' . $dayRank;
+        }
+
         if (preg_match('/^(?:latest-)?rothr_jorn_(today|yesterday)(?:-([^.]+))?\.png$/i', $filename, $m)) {
             $dayRank = strtolower($m[1]) === 'today' ? '0' : '1';
             $receiver = isset($m[2]) ? strtolower($m[2]) : '';
@@ -118,7 +134,13 @@ function station_sort_key(string $filename, string $plotType, array $stationLabe
 }
 
 $cutoff = time() - ($maxAgeHours * 3600);
-$cardsByReceiver = array_fill_keys($receiverStations, []);
+$mapTabId = 'maps';
+$tabs = [];
+foreach ($receiverStations as $receiver) {
+    $tabs[$receiver] = $receiver;
+}
+$tabs[$mapTabId] = 'Maps';
+$cardsByTab = array_fill_keys(array_keys($tabs), []);
 
 foreach (glob($imageGlob) ?: [] as $path) {
     if (!is_file($path)) continue;
@@ -128,10 +150,17 @@ foreach (glob($imageGlob) ?: [] as $path) {
     $plotType = detect_plot_type($filename, $plotTypeOrder);
     $receiver = detect_receiver_station($filename, $receiverStations);
 
-    if ($receiver === null) continue;
     if ($mtime === false || $mtime < $cutoff) continue;
 
-    $cardsByReceiver[$receiver][] = [
+    if ($plotType === 'map') {
+        $tab = $mapTabId;
+    } elseif ($receiver !== null) {
+        $tab = $receiver;
+    } else {
+        continue;
+    }
+
+    $cardsByTab[$tab][] = [
         'filename' => $filename,
         'path' => $path,
         'plotType' => $plotType,
@@ -143,7 +172,7 @@ foreach (glob($imageGlob) ?: [] as $path) {
     ];
 }
 
-foreach ($cardsByReceiver as &$cards) {
+foreach ($cardsByTab as &$cards) {
     usort($cards, static function (array $a, array $b): int {
         if ($a['plotTypeRank'] !== $b['plotTypeRank']) {
             return $a['plotTypeRank'] <=> $b['plotTypeRank'];
@@ -157,7 +186,7 @@ foreach ($cardsByReceiver as &$cards) {
 unset($cards);
 
 $hasCards = false;
-foreach ($cardsByReceiver as $cards) {
+foreach ($cardsByTab as $cards) {
     if ($cards) {
         $hasCards = true;
         break;
@@ -356,23 +385,26 @@ setInterval(updateUtcTime, 1000);
 <?php else: ?>
 
 <div class="tabs">
-<?php foreach ($receiverStations as $i => $receiver): ?>
-    <button class="tab-button <?php echo $i === 0 ? 'active' : ''; ?>" data-tab="<?php echo htmlspecialchars($receiver, ENT_QUOTES, 'UTF-8'); ?>">
-        <?php echo htmlspecialchars($receiver, ENT_QUOTES, 'UTF-8'); ?>
+<?php $i = 0; ?>
+<?php foreach ($tabs as $tabId => $tabLabel): ?>
+    <button class="tab-button <?php echo $i === 0 ? 'active' : ''; ?>" data-tab="<?php echo htmlspecialchars($tabId, ENT_QUOTES, 'UTF-8'); ?>">
+        <?php echo htmlspecialchars($tabLabel, ENT_QUOTES, 'UTF-8'); ?>
     </button>
+    <?php $i++; ?>
 <?php endforeach; ?>
 </div>
 
-<?php foreach ($receiverStations as $i => $receiver): ?>
-<section class="tab-panel <?php echo $i === 0 ? 'active' : ''; ?>" id="tab-<?php echo htmlspecialchars($receiver, ENT_QUOTES, 'UTF-8'); ?>">
-    <?php if (!$cardsByReceiver[$receiver]): ?>
+<?php $i = 0; ?>
+<?php foreach ($tabs as $tabId => $tabLabel): ?>
+<section class="tab-panel <?php echo $i === 0 ? 'active' : ''; ?>" id="tab-<?php echo htmlspecialchars($tabId, ENT_QUOTES, 'UTF-8'); ?>">
+    <?php if (!$cardsByTab[$tabId]): ?>
         <div class="empty-state">
-            No plots found for receiver station <strong><?php echo htmlspecialchars($receiver, ENT_QUOTES, 'UTF-8'); ?></strong>.
+            No plots found for <strong><?php echo htmlspecialchars($tabLabel, ENT_QUOTES, 'UTF-8'); ?></strong>.
         </div>
     <?php else: ?>
         <div class="dashboard">
-        <?php foreach ($cardsByReceiver[$receiver] as $card): ?>
-            <div class="card" data-receiver="<?php echo htmlspecialchars($receiver, ENT_QUOTES, 'UTF-8'); ?>" data-plot-type="<?php echo htmlspecialchars($card['plotType'], ENT_QUOTES, 'UTF-8'); ?>">
+        <?php foreach ($cardsByTab[$tabId] as $card): ?>
+            <div class="card" data-tab="<?php echo htmlspecialchars($tabId, ENT_QUOTES, 'UTF-8'); ?>" data-plot-type="<?php echo htmlspecialchars($card['plotType'], ENT_QUOTES, 'UTF-8'); ?>">
                 <h2><?php echo htmlspecialchars($card['title'], ENT_QUOTES, 'UTF-8'); ?></h2>
                 <div class="card-meta">
                     <?php echo htmlspecialchars($card['plotType'], ENT_QUOTES, 'UTF-8'); ?>
@@ -384,6 +416,7 @@ setInterval(updateUtcTime, 1000);
         </div>
     <?php endif; ?>
 </section>
+<?php $i++; ?>
 <?php endforeach; ?>
 
 <?php endif; ?>
@@ -393,17 +426,32 @@ setInterval(updateUtcTime, 1000);
 </div>
 
 <script>
+const activeTabStorageKey = 'chirpsounder-dashboard-active-tab';
+
+function activateTab(tab) {
+    const button = Array.from(document.querySelectorAll('.tab-button')).find(b => b.dataset.tab === tab);
+    const panel = document.getElementById('tab-' + tab);
+    if (!button || !panel) return false;
+
+    document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+
+    button.classList.add('active');
+    panel.classList.add('active');
+    localStorage.setItem(activeTabStorageKey, tab);
+    return true;
+}
+
 document.querySelectorAll('.tab-button').forEach(button => {
     button.addEventListener('click', () => {
-        const tab = button.dataset.tab;
-
-        document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
-
-        button.classList.add('active');
-        document.getElementById('tab-' + tab).classList.add('active');
+        activateTab(button.dataset.tab);
     });
 });
+
+const savedTab = localStorage.getItem(activeTabStorageKey);
+if (savedTab !== null) {
+    activateTab(savedTab);
+}
 
 const overlay = document.getElementById('overlay');
 const overlayImg = document.getElementById('overlayImg');

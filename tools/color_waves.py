@@ -52,7 +52,7 @@ for fi,f in enumerate(fl):
     alpha_iv[iv>1]=1.0
     alpha_iv[iv<0]=0.0
     
-    plt.pcolormesh(hi["thour"][()],hi["ranges"][()],iv,cmap=colormaps[fi],vmin=0,vmax=20,alpha=alpha_iv,label=f)
+    plt.pcolormesh(hi["thour"][()],hi["ranges"][()]+100*fi,iv,cmap=colormaps[fi],vmin=0,vmax=20,alpha=alpha_iv,label=f)
     hi.close()
 plt.colorbar()
 

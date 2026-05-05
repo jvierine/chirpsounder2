@@ -242,7 +242,35 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     std::cout << boost::format("\nCreating the Clock device with: %s") % clock_args
               << std::endl;
     multi_usrp_clock::sptr clock = multi_usrp_clock::make(clock_args);
+  
+  /*  auto now = std::chrono::system_clock::now();
+    auto secs = std::chrono::time_point_cast<std::chrono::seconds>(now);
+    auto frac = std::chrono::duration<double>(now - secs).count(); */
+  
+    const double guard = 0.2; // 200 ms 
+    while (true)
+    {
+      auto now = std::chrono::system_clock::now();
+      auto secs = std::chrono::time_point_cast<std::chrono::seconds>(now);
+      auto frac = std::chrono::duration<double>(now - secs).count();
 
+      if (frac < (1.0 - guard))
+      {
+        // safe to schedule
+        time_t pc_secs = secs.time_since_epoch().count();
+
+        std::cout << "PC time: " << pc_secs << " + " << frac << " sec\n";
+
+        // schedule time reset on next PPS
+        usrp->set_time_next_pps(uhd::time_spec_t(pc_secs + 1));
+
+        break;
+      }
+
+      // too close to next second → wait a bit
+      std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
+  
     // Make sure Clock configuration is correct
     if (clock->get_sensor("gps_detected").value == "false") {
         throw uhd::runtime_error("No GPSDO detected on Clock.");
