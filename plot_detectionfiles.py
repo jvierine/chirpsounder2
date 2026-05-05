@@ -273,23 +273,12 @@ if __name__ == "__main__":
 
         import time
         tnow=time.time()
-        t_day_now=n.floor(tnow/24/3600)*24*3600
-        t_day_prev=t_day_now-24*3600
+        t_start=tnow - n_days*24*3600
 
-        yesterday_pfname="/tmp/yesterday-rothr_jorn-%s.png" % (station_name)
         plot_propagation_range(
             dfs,
-            t_day_now,
-            n_hours=24,
+            t_start,
+            n_hours=24*n_days,
             pfname="/tmp/latest-rothr_jorn-%s.png" % (station_name),
             station_name=station_name)
-        if needs_daily_plot(yesterday_pfname, now=tnow):
-            plot_propagation_range(
-                dfs,
-                t_day_prev,
-                n_hours=24,
-                pfname=yesterday_pfname,
-                station_name=station_name)
-        else:
-            print("skipping up-to-date %s"%(yesterday_pfname))
         time.sleep(15*60)
