@@ -10,7 +10,7 @@ $receiverStations = ['TGO', 'DOB'];
 $plotTypeOrder = [
     'ionogram' => '/^latest-(digisonde|lfm)-/i',
     'rti' => '/^(latest|yesterday)-rti-/i',
-    'summary' => '/^(latest-)?rothr_jorn_|^latest_/i',
+    'summary' => '/^(?:(?:latest|yesterday)-rothr_jorn-|(?:latest-)?rothr_jorn_|latest_)/i',
     'map' => '/^map(_all|_scand)?\.png$/i',
     'pc status' => '/-pc\.png$/i',
     'other' => '/.*/',
@@ -43,6 +43,10 @@ function detect_receiver_station(string $filename, array $receiverStations): ?st
         }
 
         if (preg_match('/^(?:latest|yesterday)-rti-[^-]+-' . $r . '\.png$/i', $filename)) {
+            return $receiver;
+        }
+
+        if (preg_match('/^(?:latest|yesterday)-rothr_jorn-' . $r . '\.png$/i', $filename)) {
             return $receiver;
         }
 
@@ -85,6 +89,12 @@ function label_from_filename(string $filename, array $stationLabels): string
         return $day . ' RTI ' . station_label($m[2], $stationLabels) . ' -> ' . $m[3];
     }
 
+    if (preg_match('/^(latest|yesterday)-rothr_jorn(?:-([^.]+))?\.png$/i', $filename, $m)) {
+        $day = strtolower($m[1]) === 'latest' ? 'Latest' : 'Yesterday';
+        $receiver = isset($m[2]) && $m[2] !== '' ? ' -> ' . $m[2] : '';
+        return 'ROTHR/JORN Overview ' . $day . $receiver;
+    }
+
     if (preg_match('/^(?:latest-)?rothr_jorn_(today|yesterday)(?:-([^.]+))?\.png$/i', $filename, $m)) {
         $day = strtolower($m[1]) === 'today' ? 'Today' : 'Yesterday';
         $receiver = isset($m[2]) && $m[2] !== '' ? ' -> ' . $m[2] : '';
@@ -107,6 +117,12 @@ function station_sort_key(string $filename, string $plotType, array $stationLabe
     }
 
     if ($plotType === 'summary') {
+        if (preg_match('/^(latest|yesterday)-rothr_jorn(?:-([^.]+))?\.png$/i', $filename, $m)) {
+            $dayRank = strtolower($m[1]) === 'latest' ? '0' : '1';
+            $receiver = isset($m[2]) ? strtolower($m[2]) : '';
+            return 'rothr_jorn ' . $receiver . ' ' . $dayRank;
+        }
+
         if (preg_match('/^(?:latest-)?rothr_jorn_(today|yesterday)(?:-([^.]+))?\.png$/i', $filename, $m)) {
             $dayRank = strtolower($m[1]) === 'today' ? '0' : '1';
             $receiver = isset($m[2]) ? strtolower($m[2]) : '';

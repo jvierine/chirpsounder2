@@ -276,12 +276,12 @@ if __name__ == "__main__":
         t_day_now=n.floor(tnow/24/3600)*24*3600
         t_day_prev=t_day_now-24*3600
 
-        yesterday_pfname="/tmp/latest-rothr_jorn_yesterday-%s.png" % (station_name)
+        yesterday_pfname="/tmp/yesterday-rothr_jorn-%s.png" % (station_name)
         plot_propagation_range(
             dfs,
             t_day_now,
             n_hours=24,
-            pfname="/tmp/latest-rothr_jorn_today-%s.png" % (station_name),
+            pfname="/tmp/latest-rothr_jorn-%s.png" % (station_name),
             station_name=station_name)
         if needs_daily_plot(yesterday_pfname, now=tnow):
             plot_propagation_range(
