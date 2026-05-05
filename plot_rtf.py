@@ -319,12 +319,13 @@ def get_recent_view(conf, tx, rx, n_hours=48, pfname="/tmp/latest-rti.png", data
         range_max_km=range_max_km)
 
 def plot_rtf(conf,tx,rx,data_dir=None,range_min_km=None,range_max_km=None):
+    receiver_name = getattr(conf, "station_name", rx)
     get_recent_view(
         conf,
         tx,
         rx,
         n_hours=48,
-        pfname="/tmp/latest-rti-%s-%s.png"%(tx,rx),
+        pfname="/tmp/latest-rti-%s-%s.png"%(tx,receiver_name),
         data_dir=data_dir,
         range_min_km=range_min_km,
         range_max_km=range_max_km)
@@ -337,6 +338,7 @@ def plot_rtf_links(conf, links, data_dir=None, range_min_km=None, range_max_km=N
 def plot_rtf_link_range(conf, links, start_day, end_day, data_dir=None, range_min_km=None, range_max_km=None):
     for tx, rx in links:
         print("plotting RTF %s -> %s"%(tx, rx))
+        receiver_name = getattr(conf, "station_name", rx)
         get_range_view(
             conf,
             tx,
@@ -345,7 +347,7 @@ def plot_rtf_link_range(conf, links, start_day, end_day, data_dir=None, range_mi
             end_day,
             pfname="/tmp/rti-%s-%s-%s_to_%s.png" % (
                 tx,
-                rx,
+                receiver_name,
                 start_day.strftime("%Y-%m-%d"),
                 end_day.strftime("%Y-%m-%d"),
             ),
