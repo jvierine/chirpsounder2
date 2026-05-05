@@ -189,7 +189,7 @@ def plot_ionogram_files(
     M_new = M_new[:, range_idx]
     S_new = S_new[:, range_idx]
 
-    fig, ax = plt.subplots(2,1,figsize=(10,6),sharex=True)
+    fig, ax = plt.subplots(2,1,figsize=(10,6),sharex=True,sharey=True)
     
     # --- first plot ---
     pcm1 = ax[0].pcolormesh(
