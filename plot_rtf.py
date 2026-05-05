@@ -219,6 +219,11 @@ def plot_ionogram_files(
     #ax[1].set_ylabel("Propagation virtual range (km)", fontsize=14)
     cb2 = plt.colorbar(pcm2, ax=ax[1])
     cb2.set_label("Frequency (MHz)", fontsize=16)
+    cb1.ax.tick_params(labelsize=14)
+    cb2.ax.tick_params(labelsize=14)
+
+    ax[0].tick_params(axis='both', labelsize=14)
+    ax[1].tick_params(axis='both', labelsize=14)
 
     fig.supylabel("Propagation virtual range (km)", fontsize=16)
     # --- time formatting ---
