@@ -145,7 +145,8 @@ foreach (glob($imageGlob) ?: [] as $path) {
     $plotType = detect_plot_type($filename, $plotTypeOrder);
     $receiver = detect_receiver_station($filename, $receiverStations);
 
-    if ($mtime === false || $mtime < $cutoff) continue;
+    if ($mtime === false) continue;
+    if ($plotType !== 'map' && $mtime < $cutoff) continue;
 
     if ($plotType === 'map') {
         $tab = $mapTabId;
