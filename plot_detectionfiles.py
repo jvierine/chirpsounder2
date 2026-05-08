@@ -117,14 +117,14 @@ def plot_propagation_range(dfs, start_t, n_hours=24,min_detections=5, pfname="/t
     )
     ax[0].set_ylim([-5e3,17.5e3])
     cb1 = plt.colorbar(sc1, ax=ax[0])
-    cb1.set_label("Frequency (MHz)")
+    cb1.set_label("Frequency (MHz)", fontsize=16)
     
     # grey band
     ax[0].axhspan(3900, 5500, color='grey', alpha=0.2, label='Cyprus', zorder=0)
     ax[0].axhspan(13500, 16900,color='grey', alpha=0.1, label='Australia', zorder=0)
     ax[0].axhspan(6.3e3, 10e3, color='grey', alpha=0.3, label='US', zorder=0)    
     
-    ax[0].set_ylabel("One-way virtual propagation range (km)")
+    ax[0].set_ylabel("One-way virtual propagation range (km)", fontsize=16)
     # ax[0].set_ylim([0, 42000])
     ax[0].legend(loc="upper right")
 
@@ -145,10 +145,15 @@ def plot_propagation_range(dfs, start_t, n_hours=24,min_detections=5, pfname="/t
 
 
     cb2=plt.colorbar(sc2, ax=ax[1])
-    cb2.set_label("Virtual propagation distance (km)")
+    cb2.set_label("Virtual propagation distance (km)", fontsize=16)
+    cb1.ax.tick_params(labelsize=14)
+    cb2.ax.tick_params(labelsize=14)
 
-    ax[1].set_ylabel("Frequency (MHz)")
-    ax[1].set_xlabel(f"Time (UTC)")
+    ax[0].tick_params(axis='both', labelsize=14)
+    ax[1].tick_params(axis='both', labelsize=14)
+
+    ax[1].set_ylabel("Frequency (MHz)", fontsize=16)
+    ax[1].set_xlabel(f"Time (UTC)", fontsize=16)
 
 
     # current time (UTC)
@@ -175,7 +180,7 @@ def plot_propagation_range(dfs, start_t, n_hours=24,min_detections=5, pfname="/t
             day_start.strftime("%Y-%m-%d"),
             day_end.strftime("%Y-%m-%d"),
         )
-    ax[0].set_title(f"ROTHR & JORN -> %s {time_span_str}"%(station_name))
+    ax[0].set_title(f"ROTHR & JORN -> %s {time_span_str}"%(station_name), fontsize=20)
     
 #    times = pd.to_datetime(dfs[gidx,0], unit="s", utc=True)
     # --- shared x-axis formatting ---
