@@ -1,0 +1,19 @@
+# Core scientific stack
+numpy
+scipy
+matplotlib
+h5py
+pyfftw
+mpi4py
+digital_rf
+
+# Runtime helpers used across the scripts
+imageio
+pandas
+psutil
+pyserial
+requests
+
+# Plotting / map-related utilities used by some scripts
+cartopy
+pyproj
