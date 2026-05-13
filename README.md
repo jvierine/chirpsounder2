@@ -89,7 +89,7 @@ For older manual dependency notes and a legacy install path, see `dependencies.t
 
 Here is an example of a startup script for kicking off all of the programs. There are scripts in the same directory that also show how to install chirpsounder2 as a service with Ubuntu:
 ```
-https://github.com/jvierine/chirpsounder2/blob/master/examples/sgo/sgo_ski.sh
+https://github.com/jvierine/chirpsounder2/blob/master/examples/marieluise/dombas.sh
 ```
 
 ## Usage:
@@ -111,7 +111,7 @@ while true; do rsync -av --remove-source-files --exclude=tmp*
 --progress /dev/shm/hf25/cha /data_out/hf25/ ; sleep 1 ; done
 ```
 
-2) configure by copying the example1.ini to e.g., configuration.ini. Edit the file to make sure you have the right center frequency, sample-rate, data directory, and channel name. I've only tested 25 MHz sample-rate and 12.5 MHz center-frequency so far.
+2) configure by copying `examples/marieluise/dombas.ini` to e.g., `configuration.ini`. Edit the file to make sure you have the right center frequency, sample-rate, data directory, and channel name. I've only tested 25 MHz sample-rate and 12.5 MHz center-frequency so far.
 ```
 [config]
 
