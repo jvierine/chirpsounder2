@@ -6,6 +6,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="${VENV_DIR:-$SCRIPT_DIR/.venv}"
 DIGITAL_RF_REPO="${DIGITAL_RF_REPO:-https://github.com/MITHaystack/digital_rf.git}"
 DIGITAL_RF_SRC_DIR="${DIGITAL_RF_SRC_DIR:-$(mktemp -d)/digital_rf}"
+SYSCTL_CONF="/etc/sysctl.d/90-chirpsounder2-usrp.conf"
+LIMITS_CONF="/etc/security/limits.d/90-chirpsounder2-usrp.conf"
 
 echo "Installing Ubuntu system packages needed for chirpsounder2..."
 sudo apt-get update
@@ -33,6 +35,28 @@ sudo apt-get install -y \
   python3-dev \
   python3-pip \
   python3-venv
+
+echo "Configuring system-wide kernel and user limits for high-rate USRP capture..."
+sudo tee "$SYSCTL_CONF" >/dev/null <<'EOF'
+# Chirpsounder2 / UHD receive tuning
+net.core.rmem_max = 500000000
+net.core.wmem_max = 500000000
+net.core.rmem_default = 500000000
+net.core.wmem_default = 500000000
+net.core.netdev_max_backlog = 5000
+EOF
+
+sudo sysctl --system >/dev/null
+
+sudo tee "$LIMITS_CONF" >/dev/null <<'EOF'
+# Chirpsounder2 / UHD scheduling and locked-memory tuning
+* soft rtprio 99
+* hard rtprio 99
+* soft nice -10
+* hard nice -10
+* soft memlock unlimited
+* hard memlock unlimited
+EOF
 
 if ! pkg-config --exists digital_rf; then
   echo "Installing Digital RF C library system-wide from source..."
@@ -76,5 +100,9 @@ Notes:
     GNU Radio bindings are visible inside the virtual environment.
   - The Digital RF C library is installed system-wide so rx_uhd.cpp and
     rx_uhd_ext_gps.cpp can include <digital_rf.h> through pkg-config.
+  - System-wide USRP tuning has been installed in:
+    $SYSCTL_CONF
+    $LIMITS_CONF
+  - A logout or reboot may be needed before the new limits fully apply.
 
 EOF

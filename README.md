@@ -66,6 +66,8 @@ source .venv/bin/activate
 
 This installs the required Ubuntu system packages, creates a Python virtual environment, installs the Python dependencies from `requirements.txt`, and builds the local C/C++ components with `make`.
 
+The setup script also applies system-wide Ubuntu tuning for USRP capture by installing persistent `sysctl` settings such as `net.core.wmem_max`, `net.core.rmem_max`, `net.core.wmem_default`, and `net.core.rmem_default`, along with login limits for real-time priority and locked memory.
+
 If you want to build the binaries manually after activating the virtual environment, run:
 
 ```bash
