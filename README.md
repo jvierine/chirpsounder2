@@ -55,14 +55,36 @@ US ROTHR (hard to tell which one, as I'm so far away)
 <img src="./examples/example05.png" width="100%"/>
 
 ## Installation
-See dependencies.txt for instructions on how to build the dependencies (tested on Ubuntu 18 & 20)
-You need to compile the chirp downconversion library, which is written in C.
-```
-make 
-```
-There is no packaging or other installation needed. You just run the scripts in place. 
+The easiest way to set up the software on Ubuntu is to use the included virtual environment installer script:
 
-Python packages that are required: pyfftw, numpy, scipy, matplotlib, digital_rf, mpi4py, h5py. Tested on Python 2.7.17 and Python 3.6.9. 
+```bash
+git clone https://github.com/jvierine/chirpsounder2.git
+cd chirpsounder2
+./setup_ubuntu_venv.sh
+source .venv/bin/activate
+```
+
+This installs the required Ubuntu system packages, creates a Python virtual environment, installs the Python dependencies from `requirements.txt`, and builds the local C/C++ components with `make`.
+
+If you want to build the binaries manually after activating the virtual environment, run:
+
+```bash
+make
+```
+
+This compiles:
+
+- `libdownconvert.so`
+- `rx_uhd` from `rx_uhd.cpp`
+- `rx_uhd_ext_gps` from `rx_uhd_ext_gps.cpp`
+
+As part of setup, the script also clones and installs the Digital RF C library from `https://github.com/MITHaystack/digital_rf` using its upstream CMake build. This installs the system-wide C header `digital_rf.h`, the `libdigital_rf` library, and `digital_rf.pc` for `pkg-config`, which are required by `rx_uhd.cpp` and `rx_uhd_ext_gps.cpp`.
+
+The `rx_uhd.cpp` and `rx_uhd_ext_gps.cpp` programs also require UHD development headers and related build dependencies. Those are included in `setup_ubuntu_venv.sh`.
+
+Most of the Python scripts rely on packages such as `numpy`, `scipy`, `matplotlib`, `digital_rf`, `mpi4py`, `h5py`, `pyfftw`, `cartopy`, `pyproj`, `pandas`, `psutil`, `pyserial`, `requests`, and `imageio`. These are installed into the virtual environment by the setup script.
+
+For older manual dependency notes and a legacy install path, see `dependencies.txt`.
 
 
 Here is an example of a startup script for kicking off all of the programs. There are scripts in the same directory that also show how to install chirpsounder2 as a service with Ubuntu:
