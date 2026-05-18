@@ -170,7 +170,7 @@ class chirp_matched_filter_bank:
 
         for cri in range(self.n_chirps):
             mf[cri, :] = power(n.fft.fftshift(
-                fft(self.wf * self.chirps[cri] * z)))
+                fft(self.chirps[cri] * z)))
             # combined max SNR for all chirps
             idx = n.where(mf[cri, :] > mf_p)[0]
             # find peak match function at each point
