@@ -218,12 +218,12 @@ class chirp_matched_filter_bank:
                           mf_tmp,
                           mf_power_scratch)
             # combined max SNR for all chirps
-            idx = n.where(mf_tmp > mf_p)[0]
+            mask = mf_tmp > mf_p
             # find peak match function at each point
-            mf_p[idx] = mf_tmp[idx]
+            mf_p[mask] = mf_tmp[mask]
             # record chirp-rate that produces the highest matched filter output
 #            mf_cr[idx]=self.conf.chirp_rates[cri]
-            mf_chirp_rate_idx[idx] = cri
+            mf_chirp_rate_idx[mask] = cri
 
             # store snippet of the spectrum
 
