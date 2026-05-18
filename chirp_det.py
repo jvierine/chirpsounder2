@@ -22,7 +22,7 @@ try:
     fftw = True
     print("using pyfftw")
 except:
-    print("couldn't load pyfftw, reverting to scipy. performance will suffer")
+    print("WARNING: couldn't load pyfftw; chirp detection is using scipy FFTs and performance will suffer")
     fftw = False
 
 FFTW_WISDOM_PATH = os.environ.get(
