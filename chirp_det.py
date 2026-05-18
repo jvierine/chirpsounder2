@@ -15,6 +15,7 @@ import glob
 import re
 import os
 import scipy.fftpack
+import pickle
 fftw = False
 try:
     import pyfftw
@@ -23,6 +24,38 @@ try:
 except:
     print("couldn't load pyfftw, reverting to scipy. performance will suffer")
     fftw = False
+
+FFTW_WISDOM_PATH = os.environ.get(
+    "CHIRPSOUNDER_FFTW_WISDOM",
+    os.path.join(os.path.expanduser("~"), ".cache", "chirpsounder2", "fftw_wisdom.pkl"),
+)
+
+
+def load_fftw_wisdom():
+    if not fftw or not os.path.exists(FFTW_WISDOM_PATH):
+        return
+
+    try:
+        with open(FFTW_WISDOM_PATH, "rb") as fh:
+            wisdom = pickle.load(fh)
+        imported = pyfftw.import_wisdom(wisdom)
+        if any(imported):
+            print("loaded FFTW wisdom from %s" % (FFTW_WISDOM_PATH))
+    except Exception as e:
+        print("could not load FFTW wisdom from %s: %s" % (FFTW_WISDOM_PATH, e))
+
+
+def save_fftw_wisdom():
+    if not fftw:
+        return
+
+    try:
+        os.makedirs(os.path.dirname(FFTW_WISDOM_PATH), exist_ok=True)
+        with open(FFTW_WISDOM_PATH, "wb") as fh:
+            pickle.dump(pyfftw.export_wisdom(), fh)
+        print("saved FFTW wisdom to %s" % (FFTW_WISDOM_PATH))
+    except Exception as e:
+        print("could not save FFTW wisdom to %s: %s" % (FFTW_WISDOM_PATH, e))
 
 
 def power(x):
@@ -79,6 +112,7 @@ def unix2dirname(x):
 class chirp_matched_filter_bank:
     def __init__(self, conf):
         self.conf = conf
+        self.have_fftw = fftw
 
         # create chirp signal vectors
         # centered around zero frequency
@@ -91,32 +125,38 @@ class chirp_matched_filter_bank:
             self.chirps.append(chirp_vec)
         self.n_chirps = len(self.chirps)
 
-        # todo, setup fftw. should at least 2x things
         fftlen=self.conf.n_samples_per_block
-        
-        self.fftin = pyfftw.empty_aligned(fftlen, dtype='complex64')
-        self.fftout = pyfftw.empty_aligned(fftlen, dtype='complex64')
-        
-        self.fft_object = pyfftw.FFTW(
-            self.fftin, self.fftout,
-            direction='FFTW_FORWARD',
-            flags=('FFTW_ESTIMATE',),
-            threads=1
-        )
-        
-        self.ifft_object = pyfftw.FFTW(
-            self.fftout, self.fftin,       # reversed!
-            direction='FFTW_BACKWARD',
-            flags=('FFTW_ESTIMATE',),
-            threads=1
-        )
+
+        if self.have_fftw:
+            load_fftw_wisdom()
+            self.fftin = pyfftw.empty_aligned(fftlen, dtype='complex64')
+            self.fftout = pyfftw.empty_aligned(fftlen, dtype='complex64')
+
+            self.fft_object = pyfftw.FFTW(
+                self.fftin, self.fftout,
+                direction='FFTW_FORWARD',
+                flags=('FFTW_MEASURE',),
+                threads=1
+            )
+
+            self.ifft_object = pyfftw.FFTW(
+                self.fftout, self.fftin,       # reversed!
+                direction='FFTW_BACKWARD',
+                flags=('FFTW_MEASURE',),
+                threads=1
+            )
+            save_fftw_wisdom()
 
     def fft(self, z):
+        if not self.have_fftw:
+            return scipy.fftpack.fft(z)
         self.fftin[:]=z
         self.fft_object()
         return(n.copy(self.fftout))
     
     def ifft(self, z):
+        if not self.have_fftw:
+            return scipy.fftpack.ifft(z)
         self.fftout[:]=z
         self.ifft_object()
         return(n.copy(self.fftin))
@@ -156,8 +196,8 @@ class chirp_matched_filter_bank:
 #        Z = self.fft(self.wf * z)
  #       z = self.ifft(Z / (n.abs(Z) + 1e-9))
 
-        Z = fft(self.wf * z)
-        z = ifft(Z / (n.abs(Z) + 1e-9))        
+        Z = self.fft(self.wf * z)
+        z = self.ifft(Z / (n.abs(Z) + 1e-9))
 
         # matched filter output
         # store the best matching chirp-rate and
@@ -170,7 +210,7 @@ class chirp_matched_filter_bank:
 
         for cri in range(self.n_chirps):
             mf[cri, :] = power(n.fft.fftshift(
-                fft(self.chirps[cri] * z)))
+                self.fft(self.chirps[cri] * z)))
             # combined max SNR for all chirps
             idx = n.where(mf[cri, :] > mf_p)[0]
             # find peak match function at each point
