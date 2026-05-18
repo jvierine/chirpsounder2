@@ -62,6 +62,12 @@ def power(x):
     return (x.real**2.0 + x.imag**2.0)
 
 
+def power_inplace(x, out, scratch):
+    n.multiply(x.real, x.real, out=out)
+    n.multiply(x.imag, x.imag, out=scratch)
+    out += scratch
+
+
 
 
 def fft(x):
@@ -204,17 +210,17 @@ class chirp_matched_filter_bank:
         # normalized SNR (we pre-whiten the signal)
         mf_p = n.zeros(n_samps, dtype=n.float32)
         mf_chirp_rate_idx = n.zeros(n_samps, dtype=n.int32)
-
-        # filter output for all chirps, for storing ionograms
-        mf = n.zeros([self.n_chirps, n_samps], dtype=n.float32)
+        mf_tmp = n.empty(n_samps, dtype=n.float32)
+        mf_power_scratch = n.empty(n_samps, dtype=n.float32)
 
         for cri in range(self.n_chirps):
-            mf[cri, :] = power(n.fft.fftshift(
-                self.fft(self.chirps[cri] * z)))
+            power_inplace(n.fft.fftshift(self.fft(self.chirps[cri] * z)),
+                          mf_tmp,
+                          mf_power_scratch)
             # combined max SNR for all chirps
-            idx = n.where(mf[cri, :] > mf_p)[0]
+            idx = n.where(mf_tmp > mf_p)[0]
             # find peak match function at each point
-            mf_p[idx] = mf[cri, idx]
+            mf_p[idx] = mf_tmp[idx]
             # record chirp-rate that produces the highest matched filter output
 #            mf_cr[idx]=self.conf.chirp_rates[cri]
             mf_chirp_rate_idx[idx] = cri
