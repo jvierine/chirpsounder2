@@ -3,6 +3,20 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <stdlib.h>
+#ifdef __AVX2__
+#include <immintrin.h>
+#endif
+
+static inline int phase_table_index(double chirpt, int tabl, double f0, double rate)
+{
+  int64_t idx = (int64_t)(tabl*(f0+0.5*rate*chirpt)*chirpt) % tabl;
+
+  if(idx < 0)
+    idx = tabl+idx;
+
+  return (int)idx;
+}
+
 void complex_mul(complex_float *a, complex_float *res)
 {
   float tmp;
@@ -23,16 +37,80 @@ void complex_add(complex_float *a, complex_float *res)
 void add_and_advance_phasor(double chirpt, complex_float *sintab, int tabl, complex_float *a, complex_float *mean, double f0, double rate)
 {
   complex_float tmp;
-      
+
   // this is faster
-  int64_t idx = (int64_t)(tabl*(f0+0.5*rate*chirpt)*chirpt) % tabl;
-  
-  if(idx < 0)
-    idx = tabl+idx;
-      
+  int idx = phase_table_index(chirpt, tabl, f0, rate);
+
   tmp = sintab[idx];
   complex_mul(a, &tmp);
   complex_add(&tmp, mean);
+}
+
+static inline void add_windowed_phasor_sum(double chirpt,
+                                           double dt,
+                                           complex_float *sintab,
+                                           int tabl,
+                                           complex_float *in,
+                                           float *wfun,
+                                           int dec2,
+                                           complex_float *out_sample,
+                                           double f0,
+                                           double rate)
+{
+  int dec_idx = 0;
+
+#ifdef __AVX2__
+  __m256 acc = _mm256_setzero_ps();
+
+  for(; dec_idx <= dec2 - 4; dec_idx += 4)
+  {
+    double t0 = chirpt + (double)(dec_idx + 0)*dt;
+    double t1 = chirpt + (double)(dec_idx + 1)*dt;
+    double t2 = chirpt + (double)(dec_idx + 2)*dt;
+    double t3 = chirpt + (double)(dec_idx + 3)*dt;
+
+    complex_float p0 = sintab[phase_table_index(t0, tabl, f0, rate)];
+    complex_float p1 = sintab[phase_table_index(t1, tabl, f0, rate)];
+    complex_float p2 = sintab[phase_table_index(t2, tabl, f0, rate)];
+    complex_float p3 = sintab[phase_table_index(t3, tabl, f0, rate)];
+
+    __m256 z = _mm256_loadu_ps((float *)&in[dec_idx]);
+    __m256 w = _mm256_set_ps(wfun[dec_idx + 3], wfun[dec_idx + 3],
+                             wfun[dec_idx + 2], wfun[dec_idx + 2],
+                             wfun[dec_idx + 1], wfun[dec_idx + 1],
+                             wfun[dec_idx + 0], wfun[dec_idx + 0]);
+    z = _mm256_mul_ps(z, w);
+
+    __m256 pr = _mm256_set_ps(p3.re, p3.re, p2.re, p2.re,
+                              p1.re, p1.re, p0.re, p0.re);
+    __m256 pi = _mm256_set_ps(p3.im, p3.im, p2.im, p2.im,
+                              p1.im, p1.im, p0.im, p0.im);
+    __m256 zswap = _mm256_permute_ps(z, 0xb1);
+    __m256 prod_reim = _mm256_mul_ps(z, pr);
+    __m256 prod_cross = _mm256_mul_ps(zswap, pi);
+
+    acc = _mm256_add_ps(acc, _mm256_addsub_ps(prod_reim, prod_cross));
+  }
+
+  float accv[8];
+  _mm256_storeu_ps(accv, acc);
+  out_sample->re += accv[0] + accv[2] + accv[4] + accv[6];
+  out_sample->im += accv[1] + accv[3] + accv[5] + accv[7];
+#endif
+
+  for(; dec_idx < dec2; dec_idx++)
+  {
+    complex_float tmp = in[dec_idx];
+    tmp.re = tmp.re*wfun[dec_idx];
+    tmp.im = tmp.im*wfun[dec_idx];
+    add_and_advance_phasor(chirpt + (double)dec_idx*dt,
+                           sintab,
+                           tabl,
+                           &tmp,
+                           out_sample,
+                           f0,
+                           rate);
+  }
 }
 
 void test(complex_float *sintab, int n)
@@ -82,7 +160,6 @@ void *consume_one(void *args)
    */
   // complex_float *in = (complex_float *) input_items[0];
   complex_float out_sample;
-  complex_float tmp;
   int i;
   double chirpt0;
   chirpt0=chirpt;
@@ -95,17 +172,8 @@ void *consume_one(void *args)
     /* 
        better lpf with a user defined window function (e.g., windowed ideal LPF)
     */
-    for(int dec_idx=0; dec_idx<dec2; dec_idx++)
-    {
-      /* dechirp and low-pass filter by averaging */
-      /* window function to improve filter peformance */
-      tmp=in[i];
-      tmp.re=tmp.re*wfun[dec_idx];
-      tmp.im=tmp.im*wfun[dec_idx];      
-      add_and_advance_phasor(chirpt, sintab, tabl, &tmp, &out_sample, f0, rate);
-      chirpt+=dt;
-      i++;
-    }
+    add_windowed_phasor_sum(chirpt, dt, sintab, tabl, &in[i], wfun, dec2,
+                            &out_sample, f0, rate);
     out_buffer[out_idx]=out_sample;
   }
   pthread_exit(NULL);
