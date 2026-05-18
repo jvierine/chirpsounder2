@@ -27,7 +27,7 @@ cd $INSTALL_PATH
 #./stop_ringbuffer.sh
 # delete old data from ram disk
 #rm -Rf $RINGBUFFER_DIR
-mkdir /dev/shm/hf25
+mkdir -p $RINGBUFFER_DIR
 
 mkdir -p logs
 
@@ -62,13 +62,13 @@ echo "calc_ionograms.py"
 python3 calc_ionograms.py --config $CONF_FILE > logs/ionograms.log 2>&1 &
 
 echo "plot_ionograms.py"
-python3 plot_ionograms.py --config $CONF_FILE > logs/plot_ionograms.log > logs/plot_ionograms.log 2>&1 &
+python3 plot_ionograms.py --config $CONF_FILE > logs/plot_ionograms.log 2>&1 &
 
-echo "Starting rx_uhd with external 1 PPS and 10 MHz. Restarting in 24 hours."
+echo "Starting rx_uhd with internal GPSDO if available, otherwise external 1 PPS and 10 MHz. Restarting in 24 hours."
 while true;
 do
     # TBD: change cpp program so that ini file defined USRP setup!
-    ./rx_uhd_ext_gps --outdir=$RINGBUFFER_DIR > logs/thor.log 2>&1 
+    ./rx_uhd_ext_gps --outdir=$RINGBUFFER_DIR > logs/kho.log 2>&1 
     sleep 5
     echo "Restarting recording (every 24 hours)."
     echo "Rotating logs"
