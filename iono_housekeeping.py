@@ -1,5 +1,6 @@
 import chirp_config as cc
 import collections
+import fnmatch
 import os
 import re
 import shutil
@@ -152,6 +153,25 @@ def update_pc_status(conf, t_hist, temp_histories, disk_hist, gpsdo_histories):
         gpsdo_histories[label].append(gpsdo_status.get(label, n.nan))
     save_pc_status_plot(conf, t_hist, temp_histories, disk_hist, gpsdo_histories)
 
+
+def cleanup_ringbuffer_files(data_dir, max_age_s):
+    now = time.time()
+    patterns = ("rf*.h5", "tmp*rf*.h5")
+    for root, _, files in os.walk(data_dir):
+        for fname in files:
+            if not any(fnmatch.fnmatch(fname, pattern) for pattern in patterns):
+                continue
+            path = os.path.join(root, fname)
+            try:
+                age_s = now - os.path.getmtime(path)
+                if age_s > max_age_s:
+                    os.remove(path)
+            except FileNotFoundError:
+                pass
+            except Exception as e:
+                print(f"could not remove {path}: {e}")
+
+
 def housekeeping(conf):
     t_hist = collections.deque(maxlen=24 * 60)
     temp_histories = {}
@@ -161,15 +181,9 @@ def housekeeping(conf):
     next_pc_status_time = 0.0
     while True:
         if conf.ringbuffer_cleanup:
-            print("cleaning files older than %d"%(conf.ringbuffer_max_age_min))
-            print("run the following command")
-            #find /dev/shm/hf25 -type f -name 'rf*h5' -mmin +5 -delete
-            cmd="find %s -type f -mmin +%d -name 'rf*.h5' -delete"%(conf.data_dir,conf.ringbuffer_max_age_min)
-            print(cmd)
-            os.system(cmd)            
-            cmd="find %s -type f -mmin +%d -name 'tmp*rf*.h5' -delete"%(conf.data_dir,conf.ringbuffer_max_age_min)
-            print(cmd)            
-            os.system(cmd)
+            max_age_s = getattr(conf, "ringbuffer_max_age_sec", conf.ringbuffer_max_age_min * 60)
+            print("cleaning files older than %d seconds" % (max_age_s))
+            cleanup_ringbuffer_files(conf.data_dir, max_age_s)
         now = time.time()
 #        try:
  #           if now >= next_pc_status_time:

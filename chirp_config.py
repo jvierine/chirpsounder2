@@ -32,6 +32,7 @@ class chirp_config:
                         "plot_timings": "false",
                         "realtime": "false",
                         "ringbuffer_max_age_min":"4",
+                        "ringbuffer_max_age_sec":"240",
                         "ringbuffer_cleanup":"false",
                         "serendipitous": "false",
                         }
@@ -117,6 +118,7 @@ class chirp_config:
         self.copy_to_server = json.loads(cf["transfer"]["copy_to_server"])
 
         self.ringbuffer_max_age_min=json.loads(cf["config"]["ringbuffer_max_age_min"])#:"300",
+        self.ringbuffer_max_age_sec=json.loads(cf["config"].get("ringbuffer_max_age_sec", str(self.ringbuffer_max_age_min * 60)))
         self.ringbuffer_cleanup=json.loads(cf["config"]["ringbuffer_cleanup"])#":"false",
 
         
