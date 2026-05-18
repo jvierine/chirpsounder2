@@ -260,8 +260,9 @@ def chirp_downconvert(conf,
     range_gates = ds * np.fft.fftshift(np.fft.fftfreq(fftlen, d=1.0 / sr_dec))
     
     if conf.manual_range_extent:
-        ridx = np.where((range_gates > conf.min_range) &
-                        (range_gates < conf.max_range))[0]
+        range_offset = (t0 - np.floor(t0)) * c.c
+        ridx = np.where(((range_gates + range_offset) > conf.min_range) &
+                        ((range_gates + range_offset) < conf.max_range))[0]
     else:
         ridx = np.where(n.abs(range_gates) < conf.max_range_extent)[0]
     
