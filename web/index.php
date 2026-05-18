@@ -5,8 +5,6 @@ $imageBaseUrl = '/iono';
 $maxAgeHours = 48;
 $refreshSeconds = 60;
 
-$receiverStations = ['TGO', 'DOB'];
-
 $plotTypeOrder = [
     'ionogram' => '/^latest-(digisonde|lfm)-/i',
     'rti' => '/^latest-rti-/i',
@@ -22,6 +20,7 @@ $stationLabels = [
     'THJ76' => 'Thule',
     'TGO' => 'TGO',
     'DOB' => 'DOB',
+    'KHO' => 'KHO',
 ];
 
 function detect_plot_type(string $filename, array $plotTypeOrder): string
@@ -33,33 +32,39 @@ function detect_plot_type(string $filename, array $plotTypeOrder): string
     return 'other';
 }
 
-function detect_receiver_station(string $filename, array $receiverStations): ?string
+function detect_receiver_station(string $filename): ?string
 {
-    foreach ($receiverStations as $receiver) {
-        $r = preg_quote($receiver, '/');
+    if (preg_match('/^latest-(?:digisonde|lfm|rti)-[^-]+-([A-Z0-9]+)\.png$/i', $filename, $m)) {
+        return strtoupper($m[1]);
+    }
 
-        if (preg_match('/^latest-(?:digisonde|lfm)-[^-]+-' . $r . '\.png$/i', $filename)) {
-            return $receiver;
-        }
+    if (preg_match('/^latest-rothr_jorn-(?:.*-)?([A-Z0-9]+)\.png$/i', $filename, $m)) {
+        return strtoupper($m[1]);
+    }
 
-        if (preg_match('/^latest-rti-[^-]+-' . $r . '\.png$/i', $filename)) {
-            return $receiver;
-        }
+    if (preg_match('/^(?:latest-)?rothr_jorn_today(?:-([A-Z0-9]+))?\.png$/i', $filename, $m)) {
+        return isset($m[1]) && $m[1] !== '' ? strtoupper($m[1]) : null;
+    }
 
-        if (preg_match('/^latest-rothr_jorn-' . $r . '\.png$/i', $filename)) {
-            return $receiver;
-        }
+    if (preg_match('/^latest[_-]([A-Z0-9]+)\.png$/i', $filename, $m)) {
+        return strtoupper($m[1]);
+    }
 
-        if (preg_match('/^(?:latest-)?rothr_jorn_today-' . $r . '\.png$/i', $filename)) {
-            return $receiver;
-        }
-
-        if (preg_match('/-' . $r . '-pc\.png$/i', $filename)) {
-            return $receiver;
-        }
+    if (preg_match('/^latest-([A-Z0-9]+)-pc\.png$/i', $filename, $m)) {
+        return strtoupper($m[1]);
     }
 
     return null;
+}
+
+function station_sort_order(string $station): string
+{
+    $preferred = ['TGO', 'DOB', 'KHO'];
+    $index = array_search($station, $preferred, true);
+    if ($index !== false) {
+        return sprintf('%03d-%s', $index, $station);
+    }
+    return '999-' . $station;
 }
 
 function plot_type_rank(string $plotType, array $plotTypeOrder): int
@@ -130,6 +135,30 @@ function station_sort_key(string $filename, string $plotType, array $stationLabe
 
 $cutoff = time() - ($maxAgeHours * 3600);
 $mapTabId = 'maps';
+$imagePaths = glob($imageGlob) ?: [];
+$receiverStations = [];
+
+foreach ($imagePaths as $path) {
+    if (!is_file($path)) continue;
+
+    $mtime = filemtime($path);
+    $filename = basename($path);
+    $plotType = detect_plot_type($filename, $plotTypeOrder);
+
+    if ($mtime === false) continue;
+    if ($plotType !== 'map' && $mtime < $cutoff) continue;
+
+    $receiver = detect_receiver_station($filename);
+    if ($receiver !== null) {
+        $receiverStations[$receiver] = true;
+    }
+}
+
+$receiverStations = array_keys($receiverStations);
+usort($receiverStations, static function (string $a, string $b): int {
+    return strcmp(station_sort_order($a), station_sort_order($b));
+});
+
 $tabs = [];
 foreach ($receiverStations as $receiver) {
     $tabs[$receiver] = $receiver;
@@ -137,13 +166,13 @@ foreach ($receiverStations as $receiver) {
 $tabs[$mapTabId] = 'Maps';
 $cardsByTab = array_fill_keys(array_keys($tabs), []);
 
-foreach (glob($imageGlob) ?: [] as $path) {
+foreach ($imagePaths as $path) {
     if (!is_file($path)) continue;
 
     $mtime = filemtime($path);
     $filename = basename($path);
     $plotType = detect_plot_type($filename, $plotTypeOrder);
-    $receiver = detect_receiver_station($filename, $receiverStations);
+    $receiver = detect_receiver_station($filename);
 
     if ($mtime === false) continue;
     if ($plotType !== 'map' && $mtime < $cutoff) continue;
