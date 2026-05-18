@@ -29,6 +29,7 @@ FFTW_WISDOM_PATH = os.environ.get(
     "CHIRPSOUNDER_FFTW_WISDOM",
     os.path.join(os.path.expanduser("~"), ".cache", "chirpsounder2", "fftw_wisdom.pkl"),
 )
+FFTW_PLANNER_FLAG = os.environ.get("CHIRPSOUNDER_FFTW_PLANNER", "FFTW_ESTIMATE")
 
 
 def load_fftw_wisdom():
@@ -141,14 +142,14 @@ class chirp_matched_filter_bank:
             self.fft_object = pyfftw.FFTW(
                 self.fftin, self.fftout,
                 direction='FFTW_FORWARD',
-                flags=('FFTW_MEASURE',),
+                flags=(FFTW_PLANNER_FLAG,),
                 threads=1
             )
 
             self.ifft_object = pyfftw.FFTW(
                 self.fftout, self.fftin,       # reversed!
                 direction='FFTW_BACKWARD',
-                flags=('FFTW_MEASURE',),
+                flags=(FFTW_PLANNER_FLAG,),
                 threads=1
             )
             save_fftw_wisdom()
