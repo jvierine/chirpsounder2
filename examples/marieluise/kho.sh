@@ -56,7 +56,7 @@ echo "plot_detectionfiles.py"
 python3 plot_detectionfiles.py --config $CONF_FILE > logs/plot_detectionfiles.log 2>&1 &
 
 echo "detect_chirps.py"
-$MPIRUN -np 2 python3 detect_chirps.py --config $CONF_FILE > logs/detect.log 2>&1 &
+python3 detect_chirps.py --config $CONF_FILE > logs/detect.log 2>&1 &
 
 echo "calc_ionograms.py"
 python3 calc_ionograms.py --config $CONF_FILE > logs/ionograms.log 2>&1 &
