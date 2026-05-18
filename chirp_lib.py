@@ -20,6 +20,19 @@ libdc.consume.argtypes = [ctypes.c_double,
                           ctypes.c_double,
                           ctypeslib.ndpointer(n.float32, ndim=1, flags='C'),
                           ctypes.c_int]
+libdc.consume_cic.argtypes = [ctypes.c_double,
+                              ctypes.c_double,
+                              ctypeslib.ndpointer(n.complex64, ndim=1, flags='C'),
+                              ctypes.c_int,
+                              ctypeslib.ndpointer(n.complex64, ndim=1, flags='C'),
+                              ctypeslib.ndpointer(n.complex64, ndim=1, flags='C'),
+                              ctypes.c_int,
+                              ctypes.c_int,
+                              ctypes.c_double,
+                              ctypes.c_double,
+                              ctypeslib.ndpointer(n.complex64, ndim=1, flags='C'),
+                              ctypeslib.ndpointer(n.complex64, ndim=1, flags='C'),
+                              ctypes.c_int]
 
 
 class chirp_downconvert:
@@ -31,7 +44,9 @@ class chirp_downconvert:
                  filter_len=2,
                  n_threads=4,
                  dt=1.0 / 25e6,
-                 fast_boxcar_filter=False):
+                 fast_boxcar_filter=False,
+                 downconversion_filter="fir",
+                 cic_stages=2):
 
         # let's add a windowed low pass filter to make this nearly perfect.
 
@@ -39,7 +54,21 @@ class chirp_downconvert:
         self.n_threads = n_threads
         # om0
         self.om0 = 2.0 * n.pi / float(dec)
-        if fast_boxcar_filter:
+        if fast_boxcar_filter and downconversion_filter == "fir":
+            downconversion_filter = "boxcar"
+        if downconversion_filter not in ["fir", "boxcar", "cic"]:
+            raise ValueError("downconversion_filter must be 'fir', 'boxcar', or 'cic'")
+        self.downconversion_filter = downconversion_filter
+        self.cic_stages = cic_stages
+        self.cic_integrator_state = n.zeros(cic_stages, dtype=n.complex64)
+        self.cic_comb_state = n.zeros(cic_stages, dtype=n.complex64)
+
+        if downconversion_filter == "cic":
+            filter_len = 1
+            self.dec2 = dec
+            self.m = n.arange(dec, dtype=n.float32)
+            self.wfun = n.ones(dec, dtype=n.float32) / float(dec)
+        elif downconversion_filter == "boxcar":
             filter_len = 1
             self.dec2 = dec
             self.m = n.arange(dec, dtype=n.float32)
@@ -70,24 +99,42 @@ class chirp_downconvert:
         if (len(z_in) - self.dec2) / self.dec < n_out:
             print("not enough input samples %d %d %d %d" %
                   (len(z_in), self.dec2, self.dec, n_out))
-        libdc.consume(self.chirpt,
-                      self.dt,
-                      self.sintab,
-                      self.tab_len,
-                      z_in,
-                      z_out,
-                      n_out,
-                      self.dec,
-                      self.dec2,
-                      self.f0,
-                      self.rate,
-                      self.wfun,
-                      self.n_threads)
+        if self.downconversion_filter == "cic":
+            libdc.consume_cic(self.chirpt,
+                              self.dt,
+                              self.sintab,
+                              self.tab_len,
+                              z_in,
+                              z_out,
+                              n_out,
+                              self.dec,
+                              self.f0,
+                              self.rate,
+                              self.cic_integrator_state,
+                              self.cic_comb_state,
+                              self.cic_stages)
+        else:
+            libdc.consume(self.chirpt,
+                          self.dt,
+                          self.sintab,
+                          self.tab_len,
+                          z_in,
+                          z_out,
+                          n_out,
+                          self.dec,
+                          self.dec2,
+                          self.f0,
+                          self.rate,
+                          self.wfun,
+                          self.n_threads)
 
         self.chirpt += float(n_out * self.dec) * self.dt
     def advance_time(self,
                      n_samples):
         self.chirpt += float(n_samples) * self.dt
+        if self.downconversion_filter == "cic":
+            self.cic_integrator_state[:] = 0
+            self.cic_comb_state[:] = 0
 
 
 def chirp(L, f0=-12.5e6, cr=100e3, sr=25e6):

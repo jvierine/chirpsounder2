@@ -146,3 +146,47 @@ void consume(double chirpt, double dt, complex_float *sintab, int tabl, complex_
   free(a);
   free(proc_threads);
 }
+
+void consume_cic(double chirpt, double dt, complex_float *sintab, int tabl, complex_float *in, complex_float *out_buffer, int n_out, int dec, double f0, double rate, complex_float *integrator_state, complex_float *comb_state, int n_stages)
+{
+  complex_float mixed;
+  complex_float comb;
+  complex_float prev;
+  double t = chirpt;
+  double gain = 1.0;
+  int out_idx = 0;
+
+  for(int i=0; i<n_stages; i++)
+  {
+    gain *= (double)dec;
+  }
+
+  for(int sample_idx=0; sample_idx<(n_out*dec); sample_idx++)
+  {
+    mixed = in[sample_idx];
+    add_and_advance_phasor(t, sintab, tabl, &mixed, &integrator_state[0], f0, rate);
+
+    for(int stage=1; stage<n_stages; stage++)
+    {
+      integrator_state[stage].re += integrator_state[stage-1].re;
+      integrator_state[stage].im += integrator_state[stage-1].im;
+    }
+
+    if(((sample_idx + 1) % dec) == 0)
+    {
+      comb = integrator_state[n_stages-1];
+      for(int stage=0; stage<n_stages; stage++)
+      {
+        prev = comb_state[stage];
+        comb_state[stage] = comb;
+        comb.re -= prev.re;
+        comb.im -= prev.im;
+      }
+      out_buffer[out_idx].re = comb.re / gain;
+      out_buffer[out_idx].im = comb.im / gain;
+      out_idx++;
+    }
+
+    t += dt;
+  }
+}

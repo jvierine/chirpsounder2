@@ -62,6 +62,8 @@ class chirp_config:
             "manual_range_extent": "false",
             "save_raw_voltage": "false",
             "fast_boxcar_filter": "false",
+            "downconversion_filter": '"fir"',
+            "cic_stages": "2",
             "n_downconversion_threads": "4"            ,
             "min_freq": "0",
             "max_freq": "25e6",
@@ -170,6 +172,10 @@ class chirp_config:
         self.realtime = json.loads(cf["config"]["realtime"])
         self.save_raw_voltage = json.loads(cf["lfm"]["save_raw_voltage"])
         self.fast_boxcar_filter = json.loads(cf["lfm"]["fast_boxcar_filter"])
+        self.downconversion_filter = json.loads(cf["lfm"]["downconversion_filter"])
+        if self.downconversion_filter not in ["fir", "boxcar", "cic"]:
+            raise ValueError("downconversion_filter must be 'fir', 'boxcar', or 'cic'")
+        self.cic_stages = json.loads(cf["lfm"]["cic_stages"])
         self.data_dir = json.loads(cf["config"]["data_dir"])
         print(self.data_dir)
 
