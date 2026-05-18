@@ -53,18 +53,11 @@ def read_config(args):#fname="examples/marieluise/ramfjordmoen_digisonde.ini"):
     if "sum_ox" in digisonde.keys():
         p["sum_ox"] =json.loads(digisonde["sum_ox"])
 
-    p["fast_boxcar_decimation"] = False
-    if "fast_boxcar_decimation" in cfg["config"]:
-        p["fast_boxcar_decimation"] = json.loads(cfg["config"]["fast_boxcar_decimation"])
-    if "fast_boxcar_decimation" in digisonde.keys():
-        p["fast_boxcar_decimation"] = json.loads(digisonde["fast_boxcar_decimation"])
-    p["fast_decimation_method"] = "boxcar" if p["fast_boxcar_decimation"] else "fir"
-    if "fast_decimation_method" in cfg["config"]:
-        p["fast_decimation_method"] = json.loads(cfg["config"]["fast_decimation_method"])
-    if "fast_decimation_method" in digisonde.keys():
-        p["fast_decimation_method"] = json.loads(digisonde["fast_decimation_method"])
-    if p["fast_decimation_method"] not in ["fir", "boxcar", "cic"]:
-        raise ValueError("fast_decimation_method must be 'fir', 'boxcar', or 'cic'")
+    p["filter_strategy"] = "fir"
+    if "filter_strategy" in digisonde.keys():
+        p["filter_strategy"] = json.loads(digisonde["filter_strategy"])
+    if p["filter_strategy"] not in ["fir", "boxcar", "cic"]:
+        raise ValueError("filter_strategy must be 'fir', 'boxcar', or 'cic'")
         
     p["sounding_hrs"]=[0,24]
     if "sounding_hrs" in digisonde.keys():
@@ -291,7 +284,7 @@ def calculate_ionogram(d,
     snr_threshold=p["snr_threshold"]
     copy_to_server=p["copy_to_server"]
     sum_ox=p["sum_ox"]
-    fast_decimation_method=p["fast_decimation_method"]
+    filter_strategy=p["filter_strategy"]
     
     # get complementary codes transmitted by digisonde
     # mode=3 includes phase flip
@@ -371,9 +364,9 @@ def calculate_ionogram(d,
                     srint*ipp,
                     channel,
                 ) * cvec[0:(srint*ipp)] * pha0[0]
-                if fast_decimation_method == "boxcar":
+                if filter_strategy == "boxcar":
                     z = decimate_boxcar(x, dec)
-                elif fast_decimation_method == "cic":
+                elif filter_strategy == "cic":
                     z = decimate_cic_staged(x, dec)
                 else:
                     z = decimate_10_then_fir25(x)
