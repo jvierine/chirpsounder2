@@ -11,12 +11,41 @@ import h5py
 import os
 import json
 import scipy.constants as sc
+import ctypes
+from numpy import ctypeslib
 #
 # Simple simple digisonde receiver. 
 # 
 # Juha Vierinen (2025)
 #
 import configparser
+
+try:
+    libdc = ctypes.cdll.LoadLibrary("./libdownconvert.so")
+    libdc.digisonde_downconvert_decimate.argtypes = [
+        ctypeslib.ndpointer(n.complex64, ndim=1, flags='C'),
+        ctypeslib.ndpointer(n.complex64, ndim=1, flags='C'),
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_double,
+        ctypes.c_double,
+        ctypes.c_float,
+        ctypes.c_float,
+        ctypes.c_int,
+        ctypeslib.ndpointer(n.float32, ndim=1, flags='C'),
+        ctypes.c_int,
+        ctypes.c_int,
+    ]
+    HAVE_C_DOWNCONVERT = True
+except (OSError, AttributeError):
+    libdc = None
+    HAVE_C_DOWNCONVERT = False
+
+C_FILTER_STRATEGY = {
+    "boxcar": 0,
+    "cic": 1,
+    "fir": 2,
+}
 
 def read_config(args):#fname="examples/marieluise/ramfjordmoen_digisonde.ini"):
     fname=args.config
@@ -167,11 +196,39 @@ def fir_decimate(x, R, h):
 
 # precalculate the fir window. nyquist is (0.5/50)
 # aim for 0.25 Nyquist (for 100 kHz, which is 50 kHz bandwidth
-h50 = fir_sinc_lowpass(numtaps=391, cutoff=(0.5 / 50)*0.3 )
-h10 = fir_sinc_lowpass(numtaps=71, cutoff=(0.5 / 10)*0.3 )
-h25 = fir_sinc_lowpass(numtaps=191, cutoff=(0.5 / 25)*0.3 )
+h50 = n.ascontiguousarray(fir_sinc_lowpass(numtaps=391, cutoff=(0.5 / 50)*0.3 ), dtype=n.float32)
+h10 = n.ascontiguousarray(fir_sinc_lowpass(numtaps=71, cutoff=(0.5 / 10)*0.3 ), dtype=n.float32)
+h25 = n.ascontiguousarray(fir_sinc_lowpass(numtaps=191, cutoff=(0.5 / 25)*0.3 ), dtype=n.float32)
 #plt.plot(h)
 #plt.show()
+
+def c_downconvert_decimate(x, dec, frequency_offset, sr, phase, filter_strategy):
+    if not HAVE_C_DOWNCONVERT:
+        return None
+    if filter_strategy == "fir" and dec != 250:
+        return None
+
+    n_in = x.shape[0] - (x.shape[0] % dec)
+    if n_in != x.shape[0]:
+        x = x[:n_in]
+    x = n.ascontiguousarray(x, dtype=n.complex64)
+    z = n.zeros(n_in // dec, dtype=n.complex64)
+    libdc.digisonde_downconvert_decimate(
+        x,
+        z,
+        n_in,
+        dec,
+        frequency_offset,
+        sr,
+        n.float32(n.real(phase)),
+        n.float32(n.imag(phase)),
+        C_FILTER_STRATEGY[filter_strategy],
+        h25,
+        len(h25),
+        2,
+    )
+    return z
+
 def decimate_25_then_fir10(x):
     """
     Two-stage decimation:
@@ -326,8 +383,12 @@ def calculate_ionogram(d,
         t0=time.time()
 
         freq=freq0+dfreq*i
-        # vector shift frequency to zero
-        cvec=n.array(n.exp(-1j*2*n.pi*(freq-cf)*n.arange(25*ipp+1)/sr),dtype=n.complex64)
+        frequency_offset = freq - cf
+        use_c_downconvert = HAVE_C_DOWNCONVERT and not (filter_strategy == "fir" and dec != 250)
+        phase_update = n.complex64(n.exp(-1j*2*n.pi*frequency_offset*(srint*ipp)/sr))
+        if not use_c_downconvert:
+            # vector shift frequency to zero
+            cvec=n.array(n.exp(-1j*2*n.pi*frequency_offset*n.arange(25*ipp+1)/sr),dtype=n.complex64)
         decoded=n.zeros([n_ipp,ipp_dec],dtype=n.complex64)
         #   plt.plot(cvec[0:10000].real)
         #    plt.show()
@@ -359,17 +420,26 @@ def calculate_ionogram(d,
 #                z=decimate_25_then_fir10(d.read_vector_c81d(i0+(i*n_ipp+pi)*ipp*srint+srint*offset_us,srint*ipp,"cha")*cvec[0:(srint*ipp)]*pha0[0])
                 # shift in frequency from the current ionosonde frequency to 0,
                 # reduce samepl-rate to 100 kHz
-                x = d.read_vector_c81d(
+                raw = d.read_vector_c81d(
                     i0+(i*n_ipp+pi)*ipp*srint+srint*offset_us,
                     srint*ipp,
                     channel,
-                ) * cvec[0:(srint*ipp)] * pha0[0]
-                if filter_strategy == "boxcar":
-                    z = decimate_boxcar(x, dec)
-                elif filter_strategy == "cic":
-                    z = decimate_cic_staged(x, dec)
+                )
+                if use_c_downconvert:
+                    z = c_downconvert_decimate(raw,
+                                               dec,
+                                               frequency_offset,
+                                               sr,
+                                               pha0[0],
+                                               filter_strategy)
                 else:
-                    z = decimate_10_then_fir25(x)
+                    x = raw * cvec[0:(srint*ipp)] * pha0[0]
+                    if filter_strategy == "boxcar":
+                        z = decimate_boxcar(x, dec)
+                    elif filter_strategy == "cic":
+                        z = decimate_cic_staged(x, dec)
+                    else:
+                        z = decimate_10_then_fir25(x)
 
                 # deconvolve
                 z=n.fft.ifft(n.fft.fft(z[0:ipp_dec])*CS2[pi%n_codes])
@@ -391,7 +461,7 @@ def calculate_ionogram(d,
             decoded[pi,:]=z
             
             # store oscillator phase for next ipp
-            pha0[0]=cvec[-1]*pha0[0]
+            pha0[0]=phase_update*pha0[0]
 
         # every fourth index
         ipp_idx=n.arange(int(decoded.shape[0]/4))*4

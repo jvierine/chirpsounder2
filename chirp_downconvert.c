@@ -3,9 +3,19 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <stdlib.h>
+#include <math.h>
 #ifdef __AVX2__
 #include <immintrin.h>
 #endif
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+typedef struct complex_double_str {
+  double re;
+  double im;
+} complex_double;
 
 static inline int phase_table_index(double chirpt, int tabl, double f0, double rate)
 {
@@ -256,5 +266,258 @@ void consume_cic(double chirpt, double dt, complex_float *sintab, int tabl, comp
     }
 
     t += dt;
+  }
+}
+
+static inline complex_float complex_mul_value(complex_float a, complex_float b)
+{
+  complex_float res;
+  res.re = a.re*b.re - a.im*b.im;
+  res.im = a.im*b.re + a.re*b.im;
+  return res;
+}
+
+static inline void complex_accumulate(complex_float *acc, complex_float x)
+{
+  acc->re += x.re;
+  acc->im += x.im;
+}
+
+static inline complex_float downconvert_sample(complex_float x, complex_double phase)
+{
+  complex_float res;
+  res.re = (float)((double)x.re*phase.re - (double)x.im*phase.im);
+  res.im = (float)((double)x.im*phase.re + (double)x.re*phase.im);
+  return res;
+}
+
+static inline void advance_phase(complex_double *phase, complex_double phase_step)
+{
+  double re = phase->re*phase_step.re - phase->im*phase_step.im;
+  double im = phase->im*phase_step.re + phase->re*phase_step.im;
+  phase->re = re;
+  phase->im = im;
+}
+
+static void digisonde_downconvert_boxcar(complex_float *in,
+                                         complex_float *out,
+                                         int n_out,
+                                         int dec,
+                                         complex_double phase,
+                                         complex_double phase_step)
+{
+  for(int out_idx=0; out_idx<n_out; out_idx++)
+  {
+    complex_float sum;
+    sum.re = 0.0;
+    sum.im = 0.0;
+
+    for(int dec_idx=0; dec_idx<dec; dec_idx++)
+    {
+      int in_idx = out_idx*dec + dec_idx;
+      complex_accumulate(&sum, downconvert_sample(in[in_idx], phase));
+      advance_phase(&phase, phase_step);
+    }
+
+    out[out_idx].re = sum.re / (float)dec;
+    out[out_idx].im = sum.im / (float)dec;
+  }
+}
+
+static void digisonde_downconvert_average(complex_float *in,
+                                          complex_float *out,
+                                          int n_out,
+                                          int dec,
+                                          complex_double *phase,
+                                          complex_double phase_step)
+{
+  for(int out_idx=0; out_idx<n_out; out_idx++)
+  {
+    complex_float sum;
+    sum.re = 0.0;
+    sum.im = 0.0;
+
+    for(int dec_idx=0; dec_idx<dec; dec_idx++)
+    {
+      int in_idx = out_idx*dec + dec_idx;
+      complex_accumulate(&sum, downconvert_sample(in[in_idx], *phase));
+      advance_phase(phase, phase_step);
+    }
+
+    out[out_idx].re = sum.re / (float)dec;
+    out[out_idx].im = sum.im / (float)dec;
+  }
+}
+
+static void digisonde_cic_decimate(complex_float *in,
+                                   complex_float *out,
+                                   int n_in,
+                                   int dec,
+                                   int n_stages)
+{
+  complex_float *integrator_state = calloc(n_stages, sizeof(complex_float));
+  complex_float *comb_state = calloc(n_stages, sizeof(complex_float));
+  int out_idx = 0;
+  double gain = 1.0;
+
+  for(int stage=0; stage<n_stages; stage++)
+  {
+    gain *= (double)dec;
+  }
+
+  for(int sample_idx=0; sample_idx<n_in; sample_idx++)
+  {
+    integrator_state[0].re += in[sample_idx].re;
+    integrator_state[0].im += in[sample_idx].im;
+
+    for(int stage=1; stage<n_stages; stage++)
+    {
+      integrator_state[stage].re += integrator_state[stage-1].re;
+      integrator_state[stage].im += integrator_state[stage-1].im;
+    }
+
+    if(((sample_idx + 1) % dec) == 0)
+    {
+      complex_float comb = integrator_state[n_stages-1];
+      for(int stage=0; stage<n_stages; stage++)
+      {
+        complex_float prev = comb_state[stage];
+        comb_state[stage] = comb;
+        comb.re -= prev.re;
+        comb.im -= prev.im;
+      }
+      out[out_idx].re = comb.re / (float)gain;
+      out[out_idx].im = comb.im / (float)gain;
+      out_idx++;
+    }
+  }
+
+  free(integrator_state);
+  free(comb_state);
+}
+
+static void digisonde_downconvert_fir10_25(complex_float *in,
+                                           complex_float *out,
+                                           int n_out,
+                                           int n_in,
+                                           float *fir_taps,
+                                           int n_taps,
+                                           complex_double phase,
+                                           complex_double phase_step)
+{
+  int stage1_dec = 10;
+  int stage2_dec = 25;
+  int n_stage1 = n_in / stage1_dec;
+  int tap_center = (n_taps - 1) / 2;
+  complex_float *stage1 = malloc(sizeof(complex_float)*n_stage1);
+
+  digisonde_downconvert_average(in,
+                                stage1,
+                                n_stage1,
+                                stage1_dec,
+                                &phase,
+                                phase_step);
+
+  for(int out_idx=0; out_idx<n_out; out_idx++)
+  {
+    int center_idx = out_idx*stage2_dec;
+    complex_float sum;
+    sum.re = 0.0;
+    sum.im = 0.0;
+
+    for(int tap_idx=0; tap_idx<n_taps; tap_idx++)
+    {
+      int input_idx = center_idx + tap_idx - tap_center;
+      if(input_idx >= 0 && input_idx < n_stage1)
+      {
+        sum.re += stage1[input_idx].re * fir_taps[tap_idx];
+        sum.im += stage1[input_idx].im * fir_taps[tap_idx];
+      }
+    }
+
+    out[out_idx] = sum;
+  }
+
+  free(stage1);
+}
+
+static void digisonde_downconvert_cic_staged(complex_float *in,
+                                             complex_float *out,
+                                             int n_out,
+                                             int n_in,
+                                             int dec,
+                                             int n_stages,
+                                             complex_double phase,
+                                             complex_double phase_step)
+{
+  if(dec == 250)
+  {
+    int stage1_dec = 10;
+    int stage2_dec = 25;
+    int n_stage1 = n_in / stage1_dec;
+    complex_float *stage1 = malloc(sizeof(complex_float)*n_stage1);
+
+    digisonde_downconvert_average(in,
+                                  stage1,
+                                  n_stage1,
+                                  stage1_dec,
+                                  &phase,
+                                  phase_step);
+    digisonde_cic_decimate(stage1,
+                           out,
+                           n_stage1,
+                           stage2_dec,
+                           n_stages);
+    free(stage1);
+  }
+  else
+  {
+    complex_float *mixed = malloc(sizeof(complex_float)*n_in);
+    for(int i=0; i<n_in; i++)
+    {
+      mixed[i] = downconvert_sample(in[i], phase);
+      advance_phase(&phase, phase_step);
+    }
+    digisonde_cic_decimate(mixed, out, n_in, dec, n_stages);
+    free(mixed);
+  }
+}
+
+void digisonde_downconvert_decimate(complex_float *in,
+                                    complex_float *out,
+                                    int n_in,
+                                    int dec,
+                                    double frequency_offset,
+                                    double sample_rate,
+                                    float initial_phase_re,
+                                    float initial_phase_im,
+                                    int filter_strategy,
+                                    float *fir_taps,
+                                    int n_taps,
+                                    int cic_stages)
+{
+  int n_out = n_in / dec;
+  double dphase = -2.0*M_PI*frequency_offset/sample_rate;
+  complex_double phase;
+  complex_double phase_step;
+
+  phase.re = (double)initial_phase_re;
+  phase.im = (double)initial_phase_im;
+  phase_step.re = cos(dphase);
+  phase_step.im = sin(dphase);
+
+  if(filter_strategy == 0)
+  {
+    digisonde_downconvert_boxcar(in, out, n_out, dec, phase, phase_step);
+  }
+  else if(filter_strategy == 1)
+  {
+    digisonde_downconvert_cic_staged(in, out, n_out, n_in, dec, cic_stages,
+                                     phase, phase_step);
+  }
+  else
+  {
+    digisonde_downconvert_fir10_25(in, out, n_out, n_in, fir_taps, n_taps,
+                                   phase, phase_step);
   }
 }
