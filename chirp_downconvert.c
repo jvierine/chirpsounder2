@@ -4,7 +4,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <math.h>
-#ifdef __AVX2__
+#ifdef __AVX__
 #include <immintrin.h>
 #endif
 
@@ -69,7 +69,7 @@ static inline void add_windowed_phasor_sum(double chirpt,
 {
   int dec_idx = 0;
 
-#ifdef __AVX2__
+#ifdef __AVX__
   __m256 acc = _mm256_setzero_ps();
 
   for(; dec_idx <= dec2 - 4; dec_idx += 4)
@@ -363,7 +363,7 @@ static void digisonde_downconvert_average10(complex_float *in,
     sum.im = 0.0;
     int dec_idx = 0;
 
-#ifdef __AVX2__
+#ifdef __AVX__
     __m256 acc = _mm256_setzero_ps();
     for(; dec_idx <= 6; dec_idx += 4)
     {
@@ -485,7 +485,7 @@ static void digisonde_downconvert_fir10_25(complex_float *in,
     sum.im = 0.0;
     int tap_idx = 0;
 
-#ifdef __AVX2__
+#ifdef __AVX__
     __m256 acc = _mm256_setzero_ps();
     for(; tap_idx <= n_taps - 4; tap_idx += 4)
     {
