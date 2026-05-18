@@ -30,7 +30,8 @@ class chirp_downconvert:
                  dec=2500,
                  filter_len=2,
                  n_threads=4,
-                 dt=1.0 / 25e6):
+                 dt=1.0 / 25e6,
+                 fast_boxcar_filter=False):
 
         # let's add a windowed low pass filter to make this nearly perfect.
 
@@ -38,11 +39,17 @@ class chirp_downconvert:
         self.n_threads = n_threads
         # om0
         self.om0 = 2.0 * n.pi / float(dec)
-        self.dec2 = filter_len * dec
-        self.m = n.array(n.arange(filter_len * dec) - dec, dtype=n.float32)
-        # windowed low pass filter
-        self.wfun = n.array(ss.windows.hann(len(self.m)) * n.sin(self.om0 *
-                            (self.m + 1e-6)) / (n.pi * (self.m + 1e-6)), dtype=n.float32)
+        if fast_boxcar_filter:
+            filter_len = 1
+            self.dec2 = dec
+            self.m = n.arange(dec, dtype=n.float32)
+            self.wfun = n.ones(dec, dtype=n.float32) / float(dec)
+        else:
+            self.dec2 = filter_len * dec
+            self.m = n.array(n.arange(filter_len * dec) - dec, dtype=n.float32)
+            # windowed low pass filter
+            self.wfun = n.array(ss.windows.hann(len(self.m)) * n.sin(self.om0 *
+                                (self.m + 1e-6)) / (n.pi * (self.m + 1e-6)), dtype=n.float32)
         # the window function could be twice the decimation rate
         self.chirpt = 0.0
         # conjugate sinusoid!

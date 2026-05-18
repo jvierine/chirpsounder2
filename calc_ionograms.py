@@ -202,7 +202,8 @@ def chirp_downconvert(conf,
                                rate=rate,
                                dec=dec,
                                dt=1.0 / conf.sample_rate,
-                               n_threads=conf.n_downconversion_threads)
+                               n_threads=conf.n_downconversion_threads,
+                               fast_boxcar_filter=conf.fast_boxcar_filter)
 
     zd_len = n_windows * step
     zd = np.zeros(zd_len, dtype=np.complex64)
