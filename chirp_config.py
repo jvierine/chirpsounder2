@@ -13,8 +13,8 @@ class chirp_config:
         cf = configparser.ConfigParser()
         # initialize with default values
 
-#                        # 300 seconds is 30 GB
-#ringbuffer_max_age_sec=300
+#                        # 70 seconds is the default cleanup age
+#ringbuffer_max_age_sec=70
 # delete older files
 #ringbuffer_cleanup=true
 
@@ -32,7 +32,7 @@ class chirp_config:
                         "plot_timings": "false",
                         "realtime": "false",
                         "ringbuffer_max_age_min":"4",
-                        "ringbuffer_max_age_sec":"240",
+                        "ringbuffer_max_age_sec":"70",
                         "ringbuffer_cleanup":"false",
                         "serendipitous": "false",
                         }
