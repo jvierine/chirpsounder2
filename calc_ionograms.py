@@ -54,6 +54,16 @@ def kill(conf):
     exists = os.path.isfile(conf.kill_path)
     return exists
 
+def get_valid_bounds(d, ch, poll_s=1.0):
+    """Return DigitalRF bounds once both endpoints are available."""
+    while True:
+        b = d.get_bounds(ch)
+        if b is not None and len(b) >= 2 and b[0] is not None and b[1] is not None:
+            return b
+
+        print("no DigitalRF data bounds available for channel %s; waiting for data" % (ch))
+        time.sleep(poll_s)
+
 
 comm = MPI.COMM_WORLD
 size = comm.Get_size()
@@ -204,14 +214,14 @@ def chirp_downconvert(conf,
         missing = False
         try:
             if conf.realtime:
-                b = d.get_bounds(ch)
+                b = get_valid_bounds(d, ch)
                 while ((i0 + idx + step * dec + cdc.filter_len * dec) + int(conf.sample_rate)) > b[1]:
                     # wait for more data to be acquired
                     # as the tail of the buffer doesn't have he data we
                     # need yet
                     time.sleep(1.0)
                     sleep_time += 1.0
-                    b = d.get_bounds(ch)
+                    b = get_valid_bounds(d, ch)
 
             z = d.read_vector_1d(
                 i0 + idx, step * dec + cdc.filter_len * dec, ch,
@@ -355,7 +365,7 @@ def analyze_realtime(conf, d):
             sys.exit(0)
         else:
             for ch in conf.channel:
-                b = d.get_bounds(ch)
+                b = get_valid_bounds(d, ch)
                 t0 = np.floor(np.float128(b[0]) / np.float128(conf.sample_rate))
                 t1 = np.floor(np.float128(b[1]) / np.float128(conf.sample_rate))
 
@@ -426,10 +436,10 @@ def get_next_chirp_par_file(conf, d, ch):
             print("kill.txt found, stopping calc_ionograms.py")
             sys.exit(0)
         else:
-            b = d.get_bounds(ch)
+            b = get_valid_bounds(d, ch)
             buffer_t0 = np.floor(np.float128(b[0]) / np.float128(conf.sample_rate))
             while np.isnan(buffer_t0):
-                b = d.get_bounds(ch)
+                b = get_valid_bounds(d, ch)
                 buffer_t0 = np.floor(np.float128(
                     b[0]) / np.float128(conf.sample_rate))
     #            t1=np.floor(np.float128(b[1])/np.float128(conf.sample_rate))
