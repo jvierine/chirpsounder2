@@ -424,8 +424,43 @@ static void digisonde_downconvert_fir10_25(complex_float *in,
     complex_float sum;
     sum.re = 0.0;
     sum.im = 0.0;
+    int tap_idx = 0;
 
-    for(int tap_idx=0; tap_idx<n_taps; tap_idx++)
+#ifdef __AVX2__
+    __m256 acc = _mm256_setzero_ps();
+    for(; tap_idx <= n_taps - 4; tap_idx += 4)
+    {
+      int input_idx = center_idx + tap_idx - tap_center;
+      if(input_idx >= 0 && input_idx + 3 < n_stage1)
+      {
+        __m256 z = _mm256_loadu_ps((float *)&stage1[input_idx]);
+        __m256 w = _mm256_set_ps(fir_taps[tap_idx + 3], fir_taps[tap_idx + 3],
+                                 fir_taps[tap_idx + 2], fir_taps[tap_idx + 2],
+                                 fir_taps[tap_idx + 1], fir_taps[tap_idx + 1],
+                                 fir_taps[tap_idx + 0], fir_taps[tap_idx + 0]);
+        acc = _mm256_add_ps(acc, _mm256_mul_ps(z, w));
+      }
+      else
+      {
+        for(int j=0; j<4; j++)
+        {
+          int edge_idx = input_idx + j;
+          if(edge_idx >= 0 && edge_idx < n_stage1)
+          {
+            sum.re += stage1[edge_idx].re * fir_taps[tap_idx + j];
+            sum.im += stage1[edge_idx].im * fir_taps[tap_idx + j];
+          }
+        }
+      }
+    }
+
+    float accv[8];
+    _mm256_storeu_ps(accv, acc);
+    sum.re += accv[0] + accv[2] + accv[4] + accv[6];
+    sum.im += accv[1] + accv[3] + accv[5] + accv[7];
+#endif
+
+    for(; tap_idx<n_taps; tap_idx++)
     {
       int input_idx = center_idx + tap_idx - tap_center;
       if(input_idx >= 0 && input_idx < n_stage1)
