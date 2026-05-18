@@ -69,6 +69,20 @@ def read_config(args):#fname="examples/marieluise/ramfjordmoen_digisonde.ini"):
     print(p)
     return p
 
+def get_valid_bounds(d, channel, wait_for_data=False, poll_s=1.0):
+    """Return DigitalRF bounds once both endpoints are available."""
+    while True:
+        b = d.get_bounds(channel)
+        if b is not None and len(b) >= 2 and b[0] is not None and b[1] is not None:
+            return b
+
+        msg = "no DigitalRF data bounds available for channel %s" % (channel)
+        if not wait_for_data:
+            raise RuntimeError(msg)
+
+        print("%s; waiting for data" % (msg))
+        time.sleep(poll_s)
+
 
 def unix2date(unix_seconds):
     date_string = datetime.datetime.utcfromtimestamp(unix_seconds).isoformat() + "Z"
@@ -284,9 +298,9 @@ def calculate_ionogram(d,
             if wait_for_data:
                 not_enough_data=True
                 while not_enough_data:
-                    bnow=d.get_bounds(channel)
+                    bnow=get_valid_bounds(d, channel, wait_for_data=True)
                     if bnow[1] < (start_idx+data_length):
-                        print("waiting for more data (%1.2f seconds)"%( ((start_idx+data_length)-bnow[1])/25e6 ))
+                        print("waiting for more data (%1.2f seconds)"%( ((start_idx+data_length)-bnow[1])/sr ))
                         time.sleep(1)
                     else:
                         not_enough_data=False
@@ -420,7 +434,7 @@ def realtime_ionogram(args):
 
     d = drf.DigitalRFReader(p["ringbuffer_dir"])
 
-    b = d.get_bounds(p["channel"])
+    b = get_valid_bounds(d, p["channel"], wait_for_data=p["wait_for_data"])
 
     sr = p["sr"]
     interval = p["sounding_interval"]
