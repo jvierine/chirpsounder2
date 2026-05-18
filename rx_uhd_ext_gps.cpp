@@ -356,24 +356,18 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     //const double guard = 0.3; // 200 ms 
     //    while (true)
     //{
-    if (using_internal_gpsdo) {
-        const time_t gps_time = usrp->get_mboard_sensor("gps_time", 0).to_int();
-        std::cout << "GPS time now: " << gps_time << "\n";
-        std::cout << "Setting USRP time to: " << gps_time+1 << " at next PPS\n";
-        usrp->set_time_next_pps(uhd::time_spec_t(gps_time + 1));
-    } else {
-        auto now = std::chrono::system_clock::now();
-        auto secs = std::chrono::time_point_cast<std::chrono::seconds>(now);
-        auto frac = std::chrono::duration<double>(now - secs).count();
+    auto now = std::chrono::system_clock::now();
+    auto secs = std::chrono::time_point_cast<std::chrono::seconds>(now);
+    auto frac = std::chrono::duration<double>(now - secs).count();
 
-        // safe to schedule
-        time_t pc_secs = secs.time_since_epoch().count();
-        
-        std::cout << "PC time now: " << pc_secs << " + " << frac << " sec\n";
-        std::cout << "Setting USRP time to: " << pc_secs+1 << " at next PPS\n";
-        // schedule time reset on next PPS
-        usrp->set_time_next_pps(uhd::time_spec_t(pc_secs + 1));
-    }
+    // safe to schedule
+    time_t pc_secs = secs.time_since_epoch().count();
+    
+    std::cout << "PC time now: " << pc_secs << " + " << frac << " sec\n";
+    std::cout << "Setting USRP time to: " << pc_secs+1 << " at next PPS\n";
+    // schedule time reset on next PPS, regardless of whether PPS comes from
+    // the internal GPSDO or the external PPS input.
+    usrp->set_time_next_pps(uhd::time_spec_t(pc_secs + 1));
     //	std::cout << "Setting USRP time to: " << pc_secs+1 << " at next PPS";
     // too close to next second → wait a bit
     //    std::this_thread::sleep_for(std::chrono::milliseconds(20));
