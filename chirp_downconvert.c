@@ -349,6 +349,66 @@ static void digisonde_downconvert_average(complex_float *in,
   }
 }
 
+static void digisonde_downconvert_average10(complex_float *in,
+                                            complex_float *out,
+                                            int n_out,
+                                            complex_double *phase,
+                                            complex_double phase_step)
+{
+  for(int out_idx=0; out_idx<n_out; out_idx++)
+  {
+    int in_idx = out_idx*10;
+    complex_float sum;
+    sum.re = 0.0;
+    sum.im = 0.0;
+    int dec_idx = 0;
+
+#ifdef __AVX2__
+    __m256 acc = _mm256_setzero_ps();
+    for(; dec_idx <= 6; dec_idx += 4)
+    {
+      complex_double p0 = *phase;
+      advance_phase(phase, phase_step);
+      complex_double p1 = *phase;
+      advance_phase(phase, phase_step);
+      complex_double p2 = *phase;
+      advance_phase(phase, phase_step);
+      complex_double p3 = *phase;
+      advance_phase(phase, phase_step);
+
+      __m256 z = _mm256_loadu_ps((float *)&in[in_idx + dec_idx]);
+      __m256 pr = _mm256_set_ps((float)p3.re, (float)p3.re,
+                                (float)p2.re, (float)p2.re,
+                                (float)p1.re, (float)p1.re,
+                                (float)p0.re, (float)p0.re);
+      __m256 pi = _mm256_set_ps((float)p3.im, (float)p3.im,
+                                (float)p2.im, (float)p2.im,
+                                (float)p1.im, (float)p1.im,
+                                (float)p0.im, (float)p0.im);
+      __m256 zswap = _mm256_permute_ps(z, 0xb1);
+      __m256 prod_reim = _mm256_mul_ps(z, pr);
+      __m256 prod_cross = _mm256_mul_ps(zswap, pi);
+
+      acc = _mm256_add_ps(acc, _mm256_addsub_ps(prod_reim, prod_cross));
+    }
+
+    float accv[8];
+    _mm256_storeu_ps(accv, acc);
+    sum.re += accv[0] + accv[2] + accv[4] + accv[6];
+    sum.im += accv[1] + accv[3] + accv[5] + accv[7];
+#endif
+
+    for(; dec_idx<10; dec_idx++)
+    {
+      complex_accumulate(&sum, downconvert_sample(in[in_idx + dec_idx], *phase));
+      advance_phase(phase, phase_step);
+    }
+
+    out[out_idx].re = sum.re * 0.1f;
+    out[out_idx].im = sum.im * 0.1f;
+  }
+}
+
 static void digisonde_cic_decimate(complex_float *in,
                                    complex_float *out,
                                    int n_in,
@@ -411,12 +471,11 @@ static void digisonde_downconvert_fir10_25(complex_float *in,
   int tap_center = (n_taps - 1) / 2;
   complex_float *stage1 = malloc(sizeof(complex_float)*n_stage1);
 
-  digisonde_downconvert_average(in,
-                                stage1,
-                                n_stage1,
-                                stage1_dec,
-                                &phase,
-                                phase_step);
+  digisonde_downconvert_average10(in,
+                                  stage1,
+                                  n_stage1,
+                                  &phase,
+                                  phase_step);
 
   for(int out_idx=0; out_idx<n_out; out_idx++)
   {
@@ -492,12 +551,11 @@ static void digisonde_downconvert_cic_staged(complex_float *in,
     int n_stage1 = n_in / stage1_dec;
     complex_float *stage1 = malloc(sizeof(complex_float)*n_stage1);
 
-    digisonde_downconvert_average(in,
-                                  stage1,
-                                  n_stage1,
-                                  stage1_dec,
-                                  &phase,
-                                  phase_step);
+    digisonde_downconvert_average10(in,
+                                    stage1,
+                                    n_stage1,
+                                    &phase,
+                                    phase_step);
     digisonde_cic_decimate(stage1,
                            out,
                            n_stage1,
