@@ -52,6 +52,12 @@ def read_config(args):#fname="examples/marieluise/ramfjordmoen_digisonde.ini"):
     p["sum_ox"]=False
     if "sum_ox" in digisonde.keys():
         p["sum_ox"] =json.loads(digisonde["sum_ox"])
+
+    p["fast_boxcar_decimation"] = False
+    if "fast_boxcar_decimation" in cfg["config"]:
+        p["fast_boxcar_decimation"] = json.loads(cfg["config"]["fast_boxcar_decimation"])
+    if "fast_boxcar_decimation" in digisonde.keys():
+        p["fast_boxcar_decimation"] = json.loads(digisonde["fast_boxcar_decimation"])
         
     p["sounding_hrs"]=[0,24]
     if "sounding_hrs" in digisonde.keys():
@@ -105,6 +111,17 @@ def decimate_average(x: n.ndarray, N: int, average: bool = True) -> n.ndarray:
         return x_reshaped.mean(axis=-1)
     else:
         return x_reshaped.sum(axis=-1)
+
+
+def decimate_boxcar(x: n.ndarray, R: int) -> n.ndarray:
+    """
+    Fast boxcar low-pass filter and decimate by R.
+
+    This is much cheaper than the two-stage FIR path.  The frequency response
+    is the sinc response of a rectangular window, so it is intended for sites
+    where speed is more important than stop-band rejection.
+    """
+    return decimate_average(x, R)
     
 def fir_sinc_lowpass(numtaps, cutoff, beta=8.6):
     """
@@ -242,6 +259,7 @@ def calculate_ionogram(d,
     snr_threshold=p["snr_threshold"]
     copy_to_server=p["copy_to_server"]
     sum_ox=p["sum_ox"]
+    fast_boxcar_decimation=p["fast_boxcar_decimation"]
     
     # get complementary codes transmitted by digisonde
     # mode=3 includes phase flip
@@ -316,7 +334,15 @@ def calculate_ionogram(d,
 #                z=decimate_25_then_fir10(d.read_vector_c81d(i0+(i*n_ipp+pi)*ipp*srint+srint*offset_us,srint*ipp,"cha")*cvec[0:(srint*ipp)]*pha0[0])
                 # shift in frequency from the current ionosonde frequency to 0,
                 # reduce samepl-rate to 100 kHz
-                z=decimate_10_then_fir25(d.read_vector_c81d(i0+(i*n_ipp+pi)*ipp*srint+srint*offset_us,srint*ipp,channel)*cvec[0:(srint*ipp)]*pha0[0])                
+                x = d.read_vector_c81d(
+                    i0+(i*n_ipp+pi)*ipp*srint+srint*offset_us,
+                    srint*ipp,
+                    channel,
+                ) * cvec[0:(srint*ipp)] * pha0[0]
+                if fast_boxcar_decimation:
+                    z = decimate_boxcar(x, dec)
+                else:
+                    z = decimate_10_then_fir25(x)
 
                 # deconvolve
                 z=n.fft.ifft(n.fft.fft(z[0:ipp_dec])*CS2[pi%n_codes])
