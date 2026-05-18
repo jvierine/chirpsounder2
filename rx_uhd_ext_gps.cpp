@@ -22,6 +22,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <algorithm>
 #include <unistd.h>
 #include <digital_rf.h>
 
@@ -36,6 +37,53 @@ using namespace std;
 void get_usrp_time(multi_usrp::sptr usrp, size_t mboard, std::vector<int64_t>* times)
 {
     (*times)[mboard] = usrp->get_time_now(mboard).get_full_secs();
+}
+
+bool has_value(const std::vector<std::string>& values, const std::string& value)
+{
+    return std::find(values.begin(), values.end(), value) != values.end();
+}
+
+bool has_sensor(multi_usrp::sptr usrp, const std::string& sensor, size_t mboard)
+{
+    std::vector<std::string> sensors = usrp->get_mboard_sensor_names(mboard);
+    return has_value(sensors, sensor);
+}
+
+bool all_mboards_support_gpsdo(multi_usrp::sptr usrp)
+{
+    for (size_t mb = 0; mb < usrp->get_num_mboards(); mb++) {
+        if (!has_value(usrp->get_clock_sources(mb), "gpsdo") ||
+            !has_value(usrp->get_time_sources(mb), "gpsdo")) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void wait_for_gps_lock(multi_usrp::sptr usrp)
+{
+    bool all_gps_locked = false;
+    while (!all_gps_locked) {
+        all_gps_locked = true;
+        for (size_t mb = 0; mb < usrp->get_num_mboards(); mb++) {
+            if (!has_sensor(usrp, "gps_locked", mb)) {
+                continue;
+            }
+            bool gps_locked = usrp->get_mboard_sensor("gps_locked", mb).to_bool();
+            std::cout << boost::format(" * mboard %d gps_locked: %s")
+                         % mb % (gps_locked ? "true" : "false")
+                      << std::endl;
+            if (!gps_locked) {
+                all_gps_locked = false;
+            }
+        }
+
+        if (!all_gps_locked) {
+            std::cout << "Waiting for GPSDO lock." << std::endl;
+            std::this_thread::sleep_for(std::chrono::seconds(10));
+        }
+    }
 }
 
 void streaming_by_channel(size_t chan,double rate,std::string subdev,std::string outdir, multi_usrp::sptr usrp, uhd::time_spec_t time_last_pps, std::chrono::steady_clock::time_point end_time)
@@ -249,11 +297,21 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     for (size_t ch = 0; ch < usrp->get_num_mboards(); ch++) {
         serials.push_back(usrp->get_usrp_tx_info(ch)["mboard_serial"]);
     }
-    // telling the USRP to use the 10 MHz and PPS coming in from the external ports.
-    /*usrp->set_time_source("external");
-      usrp->set_clock_source("external");*/
-    usrp->set_time_source("external");
-    usrp->set_clock_source("external");    
+    bool using_internal_gpsdo = all_mboards_support_gpsdo(usrp);
+    if (using_internal_gpsdo) {
+        std::cout << "Using internal GPSDO clock and PPS." << std::endl;
+        for (size_t mb = 0; mb < usrp->get_num_mboards(); mb++) {
+            usrp->set_clock_source("gpsdo", mb);
+            usrp->set_time_source("gpsdo", mb);
+        }
+        wait_for_gps_lock(usrp);
+    } else {
+        std::cout << "Internal GPSDO not available on all mboards; using external 10 MHz and PPS." << std::endl;
+        for (size_t mb = 0; mb < usrp->get_num_mboards(); mb++) {
+            usrp->set_clock_source("external", mb);
+            usrp->set_time_source("external", mb);
+        }
+    }
 
     std::cout << std::endl << "Checking USRP devices for lock." << std::endl;
     bool all_locked = true;
@@ -298,17 +356,24 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     //const double guard = 0.3; // 200 ms 
     //    while (true)
     //{
-    auto now = std::chrono::system_clock::now();
-    auto secs = std::chrono::time_point_cast<std::chrono::seconds>(now);
-    auto frac = std::chrono::duration<double>(now - secs).count();
+    if (using_internal_gpsdo) {
+        const time_t gps_time = usrp->get_mboard_sensor("gps_time", 0).to_int();
+        std::cout << "GPS time now: " << gps_time << "\n";
+        std::cout << "Setting USRP time to: " << gps_time+1 << " at next PPS\n";
+        usrp->set_time_next_pps(uhd::time_spec_t(gps_time + 1));
+    } else {
+        auto now = std::chrono::system_clock::now();
+        auto secs = std::chrono::time_point_cast<std::chrono::seconds>(now);
+        auto frac = std::chrono::duration<double>(now - secs).count();
 
-    // safe to schedule
-    time_t pc_secs = secs.time_since_epoch().count();
-    
-    std::cout << "PC time now: " << pc_secs << " + " << frac << " sec\n";
-    std::cout << "Setting USRP time to: " << pc_secs+1 << " at next PPS\n";
-    // schedule time reset on next PPS
-    usrp->set_time_next_pps(uhd::time_spec_t(pc_secs + 1));
+        // safe to schedule
+        time_t pc_secs = secs.time_since_epoch().count();
+        
+        std::cout << "PC time now: " << pc_secs << " + " << frac << " sec\n";
+        std::cout << "Setting USRP time to: " << pc_secs+1 << " at next PPS\n";
+        // schedule time reset on next PPS
+        usrp->set_time_next_pps(uhd::time_spec_t(pc_secs + 1));
+    }
     //	std::cout << "Setting USRP time to: " << pc_secs+1 << " at next PPS";
     // too close to next second → wait a bit
     //    std::this_thread::sleep_for(std::chrono::milliseconds(20));
