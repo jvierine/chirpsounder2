@@ -87,6 +87,10 @@ def read_config(args):#fname="examples/marieluise/ramfjordmoen_digisonde.ini"):
         p["filter_strategy"] = json.loads(digisonde["filter_strategy"])
     if p["filter_strategy"] not in ["fir", "boxcar", "cic"]:
         raise ValueError("filter_strategy must be 'fir', 'boxcar', or 'cic'")
+
+    p["use_c_downconvert"] = True
+    if "use_c_downconvert" in digisonde.keys():
+        p["use_c_downconvert"] = json.loads(digisonde["use_c_downconvert"])
         
     p["sounding_hrs"]=[0,24]
     if "sounding_hrs" in digisonde.keys():
@@ -384,7 +388,9 @@ def calculate_ionogram(d,
 
         freq=freq0+dfreq*i
         frequency_offset = freq - cf
-        use_c_downconvert = HAVE_C_DOWNCONVERT and not (filter_strategy == "fir" and dec != 250)
+        use_c_downconvert = (p["use_c_downconvert"] and
+                             HAVE_C_DOWNCONVERT and
+                             not (filter_strategy == "fir" and dec != 250))
         phase_update = n.complex64(n.exp(-1j*2*n.pi*frequency_offset*(srint*ipp)/sr))
         if not use_c_downconvert:
             # vector shift frequency to zero
