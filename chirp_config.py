@@ -13,6 +13,8 @@ class chirp_config:
         cf = configparser.ConfigParser()
         explicit_ringbuffer_max_age_min = False
         explicit_ringbuffer_max_age_sec = False
+        shared_station_info = {}
+        shared_station_links = []
         # initialize with default values
 
 #                        # 70 seconds is the default cleanup age
@@ -114,6 +116,10 @@ class chirp_config:
                     shared_cf.read(shared_fname)
                     explicit_ringbuffer_max_age_min |= shared_cf.has_option("config", "ringbuffer_max_age_min")
                     explicit_ringbuffer_max_age_sec |= shared_cf.has_option("config", "ringbuffer_max_age_sec")
+                    if shared_cf.has_option("stations", "station_info"):
+                        shared_station_info = json.loads(shared_cf["stations"]["station_info"])
+                    if shared_cf.has_option("stations", "links"):
+                        shared_station_links = json.loads(shared_cf["stations"]["links"])
                 print("reading %s" % (fname))
                 cf.read(fname)
                 file_cf = configparser.ConfigParser()
@@ -140,8 +146,12 @@ class chirp_config:
         
         self.debug_timings = json.loads(cf["detection"]["debug_timings"])
 #        print(cf["stations"]["station_info"])
-        self.station_info = json.loads(cf["stations"]["station_info"])        
-        self.station_links = json.loads(cf["stations"]["links"])        
+        self.station_info = shared_station_info
+        self.station_info.update(json.loads(cf["stations"]["station_info"]))
+        self.station_links = shared_station_links + [
+            link for link in json.loads(cf["stations"]["links"])
+            if link not in shared_station_links
+        ]
         self.rtf_links = json.loads(cf["rtf"]["links"])
 
         self.manual_range_extent = json.loads(

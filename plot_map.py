@@ -47,12 +47,12 @@ def plot_map(conf, set_extent=True, ofname="map.png"):
     gl.xlabel_style = {'size': 14}
     gl.ylabel_style = {'size': 14}
 
-    # Filter for DOB and TGO only
-    target_stations = {"DOB", "TGO"}
+    # Filter for the receiver stations shown on the live dashboard.
+    target_stations = {"DOB", "TGO", "KHO"}
     filtered_links = [l for l in conf.station_links if (l[0] in target_stations or l[1] in target_stations)]
     stations_to_plot = target_stations.copy()
 
-    # Add stations that connect to DOB or TGO
+    # Add stations that connect to the receiver stations.
     for l in filtered_links:
         stations_to_plot.add(l[0])
         stations_to_plot.add(l[1])
@@ -69,6 +69,8 @@ def plot_map(conf, set_extent=True, ofname="map.png"):
             color = "orange"
         elif l[1] == "DOB" or l[0] == "DOB":
             color = "green"
+        elif l[1] == "KHO" or l[0] == "KHO":
+            color = "tab:blue"
         else:
             color = "black"
         
