@@ -58,6 +58,13 @@ def read_config(args):#fname="examples/marieluise/ramfjordmoen_digisonde.ini"):
         p["fast_boxcar_decimation"] = json.loads(cfg["config"]["fast_boxcar_decimation"])
     if "fast_boxcar_decimation" in digisonde.keys():
         p["fast_boxcar_decimation"] = json.loads(digisonde["fast_boxcar_decimation"])
+    p["fast_decimation_method"] = "boxcar" if p["fast_boxcar_decimation"] else "fir"
+    if "fast_decimation_method" in cfg["config"]:
+        p["fast_decimation_method"] = json.loads(cfg["config"]["fast_decimation_method"])
+    if "fast_decimation_method" in digisonde.keys():
+        p["fast_decimation_method"] = json.loads(digisonde["fast_decimation_method"])
+    if p["fast_decimation_method"] not in ["fir", "boxcar", "cic"]:
+        raise ValueError("fast_decimation_method must be 'fir', 'boxcar', or 'cic'")
         
     p["sounding_hrs"]=[0,24]
     if "sounding_hrs" in digisonde.keys():
@@ -122,6 +129,31 @@ def decimate_boxcar(x: n.ndarray, R: int) -> n.ndarray:
     where speed is more important than stop-band rejection.
     """
     return decimate_average(x, R)
+
+
+def decimate_cic_staged(x: n.ndarray, R: int) -> n.ndarray:
+    """
+    Cheap CIC-style staged boxcar decimator.
+
+    For the 25 MHz -> 100 kHz digisonde path, R=250 is split as a cheap
+    boxcar decimation by 10 followed by a two-stage CIC decimation by 25.
+    This gives a stronger sinc-shaped low-pass response than a single boxcar
+    while staying much cheaper than FIR.
+    """
+    if R == 250:
+        return decimate_cic(decimate_average(x, 10), 25, stages=2)
+    return decimate_cic(x, R, stages=2)
+
+
+def decimate_cic(x: n.ndarray, R: int, stages: int = 2) -> n.ndarray:
+    """CIC decimator with unit differential delay."""
+    y = x
+    for _ in range(stages):
+        y = n.cumsum(y)
+    y = y[R - 1::R]
+    for _ in range(stages):
+        y = n.diff(y, prepend=0)
+    return y / float(R**stages)
     
 def fir_sinc_lowpass(numtaps, cutoff, beta=8.6):
     """
@@ -259,7 +291,7 @@ def calculate_ionogram(d,
     snr_threshold=p["snr_threshold"]
     copy_to_server=p["copy_to_server"]
     sum_ox=p["sum_ox"]
-    fast_boxcar_decimation=p["fast_boxcar_decimation"]
+    fast_decimation_method=p["fast_decimation_method"]
     
     # get complementary codes transmitted by digisonde
     # mode=3 includes phase flip
@@ -339,8 +371,10 @@ def calculate_ionogram(d,
                     srint*ipp,
                     channel,
                 ) * cvec[0:(srint*ipp)] * pha0[0]
-                if fast_boxcar_decimation:
+                if fast_decimation_method == "boxcar":
                     z = decimate_boxcar(x, dec)
+                elif fast_decimation_method == "cic":
+                    z = decimate_cic_staged(x, dec)
                 else:
                     z = decimate_10_then_fir25(x)
 
