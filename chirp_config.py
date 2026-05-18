@@ -11,6 +11,8 @@ import json
 class chirp_config:
     def __init__(self, fname=None, read_shared=True):
         cf = configparser.ConfigParser()
+        explicit_ringbuffer_max_age_min = False
+        explicit_ringbuffer_max_age_sec = False
         # initialize with default values
 
 #                        # 70 seconds is the default cleanup age
@@ -107,8 +109,16 @@ class chirp_config:
                 if read_shared and shared_fname != fname and os.path.exists(shared_fname):
                     print("reading %s" % (shared_fname))
                     cf.read(shared_fname)
+                    shared_cf = configparser.ConfigParser()
+                    shared_cf.read(shared_fname)
+                    explicit_ringbuffer_max_age_min |= shared_cf.has_option("config", "ringbuffer_max_age_min")
+                    explicit_ringbuffer_max_age_sec |= shared_cf.has_option("config", "ringbuffer_max_age_sec")
                 print("reading %s" % (fname))
                 cf.read(fname)
+                file_cf = configparser.ConfigParser()
+                file_cf.read(fname)
+                explicit_ringbuffer_max_age_min |= file_cf.has_option("config", "ringbuffer_max_age_min")
+                explicit_ringbuffer_max_age_sec |= file_cf.has_option("config", "ringbuffer_max_age_sec")
             else:
                 print(
                     "configuration file %s doesn't exist. using default values" % (fname))
@@ -118,7 +128,12 @@ class chirp_config:
         self.copy_to_server = json.loads(cf["transfer"]["copy_to_server"])
 
         self.ringbuffer_max_age_min=json.loads(cf["config"]["ringbuffer_max_age_min"])#:"300",
-        self.ringbuffer_max_age_sec=json.loads(cf["config"].get("ringbuffer_max_age_sec", str(self.ringbuffer_max_age_min * 60)))
+        if explicit_ringbuffer_max_age_sec:
+            self.ringbuffer_max_age_sec=json.loads(cf["config"]["ringbuffer_max_age_sec"])
+        elif explicit_ringbuffer_max_age_min:
+            self.ringbuffer_max_age_sec=self.ringbuffer_max_age_min * 60
+        else:
+            self.ringbuffer_max_age_sec=json.loads(cf["config"]["ringbuffer_max_age_sec"])
         self.ringbuffer_cleanup=json.loads(cf["config"]["ringbuffer_cleanup"])#":"false",
 
         
