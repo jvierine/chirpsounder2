@@ -11,6 +11,11 @@ import argparse
 def plot_map(conf, set_extent=True, ofname="map.png"):
     print(conf.station_info)
     stations = conf.station_info
+    station_colors = {
+        "TGO": "orange",
+        "DOB": "green",
+        "KHO": "red",
+    }
   # Create map
     fig = plt.figure(figsize=(10, 8),constrained_layout=True)
 
@@ -64,15 +69,12 @@ def plot_map(conf, set_extent=True, ofname="map.png"):
         lons=n.linspace(conf.station_info[l[0]]["lon"],conf.station_info[l[1]]["lon"],num=50)
         lats=n.linspace(conf.station_info[l[0]]["lat"],conf.station_info[l[1]]["lat"],num=50)
 
-        # Determine link color based on destination
-        if l[1] == "TGO" or l[0] == "TGO":
-            color = "orange"
-        elif l[1] == "DOB" or l[0] == "DOB":
-            color = "green"
-        elif l[1] == "KHO" or l[0] == "KHO":
-            color = "tab:blue"
-        else:
-            color = "black"
+        # Determine link color based on receiver station.
+        color = "black"
+        for station_name, station_color in station_colors.items():
+            if station_name in l:
+                color = station_color
+                break
         
         ax.plot(lons,lats,
                 color=color,transform=ccrs.PlateCarree())
@@ -86,7 +88,8 @@ def plot_map(conf, set_extent=True, ofname="map.png"):
                 lon, lat,
                 marker='o',
                 transform=ccrs.PlateCarree(),
-                label=s["name"]
+                label=s["name"],
+                color=station_colors.get(name, None)
             )
 
 
