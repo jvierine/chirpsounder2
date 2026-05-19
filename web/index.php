@@ -232,38 +232,43 @@ foreach ($cardsByTab as $cards) {
         background: white;
     }
 
-    .header {
-        display: flex;
+    .menu-bar {
+        display: grid;
+        grid-template-columns: minmax(220px, 1fr) auto minmax(220px, 1fr);
         align-items: center;
-        justify-content: center;
-        padding: 20px 20px 8px 20px;
+        gap: 16px;
+        min-height: 58px;
+        padding: 8px 16px;
+        border-bottom: 1px solid #e2e8f0;
+        background: #ffffff;
+        box-shadow: 0 1px 8px rgba(15, 23, 42, 0.08);
     }
 
-    .logo {
-        margin-right: 12px;
-        width: 100px;
+    .menu-left {
+        min-width: 0;
     }
 
-    .headertext {
-        font-size: 24px;
+    .dashboard-title {
+        margin-top: 2px;
+        color: #475569;
+        font-size: 12px;
         font-weight: bold;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .utc-time {
-        font-size: 1.6rem;
+        font-size: 15px;
         font-weight: 600;
-        letter-spacing: 0.06em;
         font-family: monospace;
-        display: flex;
-        justify-content: center;
-        align-items: center;
+        white-space: nowrap;
     }
 
     .tabs {
         display: flex;
         justify-content: center;
         gap: 8px;
-        margin: 18px 16px 6px 16px;
         flex-wrap: wrap;
     }
 
@@ -271,10 +276,10 @@ foreach ($cardsByTab as $cards) {
         border: 1px solid #cbd5e1;
         background: #f8fafc;
         color: #0f172a;
-        padding: 10px 22px;
+        padding: 7px 18px;
         border-radius: 999px;
         cursor: pointer;
-        font-size: 16px;
+        font-size: 14px;
         font-weight: 600;
     }
 
@@ -290,6 +295,26 @@ foreach ($cardsByTab as $cards) {
 
     .tab-panel.active {
         display: block;
+    }
+
+    .logos {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 16px;
+        min-width: 0;
+    }
+
+    .logo {
+        display: block;
+        width: auto;
+        max-width: 150px;
+        height: 34px;
+        object-fit: contain;
+    }
+
+    .logo-uit {
+        max-width: 95px;
     }
 
     .dashboard {
@@ -371,19 +396,50 @@ foreach ($cardsByTab as $cards) {
         text-align: center;
         color: #334155;
     }
+
+    @media (max-width: 850px) {
+        .menu-bar {
+            grid-template-columns: 1fr;
+            justify-items: center;
+        }
+
+        .menu-left {
+            text-align: center;
+        }
+
+        .logos {
+            justify-content: center;
+        }
+    }
 </style>
 </head>
 <body>
 
-<center>
-    <div class="header">
-        <img class="logo" src="https://www.tgo.uit.no/UitLogo.png" alt="UiT logo">
-        <div class="headertext"><?php echo htmlspecialchars($dashboardTitle, ENT_QUOTES, 'UTF-8'); ?></div>
+<header class="menu-bar">
+    <div class="menu-left">
+        <div id="utc-time" class="utc-time">---------- --:--:-- UTC</div>
+        <div class="dashboard-title"><?php echo htmlspecialchars($dashboardTitle, ENT_QUOTES, 'UTF-8'); ?></div>
     </div>
-</center>
-
-<div id="utc-time" class="utc-time">---------- --:--:-- UTC</div>
-<center><a href="https://github.com/jvierine/chirpsounder2">github.com/jvierine/chirpsounder2</a></center>
+    <?php if ($hasCards): ?>
+    <nav class="tabs" aria-label="Receiver tabs">
+    <?php $i = 0; ?>
+    <?php foreach ($tabs as $tabId => $tabLabel): ?>
+        <button class="tab-button <?php echo $i === 0 ? 'active' : ''; ?>" data-tab="<?php echo htmlspecialchars($tabId, ENT_QUOTES, 'UTF-8'); ?>">
+            <?php echo htmlspecialchars($tabLabel, ENT_QUOTES, 'UTF-8'); ?>
+        </button>
+        <?php $i++; ?>
+    <?php endforeach; ?>
+    </nav>
+    <?php endif; ?>
+    <div class="logos">
+        <a href="https://uit.no/" aria-label="UiT The Arctic University of Norway">
+            <img class="logo logo-uit" src="https://www.tgo.uit.no/UitLogo.png" alt="UiT logo">
+        </a>
+        <a href="https://www.unis.no/" aria-label="UNIS">
+            <img class="logo logo-unis" src="unis-logo-liggende.svg" alt="UNIS logo">
+        </a>
+    </div>
+</header>
 
 <script>
 const utcEl = document.getElementById("utc-time");
@@ -408,16 +464,6 @@ setInterval(updateUtcTime, 1000);
     <code><?php echo htmlspecialchars($imageGlob, ENT_QUOTES, 'UTF-8'); ?></code>.
 </div>
 <?php else: ?>
-
-<div class="tabs">
-<?php $i = 0; ?>
-<?php foreach ($tabs as $tabId => $tabLabel): ?>
-    <button class="tab-button <?php echo $i === 0 ? 'active' : ''; ?>" data-tab="<?php echo htmlspecialchars($tabId, ENT_QUOTES, 'UTF-8'); ?>">
-        <?php echo htmlspecialchars($tabLabel, ENT_QUOTES, 'UTF-8'); ?>
-    </button>
-    <?php $i++; ?>
-<?php endforeach; ?>
-</div>
 
 <?php $i = 0; ?>
 <?php foreach ($tabs as $tabId => $tabLabel): ?>

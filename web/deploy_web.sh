@@ -10,6 +10,7 @@ APACHE_CONF_NAME="${APACHE_CONF_NAME:-upload-limit}"
 SUDO="${SUDO:-sudo}"
 FILES_TO_DEPLOY=(
     "${SCRIPT_DIR}/index.php:${IONO_TARGET_DIR}"
+    "${SCRIPT_DIR}/unis-logo-liggende.svg:${IONO_TARGET_DIR}"
     "${SCRIPT_DIR}/map_all.png:${IONO_TARGET_DIR}"
     "${SCRIPT_DIR}/map_scand.png:${IONO_TARGET_DIR}"
     "${SCRIPT_DIR}/upload_h5.php:${UPLOAD_TARGET_DIR}"
