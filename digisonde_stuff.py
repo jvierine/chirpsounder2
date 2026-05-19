@@ -31,7 +31,7 @@ def plot_complementary_code_autocorrelations(ofname="digisonde_complementary_cod
 
     lags,ac0,ac1,ac_sum=complementary_code_autocorrelations()
 
-    fig,axes=plt.subplots(3,1,figsize=(7.2,6.4),sharex=True,constrained_layout=True)
+    fig,axes=plt.subplots(3,1,figsize=(8,7),sharex=True,constrained_layout=True)
     panels=[
         (ac0,"Code 1 autocorrelation"),
         (ac1,"Code 2 autocorrelation"),
@@ -41,14 +41,16 @@ def plot_complementary_code_autocorrelations(ofname="digisonde_complementary_cod
         ax.axhline(0,color="0.75",linewidth=0.8)
         ax.vlines(lags,0,ac,color="tab:blue",linewidth=1.4)
         ax.plot(lags,ac,"o",color="tab:blue",markersize=4)
-        ax.set_ylabel("Amplitude")
-        ax.set_title(title)
+        ax.set_ylabel("Amplitude", fontsize=18)
+        ax.set_title(title, fontsize=20)
         ax.grid(True,axis="y",alpha=0.25)
 
-    axes[-1].set_xlabel("Lag (code bits)")
+    axes[-1].set_xlabel("Lag (code bits)", fontsize=18)
     axes[-1].set_xticks(lags[::2])
+    axes[-1].tick_params(axis="both", labelsize=14)
+    #axes[-1].tick_params(axis="y", labelsize=14)
     axes[-1].set_xlim(lags[0]-1,lags[-1]+1)
-    fig.suptitle("Digisonde 16-bit Complementary Code Autocorrelations")
+    fig.suptitle("Digisonde 16-bit Complementary Code Autocorrelations", fontsize=20)
     fig.savefig(ofname,dpi=200)
     plt.close(fig)
     return ofname
