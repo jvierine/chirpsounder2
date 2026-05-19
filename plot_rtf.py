@@ -2,6 +2,8 @@ import numpy as n
 import glob
 import h5py
 import os
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import chirp_config as cc
 import chirp_det as cd
