@@ -206,7 +206,13 @@ def plot_ionogram_files(
     M_new = M_new[:, range_idx]
     S_new = S_new[:, range_idx]
 
-    fig, ax = plt.subplots(2,1,figsize=(10,6),sharex=True,sharey=True)
+    fig, ax = plt.subplots(
+        3,
+        1,
+        figsize=(10, 8.5),
+        sharex=True,
+        gridspec_kw={"height_ratios": [1, 1, 0.9]},
+    )
     
     # --- first plot ---
     pcm1 = ax[0].pcolormesh(
@@ -224,42 +230,64 @@ def plot_ionogram_files(
 
     
     # --- second plot ---
-    S_new[M_new<20]=n.nan
+    detected = M_new >= 20
+    S_plot = S_new.copy()
+    S_plot[~detected]=n.nan
     pcm2 = ax[1].pcolormesh(
         t_new,
         range_km,
-        S_new.T/1e6,
+        S_plot.T/1e6,
         cmap="rainbow",
         shading="auto"
     )
     cb2 = plt.colorbar(pcm2, ax=ax[1])
     cb2.set_label("Frequency (MHz)", fontsize=16)
+
+    # --- third plot ---
+    t_num = mdates.date2num(t_new)
+    T = n.broadcast_to(t_num[:, None], S_plot.shape)
+    F = S_plot / 1e6
+    R = n.broadcast_to(range_km[None, :], S_plot.shape)
+    valid = n.isfinite(F)
+    sc3 = ax[2].scatter(
+        T[valid],
+        F[valid],
+        c=R[valid],
+        s=2,
+        cmap="viridis",
+        rasterized=True,
+    )
+    cb3 = plt.colorbar(sc3, ax=ax[2])
+    cb3.set_label("Virtual range (km)", fontsize=16)
     cb1.ax.tick_params(labelsize=14)
     cb2.ax.tick_params(labelsize=14)
+    cb3.ax.tick_params(labelsize=14)
 
     ax[0].tick_params(axis='both', labelsize=14)
     ax[1].tick_params(axis='both', labelsize=14)
+    ax[2].tick_params(axis='both', labelsize=14)
 
     fig.text(
         0.015,
-        0.5,
+        0.66,
         "Propagation virtual range (km)",
         va="center",
         rotation="vertical",
         fontsize=16,
     )
+    ax[2].set_ylabel("Frequency (MHz)", fontsize=16)
 
     # --- time formatting ---
     if x_start is not None and x_end is not None and (x_end - x_start).total_seconds() > 24*3600:
-        ax[1].xaxis.set_major_formatter(mdates.DateFormatter("%m-%d\n%H:%M"))
+        ax[2].xaxis.set_major_formatter(mdates.DateFormatter("%m-%d\n%H:%M"))
     else:
-        ax[1].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
-    ax[1].xaxis.set_major_locator(mdates.AutoDateLocator())
+        ax[2].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+    ax[2].xaxis.set_major_locator(mdates.AutoDateLocator())
 
     if title_span is None:
         title_span = datetime.utcfromtimestamp(tv[0]).strftime("%Y-%m-%d")
     ax[0].set_title("%s-%s %s"%(tx,rx,title_span), fontsize=20)#Date: {start_date}
-    ax[1].set_xlabel(f"Time (UTC)", fontsize=16)
+    ax[2].set_xlabel(f"Time (UTC)", fontsize=16)
 
     if x_start is None or x_end is None:
         # full day
@@ -267,6 +295,7 @@ def plot_ionogram_files(
         x_end = x_start + timedelta(days=1)
     ax[0].set_xlim(x_start, x_end)
     ax[1].set_xlim(x_start, x_end)
+    ax[2].set_xlim(x_start, x_end)
     if range_min_km is not None or range_max_km is not None:
         y_min = range_min_km if range_min_km is not None else n.nanmin(range_km)
         y_max = range_max_km if range_max_km is not None else n.nanmax(range_km)
