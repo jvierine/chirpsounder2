@@ -165,6 +165,8 @@ def trim_process_memory():
         pass
 
 def sample_memory_after_ionogram(memory_monitor, fn):
+    gc.collect()
+    trim_process_memory()
     stats = memory_monitor.sample()
     log("plot_ionograms.py: memory after %s: %s" %
         (os.path.basename(fn), memory_monitor.format_stats(stats)))
@@ -316,8 +318,6 @@ def plot_ionogram(conf, fn, normalize_by_frequency=True):
     finally:
         if fig is not None:
             plt.close(fig)
-        gc.collect()
-        trim_process_memory()
 #    if conf.copy_to_server:
  #       os.system("rsync -av %s %s/latest_%s.png" %
   #                (img_fname, conf.copy_destination, conf.station_name))
@@ -377,6 +377,8 @@ if __name__ == "__main__":
                 failed_files = {fn: state for fn, state in failed_files.items()
                                 if fn in candidate_file_set}
                 if t_now - last_status_print > STATUS_PRINT_SEC:
+                    gc.collect()
+                    trim_process_memory()
                     log("plot_ionograms.py: output_dir=%s, scanned %d recent h5 files, %d candidates newer than %.1f h, %d missing PNGs, %d recently failed, current rss %.1f MB, %s" %
                         (conf.output_dir,
                          len(fl),
