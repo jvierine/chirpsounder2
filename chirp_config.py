@@ -62,7 +62,7 @@ class chirp_config:
             "manual_range_extent": "false",
             "save_raw_voltage": "false",
             "fast_boxcar_filter": "false",
-            "downconversion_filter": '"fir"',
+            "downconversion_filter": '"fir_recursive"',
             "cic_stages": "2",
             "n_downconversion_threads": "4"            ,
             "downconversion_block_samples": "4000",

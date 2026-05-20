@@ -52,7 +52,7 @@ class chirp_downconvert:
                  n_threads=4,
                  dt=1.0 / 25e6,
                  fast_boxcar_filter=False,
-                 downconversion_filter="fir",
+                 downconversion_filter="fir_recursive",
                  cic_stages=2):
 
         # let's add a windowed low pass filter to make this nearly perfect.
@@ -61,7 +61,7 @@ class chirp_downconvert:
         self.n_threads = n_threads
         # om0
         self.om0 = 2.0 * n.pi / float(dec)
-        if fast_boxcar_filter and downconversion_filter == "fir":
+        if fast_boxcar_filter and downconversion_filter in ["fir", "fir_recursive"]:
             downconversion_filter = "boxcar"
         if downconversion_filter not in ["fir", "fir_recursive", "boxcar", "cic"]:
             raise ValueError("downconversion_filter must be 'fir', 'fir_recursive', 'boxcar', or 'cic'")
