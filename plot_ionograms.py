@@ -192,22 +192,39 @@ if __name__ == "__main__":
                 fl = glob.glob("%s/*/lfm*.h5" % (conf.output_dir))
                 fl.sort()
                 t_now = time.time()
-                candidate_files = []
+                candidate_records = []
+                missing_records = []
                 for fn in fl[0:(len(fl) - 2)]:
                     try:
-                        if t_now - ionogram_file_time(fn) < REALTIME_PLOT_AGE_SEC:
-                            candidate_files.append(fn)
+                        t_file = ionogram_file_time(fn)
+                        if t_now - t_file >= REALTIME_PLOT_AGE_SEC:
+                            continue
+                        img_fname = ionogram_image_name(conf, fn)
+                        missing_plot = img_fname is None or not os.path.exists(img_fname)
+                        record = (t_file, fn, missing_plot)
+                        candidate_records.append(record)
+                        if missing_plot:
+                            missing_records.append(record)
                     except:
-                        candidate_files.append(fn)
+                        # If metadata lookup fails, try plotting so the real
+                        # error is logged by plot_ionogram().
+                        record = (0.0, fn, True)
+                        candidate_records.append(record)
+                        missing_records.append(record)
+                candidate_records.sort(reverse=True)
+                missing_records.sort(reverse=True)
+                candidate_files = [record[1] for record in candidate_records]
+                missing_files = [record[1] for record in missing_records]
                 candidate_file_set = set(candidate_files)
                 failed_files = {fn: state for fn, state in failed_files.items()
                                 if fn in candidate_file_set}
                 if t_now - last_status_print > STATUS_PRINT_SEC:
-                    log("plot_ionograms.py: output_dir=%s, found %d h5 files, %d candidates newer than %.1f h, %d recently failed" %
-                        (conf.output_dir, len(fl), len(candidate_files), REALTIME_PLOT_AGE_SEC / 3600.0, len(failed_files)))
+                    log("plot_ionograms.py: output_dir=%s, found %d h5 files, %d candidates newer than %.1f h, %d missing PNGs, %d recently failed" %
+                        (conf.output_dir, len(fl), len(candidate_files), REALTIME_PLOT_AGE_SEC / 3600.0, len(missing_files), len(failed_files)))
                     last_status_print = t_now
-                # avoid last file to make sure we don't read and write simultaneously
-                for fn in candidate_files:
+                # avoid last file to make sure we don't read and write simultaneously.
+                # Only missing PNGs need work; existing plots are left alone.
+                for fn in missing_files:
                     mtime = os.path.getmtime(fn)
                     failed_state = failed_files.get(fn)
                     if (failed_state is not None and
