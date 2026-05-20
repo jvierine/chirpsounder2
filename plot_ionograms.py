@@ -37,6 +37,36 @@ def log(msg):
 def current_rss_mb():
     return p.memory_info().rss / 1024.0**2
 
+def load_plot_config(conf_path):
+    """Load config without allocating detection-only frequency vectors."""
+    return cc.chirp_config(conf_path, build_fvec=False)
+
+def config_mtime_key(conf_path):
+    paths = [os.path.abspath(conf_path)]
+    server_path = os.path.join(os.path.dirname(paths[0]), "server.ini")
+    if server_path != paths[0]:
+        paths.append(server_path)
+    key = []
+    for path in paths:
+        try:
+            key.append((path, os.path.getmtime(path)))
+        except OSError:
+            key.append((path, None))
+    return tuple(key)
+
+class PlotConfigCache:
+    def __init__(self, conf_path):
+        self.conf_path = conf_path
+        self.mtime_key = None
+        self.conf = None
+
+    def get(self):
+        mtime_key = config_mtime_key(self.conf_path)
+        if self.conf is None or mtime_key != self.mtime_key:
+            self.conf = load_plot_config(self.conf_path)
+            self.mtime_key = mtime_key
+        return self.conf
+
 class MemoryGrowthMonitor:
     def __init__(self,
                  min_samples=MEMORY_CHECK_MIN_SAMPLES,
@@ -280,14 +310,15 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     conf_path = args.config
-    conf=cc.chirp_config(conf_path)
+    config_cache = PlotConfigCache(conf_path)
+    conf = config_cache.get()
 
     if conf.realtime:
         failed_files = {}
         last_status_print = 0.0
         memory_monitor = MemoryGrowthMonitor()
         while True:
-            conf = cc.chirp_config(conf_path)
+            conf = config_cache.get()
             if kill(conf):
                 log("kill.txt found, stopping plot_ionograms.py")
                 sys.exit(0)
@@ -362,7 +393,7 @@ if __name__ == "__main__":
                 log("plotting %s, rss %.1f MB" % (fn, current_rss_mb()))
                 plot_ionogram(conf, fn)
                 sample_memory_after_ionogram(memory_monitor, fn)
-                conf = cc.chirp_config(conf_path)
+                conf = config_cache.get()
             except:
                 log("error with %s" % (fn))
                 log(traceback.format_exc())

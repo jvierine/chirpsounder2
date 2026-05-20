@@ -9,7 +9,7 @@ import json
 
 
 class chirp_config:
-    def __init__(self, fname=None, read_shared=True):
+    def __init__(self, fname=None, read_shared=True, build_fvec=True):
         cf = configparser.ConfigParser()
         explicit_ringbuffer_max_age_min = False
         explicit_ringbuffer_max_age_sec = False
@@ -244,8 +244,12 @@ class chirp_config:
         # the smallest normalized snr that is detected
         self.threshold_snr = json.loads(cf["detection"]["threshold_snr"])
 
-        self.fvec = n.fft.fftshift(n.fft.fftfreq(self.n_samples_per_block,
-                                                 d=1.0 / float(self.sample_rate))) + self.center_freq
+        if build_fvec:
+            self.fvec = n.fft.fftshift(n.fft.fftfreq(
+                self.n_samples_per_block,
+                d=1.0 / float(self.sample_rate))) + self.center_freq
+        else:
+            self.fvec = None
 
     def __str__(self):
         out = "Configuration\n"
