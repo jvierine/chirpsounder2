@@ -269,6 +269,37 @@ void consume_cic(double chirpt, double dt, complex_float *sintab, int tabl, comp
   }
 }
 
+void consume_iir(double chirpt, double dt, complex_float *sintab, int tabl, complex_float *in, complex_float *out_buffer, int n_out, int dec, double f0, double rate, complex_float *iir_state, int n_stages, double alpha)
+{
+  complex_float mixed;
+  complex_float stage_input;
+  double t = chirpt;
+  int out_idx = 0;
+
+  for(int sample_idx=0; sample_idx<(n_out*dec); sample_idx++)
+  {
+    mixed.re = 0.0;
+    mixed.im = 0.0;
+    stage_input = in[sample_idx];
+    add_and_advance_phasor(t, sintab, tabl, &stage_input, &mixed, f0, rate);
+
+    for(int stage=0; stage<n_stages; stage++)
+    {
+      iir_state[stage].re += (float)(alpha*((double)mixed.re - (double)iir_state[stage].re));
+      iir_state[stage].im += (float)(alpha*((double)mixed.im - (double)iir_state[stage].im));
+      mixed = iir_state[stage];
+    }
+
+    if(((sample_idx + 1) % dec) == 0)
+    {
+      out_buffer[out_idx] = iir_state[n_stages-1];
+      out_idx++;
+    }
+
+    t += dt;
+  }
+}
+
 static inline complex_float complex_mul_value(complex_float a, complex_float b)
 {
   complex_float res;

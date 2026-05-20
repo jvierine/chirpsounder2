@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Plot chirp downconversion anti-alias filter responses.
 
-This reproduces the three filter choices used by chirp_lib.chirp_downconvert:
+This reproduces the filter choices used by chirp_lib.chirp_downconvert:
 
 * fir: Hann-windowed sinc, length filter_len * decimation
 * boxcar: one decimation-length moving average
 * cic: cascaded moving-average response, with cic_stages stages
+* iir: cascaded one-pole low-pass response, with iir_stages stages
 
 The script writes SVG files and avoids NumPy/Matplotlib so it can run on
 minimal receiver machines.
@@ -26,6 +27,7 @@ COLORS: Dict[str, Color] = {
     "FIR": (33, 101, 172),
     "Boxcar": (178, 24, 43),
     "CIC": (35, 139, 69),
+    "IIR": (118, 42, 131),
 }
 
 
@@ -64,6 +66,26 @@ def boxcar_amplitude(decimation: int, freq: float) -> float:
     return abs(numerator / (float(decimation) * denominator))
 
 
+def one_pole_alpha_for_amplitude(omega: float, amplitude: float) -> float:
+    lo = 1e-9
+    hi = 1.0
+    for _ in range(80):
+        alpha = 0.5 * (lo + hi)
+        pole = 1.0 - alpha
+        h = alpha / math.sqrt(1.0 + pole*pole - 2.0*pole*math.cos(omega))
+        if h < amplitude:
+            lo = alpha
+        else:
+            hi = alpha
+    return 0.5 * (lo + hi)
+
+
+def iir_amplitude(alpha: float, stages: int, freq: float) -> float:
+    pole = 1.0 - alpha
+    stage = alpha / abs(1.0 - pole * cmath.exp(-2j * math.pi * freq))
+    return stage ** stages
+
+
 def db(amplitude: float, floor: float = -120.0) -> float:
     if amplitude <= 0.0:
         return floor
@@ -73,22 +95,27 @@ def db(amplitude: float, floor: float = -120.0) -> float:
 def responses(decimation: int,
               filter_len: int,
               cic_stages: int,
+              iir_stages: int,
+              iir_alpha: float,
               sample_rate: float,
               x_values: Iterable[float]) -> List[Series]:
     taps = fir_taps(decimation, filter_len)
     fir = []
     boxcar = []
     cic = []
+    iir = []
     for freq_khz in x_values:
         freq = freq_khz * 1e3 / sample_rate
         b = boxcar_amplitude(decimation, freq)
         fir.append(fir_response_db(taps, freq))
         boxcar.append(db(b))
         cic.append(db(b ** cic_stages))
+        iir.append(db(iir_amplitude(iir_alpha, iir_stages, freq)))
     return [
         ("FIR", COLORS["FIR"], fir),
         ("Boxcar", COLORS["Boxcar"], boxcar),
         ("CIC", COLORS["CIC"], cic),
+        ("IIR", COLORS["IIR"], iir),
     ]
 
 
@@ -192,6 +219,8 @@ def main() -> None:
     parser.add_argument("--decimation", type=int, default=625)
     parser.add_argument("--filter-len", type=int, default=2)
     parser.add_argument("--cic-stages", type=int, default=2)
+    parser.add_argument("--iir-stages", type=int, default=4)
+    parser.add_argument("--iir-alpha", type=float, default=None)
     parser.add_argument("--sample-rate", type=float, default=25e6)
     parser.add_argument("--max-frequency-khz", type=float, default=1000.0)
     parser.add_argument("--passband-frequency-khz", type=float, default=None)
@@ -204,17 +233,26 @@ def main() -> None:
     passband_max_khz = args.passband_frequency_khz
     if passband_max_khz is None:
         passband_max_khz = output_nyquist_khz
+    iir_alpha = args.iir_alpha
+    if iir_alpha is None:
+        per_stage_amplitude = 2.0 ** (-1.0 / (2.0 * float(args.iir_stages)))
+        iir_alpha = one_pole_alpha_for_amplitude(
+            math.pi / float(args.decimation), per_stage_amplitude)
 
     overview_x = [args.max_frequency_khz * i / 1200.0 for i in range(1201)]
     passband_x = [passband_max_khz * i / 600.0 for i in range(601)]
     overview = responses(args.decimation,
                          args.filter_len,
                          args.cic_stages,
+                         args.iir_stages,
+                         iir_alpha,
                          args.sample_rate,
                          overview_x)
     passband = responses(args.decimation,
                          args.filter_len,
                          args.cic_stages,
+                         args.iir_stages,
+                         iir_alpha,
                          args.sample_rate,
                          passband_x)
 

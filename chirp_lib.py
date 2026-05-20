@@ -33,6 +33,36 @@ libdc.consume_cic.argtypes = [ctypes.c_double,
                               ctypeslib.ndpointer(n.complex64, ndim=1, flags='C'),
                               ctypeslib.ndpointer(n.complex64, ndim=1, flags='C'),
                               ctypes.c_int]
+try:
+    libdc.consume_iir.argtypes = [ctypes.c_double,
+                                  ctypes.c_double,
+                                  ctypeslib.ndpointer(n.complex64, ndim=1, flags='C'),
+                                  ctypes.c_int,
+                                  ctypeslib.ndpointer(n.complex64, ndim=1, flags='C'),
+                                  ctypeslib.ndpointer(n.complex64, ndim=1, flags='C'),
+                                  ctypes.c_int,
+                                  ctypes.c_int,
+                                  ctypes.c_double,
+                                  ctypes.c_double,
+                                  ctypeslib.ndpointer(n.complex64, ndim=1, flags='C'),
+                                  ctypes.c_int,
+                                  ctypes.c_double]
+except AttributeError:
+    pass
+
+
+def one_pole_alpha_for_amplitude(omega, amplitude):
+    lo = 1e-9
+    hi = 1.0
+    for _ in range(80):
+        alpha = 0.5 * (lo + hi)
+        pole = 1.0 - alpha
+        h = alpha / n.sqrt(1.0 + pole*pole - 2.0*pole*n.cos(omega))
+        if h < amplitude:
+            lo = alpha
+        else:
+            hi = alpha
+    return 0.5 * (lo + hi)
 
 
 class chirp_downconvert:
@@ -46,7 +76,9 @@ class chirp_downconvert:
                  dt=1.0 / 25e6,
                  fast_boxcar_filter=False,
                  downconversion_filter="fir",
-                 cic_stages=2):
+                 cic_stages=2,
+                 iir_stages=4,
+                 iir_alpha=None):
 
         # let's add a windowed low pass filter to make this nearly perfect.
 
@@ -56,18 +88,31 @@ class chirp_downconvert:
         self.om0 = 2.0 * n.pi / float(dec)
         if fast_boxcar_filter and downconversion_filter == "fir":
             downconversion_filter = "boxcar"
-        if downconversion_filter not in ["fir", "boxcar", "cic"]:
-            raise ValueError("downconversion_filter must be 'fir', 'boxcar', or 'cic'")
+        if downconversion_filter not in ["fir", "boxcar", "cic", "iir"]:
+            raise ValueError("downconversion_filter must be 'fir', 'boxcar', 'cic', or 'iir'")
         self.downconversion_filter = downconversion_filter
         self.cic_stages = cic_stages
         self.cic_integrator_state = n.zeros(cic_stages, dtype=n.complex64)
         self.cic_comb_state = n.zeros(cic_stages, dtype=n.complex64)
+        self.iir_stages = iir_stages
+        self.iir_state = n.zeros(iir_stages, dtype=n.complex64)
+        if iir_alpha is None:
+            output_nyquist_omega = n.pi / float(dec)
+            per_stage_amplitude = 2.0 ** (-1.0 / (2.0 * float(iir_stages)))
+            iir_alpha = one_pole_alpha_for_amplitude(
+                output_nyquist_omega, per_stage_amplitude)
+        self.iir_alpha = iir_alpha
 
         if downconversion_filter == "cic":
             filter_len = 1
             self.dec2 = dec
             self.m = n.arange(dec, dtype=n.float32)
             self.wfun = n.ones(dec, dtype=n.float32) / float(dec)
+        elif downconversion_filter == "iir":
+            filter_len = 1
+            self.dec2 = dec
+            self.m = n.arange(dec, dtype=n.float32)
+            self.wfun = n.ones(dec, dtype=n.float32)
         elif downconversion_filter == "boxcar":
             filter_len = 1
             self.dec2 = dec
@@ -113,6 +158,23 @@ class chirp_downconvert:
                               self.cic_integrator_state,
                               self.cic_comb_state,
                               self.cic_stages)
+        elif self.downconversion_filter == "iir":
+            if not hasattr(libdc, "consume_iir"):
+                raise RuntimeError(
+                    "libdownconvert.so does not provide consume_iir; run make to rebuild it")
+            libdc.consume_iir(self.chirpt,
+                              self.dt,
+                              self.sintab,
+                              self.tab_len,
+                              z_in,
+                              z_out,
+                              n_out,
+                              self.dec,
+                              self.f0,
+                              self.rate,
+                              self.iir_state,
+                              self.iir_stages,
+                              self.iir_alpha)
         else:
             libdc.consume(self.chirpt,
                           self.dt,
@@ -135,6 +197,8 @@ class chirp_downconvert:
         if self.downconversion_filter == "cic":
             self.cic_integrator_state[:] = 0
             self.cic_comb_state[:] = 0
+        elif self.downconversion_filter == "iir":
+            self.iir_state[:] = 0
 
 
 def chirp(L, f0=-12.5e6, cr=100e3, sr=25e6):
