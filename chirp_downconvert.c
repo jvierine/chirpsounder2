@@ -31,6 +31,41 @@ static inline int phase_table_index(double chirpt, int tabl, double f0, double r
   return (int)idx;
 }
 
+static inline complex_double exact_chirp_phasor(double t, double f0, double rate)
+{
+  double phase = -2.0*M_PI*(f0 + 0.5*rate*t)*t;
+  complex_double p;
+  p.re = cos(phase);
+  p.im = sin(phase);
+  return p;
+}
+
+static inline complex_double chirp_phase_step(double t, double dt, double f0, double rate)
+{
+  double phase_step = -2.0*M_PI*((f0 + rate*t)*dt + 0.5*rate*dt*dt);
+  complex_double p;
+  p.re = cos(phase_step);
+  p.im = sin(phase_step);
+  return p;
+}
+
+static inline complex_double chirp_phase_acceleration(double dt, double rate)
+{
+  double phase_step_delta = -2.0*M_PI*rate*dt*dt;
+  complex_double p;
+  p.re = cos(phase_step_delta);
+  p.im = sin(phase_step_delta);
+  return p;
+}
+
+static inline void complex_double_advance(complex_double *phase, complex_double step)
+{
+  double re = phase->re*step.re - phase->im*step.im;
+  double im = phase->im*step.re + phase->re*step.im;
+  phase->re = re;
+  phase->im = im;
+}
+
 void complex_mul(complex_float *a, complex_float *res)
 {
   float tmp;
@@ -127,6 +162,39 @@ static inline void add_windowed_phasor_sum(double chirpt,
   }
 }
 
+static inline void add_windowed_phasor_sum_recursive(double chirpt,
+                                                     double dt,
+                                                     complex_float *in,
+                                                     float *wfun,
+                                                     int dec2,
+                                                     complex_float *out_sample,
+                                                     double f0,
+                                                     double rate)
+{
+  complex_double phase = exact_chirp_phasor(chirpt, f0, rate);
+  complex_double phase_step = chirp_phase_step(chirpt, dt, f0, rate);
+  complex_double phase_accel = chirp_phase_acceleration(dt, rate);
+  float acc_re = 0.0f;
+  float acc_im = 0.0f;
+
+  for(int dec_idx=0; dec_idx<dec2; dec_idx++)
+  {
+    float zr = in[dec_idx].re*wfun[dec_idx];
+    float zi = in[dec_idx].im*wfun[dec_idx];
+    float pr = (float)phase.re;
+    float pi = (float)phase.im;
+
+    acc_re += zr*pr - zi*pi;
+    acc_im += zi*pr + zr*pi;
+
+    complex_double_advance(&phase, phase_step);
+    complex_double_advance(&phase_step, phase_accel);
+  }
+
+  out_sample->re += acc_re;
+  out_sample->im += acc_im;
+}
+
 void test(complex_float *sintab, int n)
 {
   for(int i=0; i<n ; i++)
@@ -168,6 +236,7 @@ struct arg_struct {
   float *wfun;
   int rank;
   int size;
+  int recursive;
 };
 
 void *consume_one(void *args)
@@ -187,6 +256,7 @@ void *consume_one(void *args)
   float *wfun=a->wfun;
   int rank=a->rank;
   int size=a->size;
+  int recursive=a->recursive;
     
   /*
     parallel consume
@@ -205,15 +275,19 @@ void *consume_one(void *args)
     /* 
        better lpf with a user defined window function (e.g., windowed ideal LPF)
     */
-    add_windowed_phasor_sum(chirpt, dt, sintab, tabl, &in[i], wfun, dec2,
-                            &out_sample, f0, rate);
+    if(recursive)
+      add_windowed_phasor_sum_recursive(chirpt, dt, &in[i], wfun, dec2,
+                                        &out_sample, f0, rate);
+    else
+      add_windowed_phasor_sum(chirpt, dt, sintab, tabl, &in[i], wfun, dec2,
+                              &out_sample, f0, rate);
     out_buffer[out_idx]=out_sample;
   }
   pthread_exit(NULL);
   return(NULL);
 }
 
-void consume(double chirpt, double dt, complex_float *sintab, int tabl, complex_float *in, complex_float *out_buffer, int n_out, int dec, int dec2, double f0, double rate, float *wfun, int n_threads)
+static void consume_impl(double chirpt, double dt, complex_float *sintab, int tabl, complex_float *in, complex_float *out_buffer, int n_out, int dec, int dec2, double f0, double rate, float *wfun, int n_threads, int recursive)
 {
   pthread_t *proc_threads;
   struct arg_struct *a;
@@ -236,6 +310,7 @@ void consume(double chirpt, double dt, complex_float *sintab, int tabl, complex_
     a[i].wfun=wfun;
     a[i].rank=i;
     a[i].size=n_threads;
+    a[i].recursive=recursive;
     pthread_create(&proc_threads[i], NULL, consume_one, (void *)&a[i]);
   }
 
@@ -246,6 +321,18 @@ void consume(double chirpt, double dt, complex_float *sintab, int tabl, complex_
   }
   free(a);
   free(proc_threads);
+}
+
+void consume(double chirpt, double dt, complex_float *sintab, int tabl, complex_float *in, complex_float *out_buffer, int n_out, int dec, int dec2, double f0, double rate, float *wfun, int n_threads)
+{
+  consume_impl(chirpt, dt, sintab, tabl, in, out_buffer, n_out, dec, dec2, f0,
+               rate, wfun, n_threads, 0);
+}
+
+void consume_recursive(double chirpt, double dt, complex_float *sintab, int tabl, complex_float *in, complex_float *out_buffer, int n_out, int dec, int dec2, double f0, double rate, float *wfun, int n_threads)
+{
+  consume_impl(chirpt, dt, sintab, tabl, in, out_buffer, n_out, dec, dec2, f0,
+               rate, wfun, n_threads, 1);
 }
 
 void consume_cic(double chirpt, double dt, complex_float *sintab, int tabl, complex_float *in, complex_float *out_buffer, int n_out, int dec, double f0, double rate, complex_float *integrator_state, complex_float *comb_state, int n_stages)

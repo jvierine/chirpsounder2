@@ -15,6 +15,10 @@ static volatile float sink_im = 0.0f;
 void consume(double chirpt, double dt, complex_float *sintab, int tabl,
              complex_float *in, complex_float *out_buffer, int n_out, int dec,
              int dec2, double f0, double rate, float *wfun, int n_threads);
+void consume_recursive(double chirpt, double dt, complex_float *sintab, int tabl,
+                       complex_float *in, complex_float *out_buffer, int n_out,
+                       int dec, int dec2, double f0, double rate, float *wfun,
+                       int n_threads);
 
 static double now_seconds(void)
 {
@@ -286,6 +290,156 @@ static void run_block_size_benchmark(int dec,
   free(out);
 }
 
+static complex_float make_chirp_sample(double t, double f0, double rate)
+{
+  double phase = 2.0*M_PI*(f0 + 0.5*rate*t)*t;
+  complex_float z;
+  z.re = (float)cos(phase);
+  z.im = (float)sin(phase);
+  return z;
+}
+
+static void fill_chirp_block(complex_float *in, int n_in, double start_t,
+                             double dt, double f0, double rate)
+{
+  for(int i=0; i<n_in; i++)
+    in[i] = make_chirp_sample(start_t + (double)i*dt, f0, rate);
+}
+
+static double complex_abs_float(complex_float z)
+{
+  return sqrt((double)z.re*(double)z.re + (double)z.im*(double)z.im);
+}
+
+static double complex_arg_product(complex_float a, complex_float b)
+{
+  double re = (double)a.re*(double)b.re + (double)a.im*(double)b.im;
+  double im = (double)a.im*(double)b.re - (double)a.re*(double)b.im;
+  return atan2(im, re);
+}
+
+static double wrap_phase(double phase)
+{
+  while(phase > M_PI)
+    phase -= 2.0*M_PI;
+  while(phase < -M_PI)
+    phase += 2.0*M_PI;
+  return phase;
+}
+
+static void run_recursive_accuracy_benchmark(int dec,
+                                             int dec2,
+                                             double dt,
+                                             int tabl,
+                                             double f0,
+                                             double rate,
+                                             complex_float *sintab,
+                                             float *wfun)
+{
+  const int block = 4000;
+  const int n_blocks = 320;
+  const int n_threads = 1;
+  const int n_in = block*dec + dec2;
+  complex_float *in = calloc((size_t)n_in, sizeof(complex_float));
+  complex_float *out_lookup = calloc((size_t)block, sizeof(complex_float));
+  complex_float *out_recursive = calloc((size_t)block, sizeof(complex_float));
+
+  if(in == NULL || out_lookup == NULL || out_recursive == NULL)
+  {
+    fprintf(stderr, "allocation failed\n");
+    exit(1);
+  }
+
+  double max_abs_err = 0.0;
+  double rms_abs_err = 0.0;
+  double max_phase_err = 0.0;
+  double rms_phase_err = 0.0;
+  double sum_phase_step_err = 0.0;
+  double max_phase_step_err = 0.0;
+  int n_samples = 0;
+  int n_step = 0;
+  double prev_phase_err = 0.0;
+  int have_prev = 0;
+
+  double chirpt = 0.0;
+  double t0_lookup = now_seconds();
+  for(int block_idx=0; block_idx<n_blocks; block_idx++)
+  {
+    double block_time = (double)(block_idx*block*dec)*dt;
+    fill_chirp_block(in, n_in, block_time, dt, -f0, rate);
+    consume(chirpt, dt, sintab, tabl, in, out_lookup, block, dec, dec2, f0,
+            rate, wfun, n_threads);
+    chirpt += (double)block*(double)dec*dt;
+  }
+  double lookup_seconds = now_seconds() - t0_lookup;
+
+  chirpt = 0.0;
+  double t0_recursive = now_seconds();
+  for(int block_idx=0; block_idx<n_blocks; block_idx++)
+  {
+    double block_time = (double)(block_idx*block*dec)*dt;
+    fill_chirp_block(in, n_in, block_time, dt, -f0, rate);
+    consume_recursive(chirpt, dt, sintab, tabl, in, out_recursive, block, dec,
+                      dec2, f0, rate, wfun, n_threads);
+    chirpt += (double)block*(double)dec*dt;
+
+    for(int i=0; i<block; i++)
+    {
+      complex_float err;
+      err.re = out_recursive[i].re - out_lookup[i].re;
+      err.im = out_recursive[i].im - out_lookup[i].im;
+      double abs_err = complex_abs_float(err);
+      double phase_err_signed = complex_arg_product(out_recursive[i], out_lookup[i]);
+      double phase_err = fabs(phase_err_signed);
+      if(abs_err > max_abs_err)
+        max_abs_err = abs_err;
+      if(phase_err > max_phase_err)
+        max_phase_err = phase_err;
+      rms_abs_err += abs_err*abs_err;
+      rms_phase_err += phase_err*phase_err;
+      n_samples++;
+
+      if(have_prev)
+      {
+        double phase_step_err = fabs(wrap_phase(phase_err_signed - prev_phase_err));
+        sum_phase_step_err += phase_step_err;
+        if(phase_step_err > max_phase_step_err)
+          max_phase_step_err = phase_step_err;
+        n_step++;
+      }
+      prev_phase_err = phase_err_signed;
+      have_prev = 1;
+    }
+  }
+  double recursive_seconds = now_seconds() - t0_recursive;
+
+  rms_abs_err = sqrt(rms_abs_err/(double)n_samples);
+  rms_phase_err = sqrt(rms_phase_err/(double)n_samples);
+  double mean_phase_step_err = n_step > 0 ? sum_phase_step_err/(double)n_step : 0.0;
+  double sr_dec = 1.0/(dt*(double)dec);
+  double mean_freq_offset_hz = mean_phase_step_err*sr_dec/(2.0*M_PI);
+  double max_freq_offset_hz = max_phase_step_err*sr_dec/(2.0*M_PI);
+
+  printf("\nRecursive FIR accuracy vs lookup FIR over %.3f s / %.3f MHz sweep\n",
+         (double)(n_blocks*block*dec)*dt,
+         rate*(double)(n_blocks*block*dec)*dt/1e6);
+  printf("lookup_seconds,recursive_seconds,speedup\n");
+  printf("%.6f,%.6f,%.3f\n", lookup_seconds, recursive_seconds,
+         lookup_seconds/recursive_seconds);
+  printf("rms_abs_err,max_abs_err,rms_phase_err_rad,max_phase_err_rad,mean_freq_offset_hz,max_freq_offset_hz\n");
+  printf("%.9g,%.9g,%.9g,%.9g,%.9g,%.9g\n",
+         rms_abs_err,
+         max_abs_err,
+         rms_phase_err,
+         max_phase_err,
+         mean_freq_offset_hz,
+         max_freq_offset_hz);
+
+  free(in);
+  free(out_lookup);
+  free(out_recursive);
+}
+
 int main(int argc, char **argv)
 {
   int dec = 625;
@@ -329,6 +483,7 @@ int main(int argc, char **argv)
   printf("sink,%f,%f\n", sink_re, sink_im);
 
   run_block_size_benchmark(dec, dec2, dt, tabl, f0, rate, sintab, wfun);
+  run_recursive_accuracy_benchmark(dec, dec2, dt, tabl, f0, rate, sintab, wfun);
 
   free(in);
   free(sintab);

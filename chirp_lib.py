@@ -22,6 +22,7 @@ libdc.consume.argtypes = [ctypes.c_double,
                           ctypes.c_double,
                           ctypeslib.ndpointer(n.float32, ndim=1, flags='C'),
                           ctypes.c_int]
+libdc.consume_recursive.argtypes = libdc.consume.argtypes
 libdc.consume_cic.argtypes = [ctypes.c_double,
                               ctypes.c_double,
                               ctypeslib.ndpointer(n.complex64, ndim=1, flags='C'),
@@ -62,8 +63,8 @@ class chirp_downconvert:
         self.om0 = 2.0 * n.pi / float(dec)
         if fast_boxcar_filter and downconversion_filter == "fir":
             downconversion_filter = "boxcar"
-        if downconversion_filter not in ["fir", "boxcar", "cic"]:
-            raise ValueError("downconversion_filter must be 'fir', 'boxcar', or 'cic'")
+        if downconversion_filter not in ["fir", "fir_recursive", "boxcar", "cic"]:
+            raise ValueError("downconversion_filter must be 'fir', 'fir_recursive', 'boxcar', or 'cic'")
         self.downconversion_filter = downconversion_filter
         self.cic_stages = cic_stages
         self.cic_integrator_state = n.zeros(cic_stages, dtype=n.complex64)
@@ -119,6 +120,20 @@ class chirp_downconvert:
                               self.cic_integrator_state,
                               self.cic_comb_state,
                               self.cic_stages)
+        elif self.downconversion_filter == "fir_recursive":
+            libdc.consume_recursive(self.chirpt,
+                                    self.dt,
+                                    self.sintab,
+                                    self.tab_len,
+                                    z_in,
+                                    z_out,
+                                    n_out,
+                                    self.dec,
+                                    self.dec2,
+                                    self.f0,
+                                    self.rate,
+                                    self.wfun,
+                                    self.n_threads)
         else:
             libdc.consume(self.chirpt,
                           self.dt,
