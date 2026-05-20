@@ -52,7 +52,7 @@ class chirp_downconvert:
                  n_threads=4,
                  dt=1.0 / 25e6,
                  fast_boxcar_filter=False,
-                 downconversion_filter="fir_recursive",
+                 downconversion_filter="fir",
                  cic_stages=2):
 
         # let's add a windowed low pass filter to make this nearly perfect.
@@ -61,10 +61,10 @@ class chirp_downconvert:
         self.n_threads = n_threads
         # om0
         self.om0 = 2.0 * n.pi / float(dec)
-        if fast_boxcar_filter and downconversion_filter in ["fir", "fir_recursive"]:
+        if fast_boxcar_filter and downconversion_filter in ["fir", "fir_slow_oscillator"]:
             downconversion_filter = "boxcar"
-        if downconversion_filter not in ["fir", "fir_recursive", "boxcar", "cic"]:
-            raise ValueError("downconversion_filter must be 'fir', 'fir_recursive', 'boxcar', or 'cic'")
+        if downconversion_filter not in ["fir", "fir_slow_oscillator", "boxcar", "cic"]:
+            raise ValueError("downconversion_filter must be 'fir', 'fir_slow_oscillator', 'boxcar', or 'cic'")
         self.downconversion_filter = downconversion_filter
         self.cic_stages = cic_stages
         self.cic_integrator_state = n.zeros(cic_stages, dtype=n.complex64)
@@ -120,7 +120,7 @@ class chirp_downconvert:
                               self.cic_integrator_state,
                               self.cic_comb_state,
                               self.cic_stages)
-        elif self.downconversion_filter == "fir_recursive":
+        elif self.downconversion_filter == "fir":
             libdc.consume_recursive(self.chirpt,
                                     self.dt,
                                     self.sintab,
@@ -134,7 +134,7 @@ class chirp_downconvert:
                                     self.rate,
                                     self.wfun,
                                     self.n_threads)
-        else:
+        elif self.downconversion_filter == "fir_slow_oscillator":
             libdc.consume(self.chirpt,
                           self.dt,
                           self.sintab,
@@ -148,6 +148,8 @@ class chirp_downconvert:
                           self.rate,
                           self.wfun,
                           self.n_threads)
+        else:
+            raise ValueError("unknown downconversion_filter %s" % self.downconversion_filter)
 
         self.chirpt += float(n_out * self.dec) * self.dt
     def advance_time(self,
