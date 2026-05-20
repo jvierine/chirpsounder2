@@ -327,6 +327,58 @@ static double wrap_phase(double phase)
   return phase;
 }
 
+static void consume_recursive_float_block(double chirpt,
+                                          double dt,
+                                          complex_float *in,
+                                          complex_float *out_buffer,
+                                          int n_out,
+                                          int dec,
+                                          int dec2,
+                                          double f0,
+                                          double rate,
+                                          float *wfun)
+{
+  double phase_accel_phase = -2.0*M_PI*rate*dt*dt;
+  float phase_accel_re = (float)cos(phase_accel_phase);
+  float phase_accel_im = (float)sin(phase_accel_phase);
+
+  for(int out_idx=0; out_idx<n_out; out_idx++)
+  {
+    double t = chirpt + (double)(dec*out_idx)*dt;
+    double phase = -2.0*M_PI*(f0 + 0.5*rate*t)*t;
+    double phase_step = -2.0*M_PI*((f0 + rate*t)*dt + 0.5*rate*dt*dt);
+    float pr = (float)cos(phase);
+    float pi = (float)sin(phase);
+    float sr = (float)cos(phase_step);
+    float si = (float)sin(phase_step);
+    float acc_re = 0.0f;
+    float acc_im = 0.0f;
+    int in0 = out_idx*dec;
+
+    for(int dec_idx=0; dec_idx<dec2; dec_idx++)
+    {
+      float zr = in[in0 + dec_idx].re*wfun[dec_idx];
+      float zi = in[in0 + dec_idx].im*wfun[dec_idx];
+
+      acc_re += zr*pr - zi*pi;
+      acc_im += zi*pr + zr*pi;
+
+      float npr = pr*sr - pi*si;
+      float npi = pi*sr + pr*si;
+      pr = npr;
+      pi = npi;
+
+      float nsr = sr*phase_accel_re - si*phase_accel_im;
+      float nsi = si*phase_accel_re + sr*phase_accel_im;
+      sr = nsr;
+      si = nsi;
+    }
+
+    out_buffer[out_idx].re = acc_re;
+    out_buffer[out_idx].im = acc_im;
+  }
+}
+
 static void run_recursive_accuracy_benchmark(int dec,
                                              int dec2,
                                              double dt,
@@ -343,8 +395,9 @@ static void run_recursive_accuracy_benchmark(int dec,
   complex_float *in = calloc((size_t)n_in, sizeof(complex_float));
   complex_float *out_lookup = calloc((size_t)block, sizeof(complex_float));
   complex_float *out_recursive = calloc((size_t)block, sizeof(complex_float));
+  complex_float *out_recursive_float = calloc((size_t)block, sizeof(complex_float));
 
-  if(in == NULL || out_lookup == NULL || out_recursive == NULL)
+  if(in == NULL || out_lookup == NULL || out_recursive == NULL || out_recursive_float == NULL)
   {
     fprintf(stderr, "allocation failed\n");
     exit(1);
@@ -356,10 +409,18 @@ static void run_recursive_accuracy_benchmark(int dec,
   double rms_phase_err = 0.0;
   double sum_phase_step_err = 0.0;
   double max_phase_step_err = 0.0;
+  double float_max_abs_err = 0.0;
+  double float_rms_abs_err = 0.0;
+  double float_max_phase_err = 0.0;
+  double float_rms_phase_err = 0.0;
+  double float_sum_phase_step_err = 0.0;
+  double float_max_phase_step_err = 0.0;
   int n_samples = 0;
   int n_step = 0;
   double prev_phase_err = 0.0;
+  double float_prev_phase_err = 0.0;
   int have_prev = 0;
+  int float_have_prev = 0;
 
   double chirpt = 0.0;
   double t0_lookup = now_seconds();
@@ -413,19 +474,63 @@ static void run_recursive_accuracy_benchmark(int dec,
   }
   double recursive_seconds = now_seconds() - t0_recursive;
 
+  chirpt = 0.0;
+  double t0_recursive_float = now_seconds();
+  for(int block_idx=0; block_idx<n_blocks; block_idx++)
+  {
+    double block_time = (double)(block_idx*block*dec)*dt;
+    fill_chirp_block(in, n_in, block_time, dt, -f0, rate);
+    consume_recursive_float_block(chirpt, dt, in, out_recursive_float, block,
+                                  dec, dec2, f0, rate, wfun);
+    chirpt += (double)block*(double)dec*dt;
+
+    for(int i=0; i<block; i++)
+    {
+      complex_float err;
+      err.re = out_recursive_float[i].re - out_recursive[i].re;
+      err.im = out_recursive_float[i].im - out_recursive[i].im;
+      double abs_err = complex_abs_float(err);
+      double phase_err_signed = complex_arg_product(out_recursive_float[i], out_recursive[i]);
+      double phase_err = fabs(phase_err_signed);
+      if(abs_err > float_max_abs_err)
+        float_max_abs_err = abs_err;
+      if(phase_err > float_max_phase_err)
+        float_max_phase_err = phase_err;
+      float_rms_abs_err += abs_err*abs_err;
+      float_rms_phase_err += phase_err*phase_err;
+
+      if(float_have_prev)
+      {
+        double phase_step_err = fabs(wrap_phase(phase_err_signed - float_prev_phase_err));
+        float_sum_phase_step_err += phase_step_err;
+        if(phase_step_err > float_max_phase_step_err)
+          float_max_phase_step_err = phase_step_err;
+      }
+      float_prev_phase_err = phase_err_signed;
+      float_have_prev = 1;
+    }
+  }
+  double recursive_float_seconds = now_seconds() - t0_recursive_float;
+
   rms_abs_err = sqrt(rms_abs_err/(double)n_samples);
   rms_phase_err = sqrt(rms_phase_err/(double)n_samples);
   double mean_phase_step_err = n_step > 0 ? sum_phase_step_err/(double)n_step : 0.0;
   double sr_dec = 1.0/(dt*(double)dec);
   double mean_freq_offset_hz = mean_phase_step_err*sr_dec/(2.0*M_PI);
   double max_freq_offset_hz = max_phase_step_err*sr_dec/(2.0*M_PI);
+  float_rms_abs_err = sqrt(float_rms_abs_err/(double)n_samples);
+  float_rms_phase_err = sqrt(float_rms_phase_err/(double)n_samples);
+  double float_mean_phase_step_err = n_step > 0 ? float_sum_phase_step_err/(double)n_step : 0.0;
+  double float_mean_freq_offset_hz = float_mean_phase_step_err*sr_dec/(2.0*M_PI);
+  double float_max_freq_offset_hz = float_max_phase_step_err*sr_dec/(2.0*M_PI);
 
   printf("\nRecursive FIR accuracy vs lookup FIR over %.3f s / %.3f MHz sweep\n",
          (double)(n_blocks*block*dec)*dt,
          rate*(double)(n_blocks*block*dec)*dt/1e6);
-  printf("lookup_seconds,recursive_seconds,speedup\n");
-  printf("%.6f,%.6f,%.3f\n", lookup_seconds, recursive_seconds,
-         lookup_seconds/recursive_seconds);
+  printf("lookup_seconds,recursive_double_seconds,recursive_float_seconds,double_speedup,float_speedup\n");
+  printf("%.6f,%.6f,%.6f,%.3f,%.3f\n", lookup_seconds, recursive_seconds,
+         recursive_float_seconds, lookup_seconds/recursive_seconds,
+         recursive_seconds/recursive_float_seconds);
   printf("rms_abs_err,max_abs_err,rms_phase_err_rad,max_phase_err_rad,mean_freq_offset_hz,max_freq_offset_hz\n");
   printf("%.9g,%.9g,%.9g,%.9g,%.9g,%.9g\n",
          rms_abs_err,
@@ -434,10 +539,20 @@ static void run_recursive_accuracy_benchmark(int dec,
          max_phase_err,
          mean_freq_offset_hz,
          max_freq_offset_hz);
+  printf("\nFloat recursive FIR accuracy vs double recursive FIR\n");
+  printf("rms_abs_err,max_abs_err,rms_phase_err_rad,max_phase_err_rad,mean_freq_offset_hz,max_freq_offset_hz\n");
+  printf("%.9g,%.9g,%.9g,%.9g,%.9g,%.9g\n",
+         float_rms_abs_err,
+         float_max_abs_err,
+         float_rms_phase_err,
+         float_max_phase_err,
+         float_mean_freq_offset_hz,
+         float_max_freq_offset_hz);
 
   free(in);
   free(out_lookup);
   free(out_recursive);
+  free(out_recursive_float);
 }
 
 int main(int argc, char **argv)
