@@ -7,11 +7,10 @@ the `lfm.downconversion_filter` setting. The available options are:
 - `fir`: Hann-windowed sinc FIR low-pass filter.
 - `boxcar`: one-stage moving-average decimator.
 - `cic`: cascaded-integrator-comb decimator with `lfm.cic_stages` stages.
-- `iir`: cascaded one-pole low-pass decimator with `lfm.iir_stages` stages.
 
 The figures below were generated for `decimation=625`, `filter_len=2`,
-`cic_stages=2`, and `iir_stages=4`, matching the current Marieluise-style
-receiver configuration.
+and `cic_stages=2`, matching the current Marieluise-style receiver
+configuration.
 The frequency axis is shown in kHz. For a 25 MHz input sample rate and
 `decimation=625`, the output sample rate is 40 kHz and the output Nyquist
 frequency is 20 kHz. The wideband response plot extends to 1 MHz to show the
@@ -72,29 +71,10 @@ The CIC filter is efficient for streaming decimation because it avoids a long
 FIR tap convolution. It is a good compromise when CPU cost is important, but it
 is not amplitude-flat unless a compensation filter is added later.
 
-## IIR
-
-The `iir` option uses a cascade of first-order low-pass sections:
-
-```text
-y[n] = alpha*x[n] + (1 - alpha)*y[n - 1]
-```
-
-The filter state is kept between `consume()` calls, just like the CIC state.
-If `lfm.iir_alpha` is set to `null`, the code chooses `alpha` so that the
-cascade is approximately `-3 dB` at the output Nyquist frequency. With
-`decimation=625` and `iir_stages=4`, this gives a cheap smooth low-pass filter
-with no long convolution window.
-
-This is experimental. Its magnitude response can be useful, but it has
-nonlinear phase and frequency-dependent group delay. That may matter because,
-after chirp deconvolution, frequency maps to range.
-
 ## Computational Cost
 
 For the current `decimation=625`, `filter_len=2`, `cic_stages=2`,
-`iir_stages=4` configuration, the approximate per-output-sample arithmetic
-costs are:
+configuration, the approximate per-output-sample arithmetic costs are:
 
 - `boxcar`: 625 complex input samples are mixed and accumulated for each
   output sample. This is the reference cost, `1.0x`.
@@ -107,21 +87,13 @@ costs are:
   updates plus two comb updates per output sample. This is
   `(cic_stages * decimation + cic_stages) / decimation = 2.003x` the boxcar
   accumulation count.
-- `iir`: with four one-pole stages, there are about `4 * 625 = 2500` complex
-  state updates per output sample. This is
-  `(iir_stages * decimation) / decimation = 4.0x` the boxcar input-sample
-  count, but each state update is very simple and there is no long FIR window
-  or inter-thread overhead.
 
 Thus, in rough operation-count terms for this configuration, the FIR is
-`2.0x` the boxcar, the two-stage CIC is `2.003x` the boxcar, and the four-stage
-IIR is `4.0x` the boxcar by input-sample update count. These ratios do not
-translate perfectly into wall-clock time: the FIR performs weighted
-multiply-accumulates and currently uses thread setup for each block, while the
-CIC and IIR are simple streaming state updates. The FIR has the best frequency
-response, the boxcar is the simplest, the CIC is a streaming-friendly
-compromise with stronger passband droop, and the IIR is an experimental option
-that trades linear phase for a compact recursive implementation.
+`2.0x` the boxcar and the two-stage CIC is `2.003x` the boxcar. The difference
+is that the CIC operations are simple state updates, whereas the FIR performs a
+long weighted sum and therefore usually costs more per operation. The FIR has
+the best frequency response, the boxcar is the simplest, and the CIC is a
+streaming-friendly compromise with stronger passband droop.
 
 The plotting code is in `tools/plot_downconversion_filter_responses.py`.
 Regenerate the figures with:
@@ -130,7 +102,6 @@ Regenerate the figures with:
 python3 tools/plot_downconversion_filter_responses.py \
   --decimation 625 \
   --cic-stages 2 \
-  --iir-stages 4 \
   --sample-rate 25e6 \
   --max-frequency-khz 1000
 ```
