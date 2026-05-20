@@ -9,7 +9,7 @@ import json
 
 
 class chirp_config:
-    def __init__(self, fname=None, read_shared=True, build_fvec=True):
+    def __init__(self, fname=None, read_shared=True, build_fvec=True, verbose=True):
         cf = configparser.ConfigParser()
         explicit_ringbuffer_max_age_min = False
         explicit_ringbuffer_max_age_sec = False
@@ -113,7 +113,8 @@ class chirp_config:
                 fname = os.path.abspath(fname)
                 shared_fname = os.path.join(os.path.dirname(fname), "server.ini")
                 if read_shared and shared_fname != fname and os.path.exists(shared_fname):
-                    print("reading %s" % (shared_fname))
+                    if verbose:
+                        print("reading %s" % (shared_fname))
                     cf.read(shared_fname)
                     shared_cf = configparser.ConfigParser()
                     shared_cf.read(shared_fname)
@@ -123,15 +124,17 @@ class chirp_config:
                         shared_station_info = json.loads(shared_cf["stations"]["station_info"])
                     if shared_cf.has_option("stations", "links"):
                         shared_station_links = json.loads(shared_cf["stations"]["links"])
-                print("reading %s" % (fname))
+                if verbose:
+                    print("reading %s" % (fname))
                 cf.read(fname)
                 file_cf = configparser.ConfigParser()
                 file_cf.read(fname)
                 explicit_ringbuffer_max_age_min |= file_cf.has_option("config", "ringbuffer_max_age_min")
                 explicit_ringbuffer_max_age_sec |= file_cf.has_option("config", "ringbuffer_max_age_sec")
             else:
-                print(
-                    "configuration file %s doesn't exist. using default values" % (fname))
+                if verbose:
+                    print(
+                        "configuration file %s doesn't exist. using default values" % (fname))
         #print("keys",list(cf.keys()))
         self.fname = fname
         self.plot_timings = json.loads(cf["config"]["plot_timings"])
@@ -178,7 +181,8 @@ class chirp_config:
             raise ValueError("downconversion_filter must be 'fir', 'fir_slow_oscillator', 'boxcar', or 'cic'")
         self.cic_stages = json.loads(cf["lfm"]["cic_stages"])
         self.data_dir = json.loads(cf["config"]["data_dir"])
-        print(self.data_dir)
+        if verbose:
+            print(self.data_dir)
 
 #        self.snr_threshold = json.loads(cf["config"]["snr_threshold"])
         
@@ -187,7 +191,8 @@ class chirp_config:
             self.copy_destination = json.loads(
                 cf["transfer"]["copy_destination"])
         except:
-            print("couldn't read copy destination")
+            if verbose:
+                print("couldn't read copy destination")
             pass
         self.station_name = json.loads(cf["config"]["receiver_station_name"])
 
@@ -226,8 +231,9 @@ class chirp_config:
             pass
 
         if not os.path.exists(self.output_dir):
-            print("Output directory %s doesn't exists and cannot be created" %
-                  (self.output_dir))
+            if verbose:
+                print("Output directory %s doesn't exists and cannot be created" %
+                      (self.output_dir))
             #exit(0)
 
         # the minimum distance in frequency between detections

@@ -40,7 +40,7 @@ def current_rss_mb():
 
 def load_plot_config(conf_path):
     """Load config without allocating detection-only frequency vectors."""
-    return cc.chirp_config(conf_path, build_fvec=False)
+    return cc.chirp_config(conf_path, build_fvec=False, verbose=False)
 
 def config_mtime_key(conf_path):
     paths = [os.path.abspath(conf_path)]
