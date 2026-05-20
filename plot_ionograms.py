@@ -10,11 +10,14 @@ import chirp_config as cc
 import scipy.constants as c
 import h5py
 import glob
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as n
-import matplotlib
 import psutil
-matplotlib.use('Agg')
+import gc
+import shutil
+import ctypes
 p = psutil.Process()
 # Set I/O priority to idle (lowest) to avoid interrupting realtime processes
 p.ionice(psutil.IOPRIO_CLASS_IDLE)
@@ -23,6 +26,13 @@ p.nice(19)
 def kill(conf):
     exists = os.path.isfile(conf.kill_path)
     return exists
+
+def trim_process_memory():
+    """Ask glibc to return free heap pages to the OS when available."""
+    try:
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except Exception:
+        pass
 
 def ionogram_file_time(fn):
     m = re.search(r".*-(1\d+(?:\.\d+)?).h5$", fn)
@@ -39,106 +49,101 @@ def ionogram_file_time(fn):
     return os.path.getmtime(fn)
 
 def plot_ionogram(conf, fn, normalize_by_frequency=True):
-    ho = h5py.File(fn, "r")
+    fig = None
     try:
-        t0 = float(n.copy(ho[("t0")]))
-        ch = ho["ch"][()]
-    #    print(ch)
-        ch = ch.decode('utf-8')
-        if not "id" in ho.keys():
-            print("id not in keys for %s" % (fn))
-            return False
-        cid = int(n.copy(ho[("id")]))  # ionosonde id
+        with h5py.File(fn, "r") as ho:
+            t0 = float(n.copy(ho[("t0")]))
+            ch = ho["ch"][()]
+        #    print(ch)
+            ch = ch.decode('utf-8')
+            if not "id" in ho.keys():
+                print("id not in keys for %s" % (fn))
+                return False
+            cid = int(n.copy(ho[("id")]))  # ionosonde id
 
-        img_fname = "%s/%s/lfm_ionogram-%s-%03d-%1.2f.png" % (
-            conf.output_dir, cd.unix2dirname(t0), ch, cid, t0)
-        if os.path.exists(img_fname):
-    #        print("Ionogram plot %s already exists. Skipping" % (img_fname))
-            return True
+            img_fname = "%s/%s/lfm_ionogram-%s-%03d-%1.2f.png" % (
+                conf.output_dir, cd.unix2dirname(t0), ch, cid, t0)
+            if os.path.exists(img_fname):
+        #        print("Ionogram plot %s already exists. Skipping" % (img_fname))
+                return True
 
-        print("Plotting %s rate %1.2f (kHz/s) t0 %1.5f (unix)" %
-              (fn, float(n.copy(ho[("rate")])) / 1e3, float(n.copy(ho[("t0")]))))
-        # ionogram frequency-range
-        if "SNR" in ho.keys():
-            S =  n.array(ho["SNR"][()],dtype=n.float32)
-            S[S <= 0.0] = 1e-3
-        else:
-            S =  n.array(ho["S"][()],dtype=n.float32)
-            if normalize_by_frequency:
-                for i in range(S.shape[0]):
-                    noise = n.nanmedian(S[i, :])
-                    S[i, :] = (S[i, :] - noise) / noise
+            rate = float(n.copy(ho[("rate")]))
+            print("Plotting %s rate %1.2f (kHz/s) t0 %1.5f (unix)" %
+                  (fn, rate / 1e3, t0))
+            # ionogram frequency-range
+            if "SNR" in ho.keys():
+                S =  n.array(ho["SNR"][()],dtype=n.float32)
                 S[S <= 0.0] = 1e-3
-
-        freqs = n.copy(ho[("freqs")])  # frequency bins
-        ranges = n.copy(ho[("ranges")])  # range gates
-
-
-        max_range_idx = n.argmax(n.max(S, axis=0))
-
-        dB = n.transpose(10.0 * n.log10(S))
-        if normalize_by_frequency == False:
-            dB = dB - n.nanmedian(dB)
-
-        dB[n.isnan(dB)] = 0.0
-        dB[n.isfinite(dB) != True] = 0.0
-
-        # assume that t0 is at the start of a standard unix second
-        # therefore, the propagation time is anything added to a full second
-
-        dt = (t0 - n.floor(t0))
-        dr = dt * c.c / 1e3
-        # converted to one-way travel time
-        range_gates = dr + ranges / 1e3
-        r0 = range_gates[max_range_idx]
-        fig = plt.figure(figsize=(1.5 * 8, 1.5 * 6))
-        plt.pcolormesh(freqs / 1e6, range_gates, dB,
-                       vmin=0, vmax=20.0, cmap="gist_yarg")
-        cb = plt.colorbar()
-        cb.set_label("SNR (dB)")
-        if "station_name" in ho.keys():
-            station_name=ho["station_name"][()].decode("utf-8")
-        else:
-            station_name=conf.station_name
-
-        if "txname" in ho.keys():
-            txname=ho["txname"][()].decode("utf-8")
-        else:
-            cr=int(float(n.copy(ho[("rate")])) / 1e3)
-            if cr==100:
-                txname="ROTHR"
-            elif cr==125:
-                txname="JORN"
             else:
-                txname="unknown"
+                S =  n.array(ho["S"][()],dtype=n.float32)
+                if normalize_by_frequency:
+                    for i in range(S.shape[0]):
+                        noise = n.nanmedian(S[i, :])
+                        S[i, :] = (S[i, :] - noise) / noise
+                    S[S <= 0.0] = 1e-3
 
-        plt.title("%s Chirp-rate %1.2f kHz/s t0=%1.5f (unix s)\n%s-%s %s (UTC)" % (
-            ch, float(n.copy(ho[("rate")])) / 1e3, float(n.copy(ho[("t0")])), txname, station_name, cd.unix2datestr(float(n.copy(ho[("t0")])))))
-        plt.xlabel("Frequency (MHz)")
-        plt.ylabel("One-way range offset (km)")
+            freqs = n.copy(ho[("freqs")])  # frequency bins
+            ranges = n.copy(ho[("ranges")])  # range gates
 
-        if conf.manual_range_extent:
-            plt.ylim([conf.min_range / 1e3, conf.max_range / 1e3])
-        else:
-            plt.ylim([dr - conf.max_range_extent / 1e3,
-                     dr + conf.max_range_extent / 1e3])
+            dB = n.transpose(10.0 * n.log10(S))
+            if normalize_by_frequency == False:
+                dB = dB - n.nanmedian(dB)
 
-        if conf.manual_freq_extent:
-            plt.xlim([conf.min_freq / 1e6, conf.max_freq / 1e6])
-        else:
-            plt.xlim([0, conf.maximum_analysis_frequency / 1e6])
-        plt.tight_layout()
-        plt.savefig(img_fname)
-        os.system("cp %s /tmp/latest-lfm-%s-%s.png"%(img_fname,txname,station_name))
-        fig.clf()
-        plt.clf()
-        plt.close("all")
-        import gc
-        gc.collect()
-        sys.stdout.flush()
-        return True
+            dB[n.isnan(dB)] = 0.0
+            dB[n.isfinite(dB) != True] = 0.0
+
+            # assume that t0 is at the start of a standard unix second
+            # therefore, the propagation time is anything added to a full second
+            dt = (t0 - n.floor(t0))
+            dr = dt * c.c / 1e3
+            # converted to one-way travel time
+            range_gates = dr + ranges / 1e3
+            fig, ax = plt.subplots(figsize=(1.5 * 8, 1.5 * 6))
+            mesh = ax.pcolormesh(freqs / 1e6, range_gates, dB,
+                                 vmin=0, vmax=20.0, cmap="gist_yarg")
+            cb = fig.colorbar(mesh, ax=ax)
+            cb.set_label("SNR (dB)")
+            if "station_name" in ho.keys():
+                station_name=ho["station_name"][()].decode("utf-8")
+            else:
+                station_name=conf.station_name
+
+            if "txname" in ho.keys():
+                txname=ho["txname"][()].decode("utf-8")
+            else:
+                cr=int(rate / 1e3)
+                if cr==100:
+                    txname="ROTHR"
+                elif cr==125:
+                    txname="JORN"
+                else:
+                    txname="unknown"
+
+            ax.set_title("%s Chirp-rate %1.2f kHz/s t0=%1.5f (unix s)\n%s-%s %s (UTC)" % (
+                ch, rate / 1e3, t0, txname, station_name, cd.unix2datestr(t0)))
+            ax.set_xlabel("Frequency (MHz)")
+            ax.set_ylabel("One-way range offset (km)")
+
+            if conf.manual_range_extent:
+                ax.set_ylim([conf.min_range / 1e3, conf.max_range / 1e3])
+            else:
+                ax.set_ylim([dr - conf.max_range_extent / 1e3,
+                             dr + conf.max_range_extent / 1e3])
+
+            if conf.manual_freq_extent:
+                ax.set_xlim([conf.min_freq / 1e6, conf.max_freq / 1e6])
+            else:
+                ax.set_xlim([0, conf.maximum_analysis_frequency / 1e6])
+            fig.tight_layout()
+            fig.savefig(img_fname)
+            shutil.copy2(img_fname, "/tmp/latest-lfm-%s-%s.png"%(txname,station_name))
+            sys.stdout.flush()
+            return True
     finally:
-        ho.close()
+        if fig is not None:
+            plt.close(fig)
+        gc.collect()
+        trim_process_memory()
 #    if conf.copy_to_server:
  #       os.system("rsync -av %s %s/latest_%s.png" %
   #                (img_fname, conf.copy_destination, conf.station_name))
