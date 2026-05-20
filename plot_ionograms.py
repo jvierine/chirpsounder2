@@ -359,7 +359,7 @@ if __name__ == "__main__":
         fl = glob.glob("%s/*/lfm*.h5" % (conf.output_dir))
         for fn in fl:
             try:
-                log("plotting %s" % (fn))
+                log("plotting %s, rss %.1f MB" % (fn, current_rss_mb()))
                 plot_ionogram(conf, fn)
                 sample_memory_after_ionogram(memory_monitor, fn)
                 conf = cc.chirp_config(conf_path)
