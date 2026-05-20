@@ -544,8 +544,7 @@ setInterval(updateUtcTime, 1000);
             This monitor shows quick-look products from the Tromsø Geophysical
             Observatory oblique ionogram system. The network is operated by
             Tromsø Geophysical Observatory and was developed by Juha Vierinen
-            and Marieluise Schmitt Gran. The principal investigators are Juha
-            Vierinen and Marieluise Schmitt Gran.
+            and Marieluise Schmitt Gran. 
         </p>
         <p>
             Current observing stations are contributed by UiT The Arctic
