@@ -5,13 +5,14 @@ import time
 import os
 import os.path
 import sys
+os.environ.setdefault("MPLBACKEND", "Agg")
+import matplotlib
+matplotlib.use('Agg')
 import chirp_det as cd
 import chirp_config as cc
 import scipy.constants as c
 import h5py
 import glob
-import matplotlib
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as n
 import psutil
