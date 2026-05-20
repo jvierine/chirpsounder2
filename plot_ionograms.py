@@ -27,9 +27,70 @@ p.nice(19)
 FAILED_RETRY_SEC = 300.0
 STATUS_PRINT_SEC = 60.0
 REALTIME_PLOT_AGE_SEC = 48 * 3600.0
+MEMORY_CHECK_MIN_SAMPLES = 12
+MEMORY_CHECK_WINDOW_SEC = 30 * 60.0
+MEMORY_LEAK_MIN_GROWTH_MB = 300.0
+MEMORY_LEAK_MIN_SLOPE_MB_PER_HOUR = 150.0
 
 def log(msg):
     print(msg, flush=True)
+
+class MemoryGrowthMonitor:
+    def __init__(self,
+                 min_samples=MEMORY_CHECK_MIN_SAMPLES,
+                 window_sec=MEMORY_CHECK_WINDOW_SEC,
+                 min_growth_mb=MEMORY_LEAK_MIN_GROWTH_MB,
+                 min_slope_mb_per_hour=MEMORY_LEAK_MIN_SLOPE_MB_PER_HOUR):
+        self.min_samples = min_samples
+        self.window_sec = window_sec
+        self.min_growth_mb = min_growth_mb
+        self.min_slope_mb_per_hour = min_slope_mb_per_hour
+        self.samples = []
+
+    def sample(self):
+        t_now = time.time()
+        rss_mb = p.memory_info().rss / 1024.0**2
+        self.samples.append((t_now, rss_mb))
+        self.samples = [
+            sample for sample in self.samples
+            if t_now - sample[0] <= self.window_sec
+        ]
+        if len(self.samples) < self.min_samples:
+            return None
+
+        t0 = self.samples[0][0]
+        x = n.array([sample[0] - t0 for sample in self.samples], dtype=n.float64)
+        y = n.array([sample[1] for sample in self.samples], dtype=n.float64)
+        x_mean = n.mean(x)
+        y_mean = n.mean(y)
+        denom = n.sum((x - x_mean)**2.0)
+        if denom <= 0.0:
+            return None
+
+        slope_mb_per_sec = n.sum((x - x_mean) * (y - y_mean)) / denom
+        slope_mb_per_hour = slope_mb_per_sec * 3600.0
+        growth_mb = y[-1] - y[0]
+        r_value = 0.0
+        y_var = n.sum((y - y_mean)**2.0)
+        if y_var > 0.0:
+            r_value = n.sum((x - x_mean) * (y - y_mean)) / n.sqrt(denom * y_var)
+
+        return {
+            "rss_mb": rss_mb,
+            "growth_mb": growth_mb,
+            "slope_mb_per_hour": slope_mb_per_hour,
+            "r_value": r_value,
+            "n_samples": len(self.samples),
+        }
+
+    def leaking(self, stats):
+        if stats is None:
+            return False
+        return (
+            stats["growth_mb"] >= self.min_growth_mb and
+            stats["slope_mb_per_hour"] >= self.min_slope_mb_per_hour and
+            stats["r_value"] >= 0.85
+        )
 
 def kill(conf):
     exists = os.path.isfile(conf.kill_path)
@@ -183,6 +244,7 @@ if __name__ == "__main__":
     if conf.realtime:
         failed_files = {}
         last_status_print = 0.0
+        memory_monitor = MemoryGrowthMonitor()
         while True:
             conf = cc.chirp_config(conf_path)
             if kill(conf):
@@ -219,8 +281,32 @@ if __name__ == "__main__":
                 failed_files = {fn: state for fn, state in failed_files.items()
                                 if fn in candidate_file_set}
                 if t_now - last_status_print > STATUS_PRINT_SEC:
-                    log("plot_ionograms.py: output_dir=%s, found %d h5 files, %d candidates newer than %.1f h, %d missing PNGs, %d recently failed" %
-                        (conf.output_dir, len(fl), len(candidate_files), REALTIME_PLOT_AGE_SEC / 3600.0, len(missing_files), len(failed_files)))
+                    memory_stats = memory_monitor.sample()
+                    if memory_stats is None:
+                        memory_text = "memory monitor warming up"
+                    else:
+                        memory_text = ("rss %.1f MB, growth %.1f MB, slope %.1f MB/h, r %.2f" %
+                                       (memory_stats["rss_mb"],
+                                        memory_stats["growth_mb"],
+                                        memory_stats["slope_mb_per_hour"],
+                                        memory_stats["r_value"]))
+                    log("plot_ionograms.py: output_dir=%s, found %d h5 files, %d candidates newer than %.1f h, %d missing PNGs, %d recently failed, %s" %
+                        (conf.output_dir,
+                         len(fl),
+                         len(candidate_files),
+                         REALTIME_PLOT_AGE_SEC / 3600.0,
+                         len(missing_files),
+                         len(failed_files),
+                         memory_text))
+                    if memory_monitor.leaking(memory_stats):
+                        log("WARNING: plot_ionograms.py memory use appears to be growing linearly; exiting so the supervisor can restart it. "
+                            "rss=%.1f MB growth=%.1f MB slope=%.1f MB/h r=%.2f samples=%d" %
+                            (memory_stats["rss_mb"],
+                             memory_stats["growth_mb"],
+                             memory_stats["slope_mb_per_hour"],
+                             memory_stats["r_value"],
+                             memory_stats["n_samples"]))
+                        sys.exit(2)
                     last_status_print = t_now
                 # avoid last file to make sure we don't read and write simultaneously.
                 # Only missing PNGs need work; existing plots are left alone.
