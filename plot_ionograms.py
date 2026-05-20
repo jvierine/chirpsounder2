@@ -23,6 +23,12 @@ p = psutil.Process()
 p.ionice(psutil.IOPRIO_CLASS_IDLE)
 p.nice(19)
 
+FAILED_RETRY_SEC = 300.0
+STATUS_PRINT_SEC = 60.0
+
+def log(msg):
+    print(msg, flush=True)
+
 def kill(conf):
     exists = os.path.isfile(conf.kill_path)
     return exists
@@ -48,6 +54,17 @@ def ionogram_file_time(fn):
 
     return os.path.getmtime(fn)
 
+def ionogram_image_name(conf, fn):
+    with h5py.File(fn, "r") as ho:
+        if "id" not in ho.keys():
+            return None
+        t0 = float(n.copy(ho[("t0")]))
+        ch = ho["ch"][()]
+        ch = ch.decode('utf-8')
+        cid = int(n.copy(ho[("id")]))
+    return "%s/%s/lfm_ionogram-%s-%03d-%1.2f.png" % (
+        conf.output_dir, cd.unix2dirname(t0), ch, cid, t0)
+
 def plot_ionogram(conf, fn, normalize_by_frequency=True):
     fig = None
     try:
@@ -57,7 +74,7 @@ def plot_ionogram(conf, fn, normalize_by_frequency=True):
         #    print(ch)
             ch = ch.decode('utf-8')
             if not "id" in ho.keys():
-                print("id not in keys for %s" % (fn))
+                log("id not in keys for %s" % (fn))
                 return False
             cid = int(n.copy(ho[("id")]))  # ionosonde id
 
@@ -68,8 +85,8 @@ def plot_ionogram(conf, fn, normalize_by_frequency=True):
                 return True
 
             rate = float(n.copy(ho[("rate")]))
-            print("Plotting %s rate %1.2f (kHz/s) t0 %1.5f (unix)" %
-                  (fn, rate / 1e3, t0))
+            log("Plotting %s rate %1.2f (kHz/s) t0 %1.5f (unix)" %
+                (fn, rate / 1e3, t0))
             # ionogram frequency-range
             if "SNR" in ho.keys():
                 S =  n.array(ho["SNR"][()],dtype=n.float32)
@@ -137,7 +154,6 @@ def plot_ionogram(conf, fn, normalize_by_frequency=True):
             fig.tight_layout()
             fig.savefig(img_fname)
             shutil.copy2(img_fname, "/tmp/latest-lfm-%s-%s.png"%(txname,station_name))
-            sys.stdout.flush()
             return True
     finally:
         if fig is not None:
@@ -164,10 +180,11 @@ if __name__ == "__main__":
 
     if conf.realtime:
         failed_files = {}
+        last_status_print = 0.0
         while True:
             conf = cc.chirp_config(conf_path)
             if kill(conf):
-                print("kill.txt found, stopping plot_ionograms.py")
+                log("kill.txt found, stopping plot_ionograms.py")
                 sys.exit(0)
             else:
                 fl = glob.glob("%s/*/lfm*.h5" % (conf.output_dir))
@@ -175,32 +192,42 @@ if __name__ == "__main__":
                 t_now = time.time()
                 candidate_files = fl[0:(len(fl) - 2)]
                 candidate_file_set = set(candidate_files)
-                failed_files = {fn: mtime for fn, mtime in failed_files.items()
+                failed_files = {fn: state for fn, state in failed_files.items()
                                 if fn in candidate_file_set}
+                if t_now - last_status_print > STATUS_PRINT_SEC:
+                    log("plot_ionograms.py: found %d h5 files, %d candidates, %d recently failed" %
+                        (len(fl), len(candidate_files), len(failed_files)))
+                    last_status_print = t_now
                 # avoid last file to make sure we don't read and write simultaneously
                 for fn in candidate_files:
                     mtime = os.path.getmtime(fn)
-                    if failed_files.get(fn) == mtime:
+                    failed_state = failed_files.get(fn)
+                    if (failed_state is not None and
+                            failed_state["mtime"] == mtime and
+                            t_now - failed_state["failed_at"] < FAILED_RETRY_SEC):
                         continue
                     try:
                         t_file = ionogram_file_time(fn)
-                        # new enough file
-                        if t_now - t_file < 48 * 3600.0:
+                        img_fname = ionogram_image_name(conf, fn)
+                        missing_plot = img_fname is not None and not os.path.exists(img_fname)
+                        # Plot recent files, and also regenerate older files if
+                        # their PNG was deleted.
+                        if t_now - t_file < 48 * 3600.0 or missing_plot:
                             if not plot_ionogram(conf, fn):
-                                failed_files[fn] = mtime
+                                failed_files[fn] = {"mtime": mtime, "failed_at": t_now}
 
                     except:
-                        failed_files[fn] = mtime
-                        print("error with %s" % (fn))
-                        print(traceback.format_exc())
+                        failed_files[fn] = {"mtime": mtime, "failed_at": t_now}
+                        log("error with %s" % (fn))
+                        log(traceback.format_exc())
                 time.sleep(10)
     else:
         fl = glob.glob("%s/*/lfm*.h5" % (conf.output_dir))
         for fn in fl:
             try:
-                print("plotting %s" % (fn))
+                log("plotting %s" % (fn))
                 plot_ionogram(conf, fn)
                 conf = cc.chirp_config(conf_path)
             except:
-                print("error with %s" % (fn))
-                print(traceback.format_exc())
+                log("error with %s" % (fn))
+                log(traceback.format_exc())
