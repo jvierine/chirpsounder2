@@ -224,11 +224,9 @@ foreach ($cardsByTab as $cards) {
 <meta charset="UTF-8">
 <title><?php echo htmlspecialchars($dashboardTitle, ENT_QUOTES, 'UTF-8'); ?></title>
 <meta http-equiv="refresh" content="<?php echo (int)$refreshSeconds; ?>">
-<link rel="icon" href="favicon.ico?v=3" sizes="any">
-<link rel="shortcut icon" href="favicon.ico?v=3">
-<link rel="icon" type="image/png" sizes="132x132" href="uit-logo.png?v=3">
-<link rel="icon" type="image/svg+xml" href="favicon.svg?v=3">
-<link rel="apple-touch-icon" href="uit-logo.png?v=3">
+<link rel="icon" type="image/svg+xml" href="favicon.svg?v=4">
+<link rel="shortcut icon" type="image/svg+xml" href="favicon.svg?v=4">
+<link rel="apple-touch-icon" href="uit-logo.png?v=4">
 <style>
     body {
         margin: 0;
