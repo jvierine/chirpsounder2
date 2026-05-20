@@ -397,6 +397,42 @@ foreach ($cardsByTab as $cards) {
         color: #334155;
     }
 
+    .page-info {
+        max-width: 1100px;
+        margin: 10px auto 32px;
+        padding: 0 16px;
+        color: #334155;
+        line-height: 1.5;
+    }
+
+    .page-info section {
+        border-top: 1px solid #e2e8f0;
+        padding: 18px 0 0;
+        margin-top: 16px;
+    }
+
+    .page-info h2 {
+        margin: 0 0 8px;
+        font-size: 17px;
+        color: #0f172a;
+    }
+
+    .page-info p {
+        margin: 0 0 10px;
+    }
+
+    .page-info kbd {
+        display: inline-block;
+        padding: 1px 6px;
+        border: 1px solid #cbd5e1;
+        border-bottom-width: 2px;
+        border-radius: 5px;
+        background: #f8fafc;
+        color: #0f172a;
+        font-family: monospace;
+        font-size: 13px;
+    }
+
     @media (max-width: 850px) {
         .menu-bar {
             grid-template-columns: 1fr;
@@ -492,6 +528,34 @@ setInterval(updateUtcTime, 1000);
 
 <?php endif; ?>
 
+<footer class="page-info">
+    <section>
+        <h2>Keyboard navigation</h2>
+        <p>
+            Use <kbd>Left</kbd> and <kbd>Right</kbd> to switch between receiver tabs.
+            Press <kbd>Enter</kbd> to open the first plot in the active tab.
+            When a plot is open, <kbd>Left</kbd> and <kbd>Right</kbd> move between plots
+            in that tab, and <kbd>Esc</kbd> closes the plot.
+        </p>
+    </section>
+    <section>
+        <h2>About this system</h2>
+        <p>
+            This monitor shows quick-look products from the Tromsø Geophysical
+            Observatory oblique ionogram system. The network is operated by
+            Tromsø Geophysical Observatory and was developed by Juha Vierinen
+            and Marieluise Schmitt Gran. The principal investigators are Juha
+            Vierinen and Marieluise Schmitt Gran.
+        </p>
+        <p>
+            Current observing stations are contributed by UiT The Arctic
+            University of Norway and UNIS, with station contributions from
+            Mikko Syrjäsuo and Lisa Baddeley. These plots are operational
+            monitoring products and should be interpreted as quick-look data.
+        </p>
+    </section>
+</footer>
+
 <div class="overlay" id="overlay">
     <img id="overlayImg" src="" alt="Expanded plot">
 </div>
@@ -522,6 +586,25 @@ document.querySelectorAll('.tab-button').forEach(button => {
 const savedTab = localStorage.getItem(activeTabStorageKey);
 if (savedTab !== null) {
     activateTab(savedTab);
+}
+
+function tabButtons() {
+    return Array.from(document.querySelectorAll('.tab-button'));
+}
+
+function activeTabIndex() {
+    return tabButtons().findIndex(button => button.classList.contains('active'));
+}
+
+function activateAdjacentTab(step) {
+    const buttons = tabButtons();
+    if (buttons.length === 0) return;
+
+    let index = activeTabIndex();
+    if (index < 0) index = 0;
+
+    const nextIndex = (index + step + buttons.length) % buttons.length;
+    activateTab(buttons[nextIndex].dataset.tab);
 }
 
 const overlay = document.getElementById('overlay');
@@ -564,6 +647,13 @@ function navigateOverlay(step) {
     openOverlayFromImage(images[nextIndex]);
 }
 
+function openFirstImageInActiveTab() {
+    const images = activePanelImages();
+    if (images.length > 0) {
+        openOverlayFromImage(images[0]);
+    }
+}
+
 document.querySelectorAll('img.dashboard-image').forEach(img => {
     img.addEventListener('click', event => {
         event.preventDefault();
@@ -578,12 +668,28 @@ overlay.addEventListener('click', event => {
 });
 
 document.addEventListener('keydown', event => {
+    const overlayIsOpen = overlay.classList.contains('active');
+
     if (event.key === 'Escape') {
+        event.preventDefault();
         closeOverlay();
     } else if (event.key === 'ArrowLeft') {
-        navigateOverlay(-1);
+        event.preventDefault();
+        if (overlayIsOpen) {
+            navigateOverlay(-1);
+        } else {
+            activateAdjacentTab(-1);
+        }
     } else if (event.key === 'ArrowRight') {
-        navigateOverlay(1);
+        event.preventDefault();
+        if (overlayIsOpen) {
+            navigateOverlay(1);
+        } else {
+            activateAdjacentTab(1);
+        }
+    } else if (event.key === 'Enter' && !overlayIsOpen) {
+        event.preventDefault();
+        openFirstImageInActiveTab();
     }
 });
 </script>
