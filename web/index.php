@@ -224,6 +224,8 @@ foreach ($cardsByTab as $cards) {
 <meta charset="UTF-8">
 <title><?php echo htmlspecialchars($dashboardTitle, ENT_QUOTES, 'UTF-8'); ?></title>
 <meta http-equiv="refresh" content="<?php echo (int)$refreshSeconds; ?>">
+<link rel="icon" type="image/png" href="uit-logo.png">
+<link rel="apple-touch-icon" href="uit-logo.png">
 <style>
     body {
         margin: 0;
