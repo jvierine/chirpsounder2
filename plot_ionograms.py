@@ -6,14 +6,10 @@ import os
 import os.path
 import sys
 os.environ.setdefault("MPLBACKEND", "Agg")
-import matplotlib
-matplotlib.use('Agg')
 import chirp_det as cd
 import chirp_config as cc
-import scipy.constants as c
 import h5py
 import glob
-import matplotlib.pyplot as plt
 import numpy as n
 import psutil
 import gc
@@ -21,6 +17,8 @@ import shutil
 import ctypes
 import datetime as dt
 import subprocess
+plt = None
+c = None
 p = psutil.Process()
 # Set I/O priority to idle (lowest) to avoid interrupting realtime processes
 p.ionice(psutil.IOPRIO_CLASS_IDLE)
@@ -196,6 +194,17 @@ def ionogram_file_time(fn):
     return os.path.getmtime(fn)
 
 def ionogram_image_name(conf, fn):
+    m = re.search(
+        r".*/lfm_ionogram-.*-(ch[^-]+)-(\d+)-(1\d+(?:\.\d+)?).h5$",
+        fn,
+    )
+    if m:
+        ch = m.group(1)
+        cid = int(m.group(2))
+        t0 = float(m.group(3))
+        return "%s/%s/lfm_ionogram-%s-%03d-%1.2f.png" % (
+            conf.output_dir, cd.unix2dirname(t0), ch, cid, t0)
+
     with h5py.File(fn, "r") as ho:
         if "id" not in ho.keys():
             return None
@@ -205,6 +214,16 @@ def ionogram_image_name(conf, fn):
         cid = int(n.copy(ho[("id")]))
     return "%s/%s/lfm_ionogram-%s-%03d-%1.2f.png" % (
         conf.output_dir, cd.unix2dirname(t0), ch, cid, t0)
+
+def ensure_plotting_imports():
+    global plt, c
+    if plt is None:
+        import matplotlib
+        matplotlib.use('Agg')
+        import matplotlib.pyplot as mpl_plt
+        import scipy.constants as scipy_constants
+        plt = mpl_plt
+        c = scipy_constants
 
 def realtime_date_dirs(output_dir, t_now, age_sec):
     start = dt.datetime.utcfromtimestamp(t_now - age_sec - 24 * 3600.0)
@@ -227,6 +246,7 @@ def realtime_ionogram_files(output_dir, t_now, age_sec):
     return files
 
 def plot_ionogram(conf, fn, normalize_by_frequency=True):
+    ensure_plotting_imports()
     fig = None
     try:
         with h5py.File(fn, "r") as ho:
