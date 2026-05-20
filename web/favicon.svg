@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="12" fill="#ffffff"/>
+  <path d="M9 11h46v12H9z" fill="#c8102e"/>
+  <path d="M9 26h14v27H9zM27 26h10v27H27zM41 26h14v27H41z" fill="#111827"/>
+  <text x="32" y="21" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="700" fill="#ffffff">UiT</text>
+</svg>
