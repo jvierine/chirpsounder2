@@ -10,8 +10,10 @@ the `lfm.downconversion_filter` setting. The available options are:
 
 The figures below were generated for `decimation=625`, `filter_len=2`, and
 `cic_stages=2`, matching the current Marieluise-style receiver configuration.
-The x-axis is normalized to the output Nyquist frequency, so `1.0` corresponds
-to `sample_rate / (2 * decimation)`.
+The frequency axis is shown in kHz. For a 25 MHz input sample rate and
+`decimation=625`, the output sample rate is 40 kHz and the output Nyquist
+frequency is 20 kHz. The wideband response plot extends to 1 MHz to show the
+repeated sidelobe structure well beyond the output passband.
 
 ![Downconversion filter responses](figures/downconversion_filter_response_dec625_cic2.svg)
 
@@ -70,19 +72,35 @@ is not amplitude-flat unless a compensation filter is added later.
 
 ## Computational Cost
 
-For one output sample:
+For the current `decimation=625`, `filter_len=2`, `cic_stages=2`
+configuration, the approximate per-output-sample arithmetic costs are:
 
-- `fir` uses roughly `filter_len * decimation` complex multiply-accumulates.
-  It has the best frequency response, but it is the most CPU intensive.
-- `boxcar` uses roughly `decimation` complex additions and one normalization.
-  It is fast, but has poor sidelobe suppression and noticeable passband droop.
-- `cic` uses integrator updates at input rate and comb updates at output rate.
-  It is usually cheaper than the FIR and improves sidelobes relative to the
-  boxcar, at the cost of additional passband droop.
+- `boxcar`: 625 complex input samples are mixed and accumulated for each
+  output sample. This is the reference cost, `1.0x`.
+- `fir`: 1250 complex input samples are mixed, weighted, and accumulated for
+  each output sample. This is `filter_len * decimation / decimation = 2.0x`
+  the boxcar accumulation length. Because these are weighted
+  multiply-accumulates, the real CPU cost can be more than exactly `2.0x`,
+  but the tap count is `2.0x`.
+- `cic`: with two stages, there are about `2 * 625 = 1250` complex integrator
+  updates plus two comb updates per output sample. This is
+  `(cic_stages * decimation + cic_stages) / decimation = 2.003x` the boxcar
+  accumulation count.
+
+Thus, in rough operation-count terms for this configuration, the FIR is
+`2.0x` the boxcar and the two-stage CIC is `2.003x` the boxcar. The difference
+is that the CIC operations are simple state updates, whereas the FIR performs a
+long weighted sum and therefore usually costs more per operation. The FIR has
+the best frequency response, the boxcar is the simplest, and the CIC is a
+streaming-friendly compromise with stronger passband droop.
 
 The plotting code is in `tools/plot_downconversion_filter_responses.py`.
 Regenerate the figures with:
 
 ```sh
-python3 tools/plot_downconversion_filter_responses.py --decimation 625 --cic-stages 2
+python3 tools/plot_downconversion_filter_responses.py \
+  --decimation 625 \
+  --cic-stages 2 \
+  --sample-rate 25e6 \
+  --max-frequency-khz 1000
 ```

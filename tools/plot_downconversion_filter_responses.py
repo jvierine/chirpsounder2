@@ -73,14 +73,14 @@ def db(amplitude: float, floor: float = -120.0) -> float:
 def responses(decimation: int,
               filter_len: int,
               cic_stages: int,
+              sample_rate: float,
               x_values: Iterable[float]) -> List[Series]:
     taps = fir_taps(decimation, filter_len)
     fir = []
     boxcar = []
     cic = []
-    for x in x_values:
-        # x is normalized to output Nyquist, so x=1 means f=1/(2*dec).
-        freq = x / (2.0 * float(decimation))
+    for freq_khz in x_values:
+        freq = freq_khz * 1e3 / sample_rate
         b = boxcar_amplitude(decimation, freq)
         fir.append(fir_response_db(taps, freq))
         boxcar.append(db(b))
@@ -192,15 +192,31 @@ def main() -> None:
     parser.add_argument("--decimation", type=int, default=625)
     parser.add_argument("--filter-len", type=int, default=2)
     parser.add_argument("--cic-stages", type=int, default=2)
+    parser.add_argument("--sample-rate", type=float, default=25e6)
+    parser.add_argument("--max-frequency-khz", type=float, default=1000.0)
+    parser.add_argument("--passband-frequency-khz", type=float, default=None)
     parser.add_argument("--output-dir", default="memos/figures")
     args = parser.parse_args()
 
     os.makedirs(args.output_dir, exist_ok=True)
 
-    overview_x = [4.0 * i / 900.0 for i in range(901)]
-    passband_x = [1.0 * i / 500.0 for i in range(501)]
-    overview = responses(args.decimation, args.filter_len, args.cic_stages, overview_x)
-    passband = responses(args.decimation, args.filter_len, args.cic_stages, passband_x)
+    output_nyquist_khz = args.sample_rate / (2.0 * args.decimation) / 1e3
+    passband_max_khz = args.passband_frequency_khz
+    if passband_max_khz is None:
+        passband_max_khz = output_nyquist_khz
+
+    overview_x = [args.max_frequency_khz * i / 1200.0 for i in range(1201)]
+    passband_x = [passband_max_khz * i / 600.0 for i in range(601)]
+    overview = responses(args.decimation,
+                         args.filter_len,
+                         args.cic_stages,
+                         args.sample_rate,
+                         overview_x)
+    passband = responses(args.decimation,
+                         args.filter_len,
+                         args.cic_stages,
+                         args.sample_rate,
+                         passband_x)
 
     suffix = "dec%d_cic%d" % (args.decimation, args.cic_stages)
     overview_path = os.path.join(
@@ -215,7 +231,7 @@ def main() -> None:
               overview,
               -100.0,
               2.0,
-              "Frequency, normalized to output Nyquist",
+              "Frequency (kHz)",
               "Amplitude response (dB)")
     write_svg(passband_path,
               "Passband Droop, decimation=%d" % args.decimation,
@@ -223,7 +239,7 @@ def main() -> None:
               passband,
               -10.0,
               1.0,
-              "Frequency, normalized to output Nyquist",
+              "Frequency (kHz)",
               "Amplitude response (dB)")
 
     print("wrote %s" % overview_path)
