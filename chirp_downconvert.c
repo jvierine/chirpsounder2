@@ -130,6 +130,25 @@ void test(complex_float *sintab, int n)
     printf("%d %f %f\n",i,sintab[i].re,sintab[i].im);
   }
 }
+
+int downconvert_compiled_with_avx(void)
+{
+#ifdef __AVX__
+  return 1;
+#else
+  return 0;
+#endif
+}
+
+int downconvert_compiled_with_sse(void)
+{
+#ifdef __SSE__
+  return 1;
+#else
+  return 0;
+#endif
+}
+
 struct arg_struct {
   double chirpt;
   double dt;

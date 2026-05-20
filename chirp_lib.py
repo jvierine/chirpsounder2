@@ -7,6 +7,8 @@ import scipy.signal as ss
 libdc = ctypes.cdll.LoadLibrary("./libdownconvert.so")
 libdc.test.argtypes = [ctypeslib.ndpointer(
     n.complex64, ndim=1, flags='C'), ctypes.c_int]
+libdc.downconvert_compiled_with_avx.restype = ctypes.c_int
+libdc.downconvert_compiled_with_sse.restype = ctypes.c_int
 libdc.consume.argtypes = [ctypes.c_double,
                           ctypes.c_double,
                           ctypeslib.ndpointer(n.complex64, ndim=1, flags='C'),
@@ -33,6 +35,10 @@ libdc.consume_cic.argtypes = [ctypes.c_double,
                               ctypeslib.ndpointer(n.complex64, ndim=1, flags='C'),
                               ctypeslib.ndpointer(n.complex64, ndim=1, flags='C'),
                               ctypes.c_int]
+
+print("libdownconvert SIMD: AVX=%s SSE=%s" %
+      (bool(libdc.downconvert_compiled_with_avx()),
+       bool(libdc.downconvert_compiled_with_sse())))
 
 
 class chirp_downconvert:
