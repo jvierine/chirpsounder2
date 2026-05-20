@@ -25,6 +25,7 @@ p.nice(19)
 
 FAILED_RETRY_SEC = 300.0
 STATUS_PRINT_SEC = 60.0
+FULL_RESCAN_SEC = 3600.0
 
 def log(msg):
     print(msg, flush=True)
@@ -181,6 +182,7 @@ if __name__ == "__main__":
     if conf.realtime:
         failed_files = {}
         last_status_print = 0.0
+        last_full_rescan = 0.0
         while True:
             conf = cc.chirp_config(conf_path)
             if kill(conf):
@@ -190,13 +192,25 @@ if __name__ == "__main__":
                 fl = glob.glob("%s/*/lfm*.h5" % (conf.output_dir))
                 fl.sort()
                 t_now = time.time()
-                candidate_files = fl[0:(len(fl) - 2)]
+                if t_now - last_full_rescan > FULL_RESCAN_SEC:
+                    candidate_files = fl[0:(len(fl) - 2)]
+                    scan_mode = "full"
+                    last_full_rescan = t_now
+                else:
+                    candidate_files = []
+                    for fn in fl[0:(len(fl) - 2)]:
+                        try:
+                            if t_now - ionogram_file_time(fn) < 48 * 3600.0:
+                                candidate_files.append(fn)
+                        except:
+                            candidate_files.append(fn)
+                    scan_mode = "recent"
                 candidate_file_set = set(candidate_files)
                 failed_files = {fn: state for fn, state in failed_files.items()
                                 if fn in candidate_file_set}
                 if t_now - last_status_print > STATUS_PRINT_SEC:
-                    log("plot_ionograms.py: found %d h5 files, %d candidates, %d recently failed" %
-                        (len(fl), len(candidate_files), len(failed_files)))
+                    log("plot_ionograms.py: output_dir=%s, found %d h5 files, %d %s candidates, %d recently failed" %
+                        (conf.output_dir, len(fl), len(candidate_files), scan_mode, len(failed_files)))
                     last_status_print = t_now
                 # avoid last file to make sure we don't read and write simultaneously
                 for fn in candidate_files:
@@ -207,14 +221,11 @@ if __name__ == "__main__":
                             t_now - failed_state["failed_at"] < FAILED_RETRY_SEC):
                         continue
                     try:
-                        t_file = ionogram_file_time(fn)
-                        img_fname = ionogram_image_name(conf, fn)
-                        missing_plot = img_fname is not None and not os.path.exists(img_fname)
-                        # Plot recent files, and also regenerate older files if
-                        # their PNG was deleted.
-                        if t_now - t_file < 48 * 3600.0 or missing_plot:
-                            if not plot_ionogram(conf, fn):
-                                failed_files[fn] = {"mtime": mtime, "failed_at": t_now}
+                        # plot_ionogram() cheaply skips files whose PNG already
+                        # exists. Full rescans therefore regenerate deleted PNGs
+                        # without needing separate age logic here.
+                        if not plot_ionogram(conf, fn):
+                            failed_files[fn] = {"mtime": mtime, "failed_at": t_now}
 
                     except:
                         failed_files[fn] = {"mtime": mtime, "failed_at": t_now}
