@@ -20,6 +20,7 @@ import gc
 import shutil
 import ctypes
 import datetime as dt
+import subprocess
 p = psutil.Process()
 # Set I/O priority to idle (lowest) to avoid interrupting realtime processes
 p.ionice(psutil.IOPRIO_CLASS_IDLE)
@@ -322,6 +323,22 @@ def plot_ionogram(conf, fn, normalize_by_frequency=True):
  #       os.system("rsync -av %s %s/latest_%s.png" %
   #                (img_fname, conf.copy_destination, conf.station_name))
 
+def plot_ionogram_subprocess(conf_path, fn):
+    """Plot one ionogram in a short-lived child process.
+
+    This isolates matplotlib and system-library leaks seen on older Linux
+    installations from the long-running realtime scanner.
+    """
+    cmd = [
+        sys.executable,
+        os.path.abspath(__file__),
+        "--config",
+        conf_path,
+        "--plot-file",
+        fn,
+    ]
+    return subprocess.run(cmd).returncode == 0
+
 
 if __name__ == "__main__":
     import argparse
@@ -332,10 +349,27 @@ if __name__ == "__main__":
         default="examples/marieluise/tgo.ini",
         help="Path to configuration file"
     )
+    parser.add_argument(
+        "--plot-file",
+        type=str,
+        default=None,
+        help="Plot a single ionogram file and exit"
+    )
+    parser.add_argument(
+        "--plot-in-process",
+        action="store_true",
+        help="In realtime mode, plot in this process instead of a child process"
+    )
     args = parser.parse_args()
     conf_path = args.config
     config_cache = PlotConfigCache(conf_path)
     conf = config_cache.get()
+
+    if args.plot_file is not None:
+        ok = plot_ionogram(conf, args.plot_file)
+        gc.collect()
+        trim_process_memory()
+        sys.exit(0 if ok else 1)
 
     if conf.realtime:
         failed_files = {}
@@ -402,7 +436,11 @@ if __name__ == "__main__":
                         # plot_ionogram() cheaply skips files whose PNG already
                         # exists. In realtime mode, only files newer than
                         # REALTIME_PLOT_AGE_SEC are considered.
-                        if not plot_ionogram(conf, fn):
+                        if args.plot_in_process:
+                            plot_ok = plot_ionogram(conf, fn)
+                        else:
+                            plot_ok = plot_ionogram_subprocess(conf_path, fn)
+                        if not plot_ok:
                             failed_files[fn] = {"mtime": mtime, "failed_at": t_now}
                         sample_memory_after_ionogram(memory_monitor, fn)
 
