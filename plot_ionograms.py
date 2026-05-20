@@ -19,6 +19,7 @@ import psutil
 import gc
 import shutil
 import ctypes
+import datetime as dt
 p = psutil.Process()
 # Set I/O priority to idle (lowest) to avoid interrupting realtime processes
 p.ionice(psutil.IOPRIO_CLASS_IDLE)
@@ -63,8 +64,11 @@ class PlotConfigCache:
     def get(self):
         mtime_key = config_mtime_key(self.conf_path)
         if self.conf is None or mtime_key != self.mtime_key:
+            rss_before = current_rss_mb()
             self.conf = load_plot_config(self.conf_path)
             self.mtime_key = mtime_key
+            log("plot_ionograms.py: reloaded config, rss %.1f -> %.1f MB" %
+                (rss_before, current_rss_mb()))
         return self.conf
 
 class MemoryGrowthMonitor:
@@ -199,6 +203,26 @@ def ionogram_image_name(conf, fn):
     return "%s/%s/lfm_ionogram-%s-%03d-%1.2f.png" % (
         conf.output_dir, cd.unix2dirname(t0), ch, cid, t0)
 
+def realtime_date_dirs(output_dir, t_now, age_sec):
+    start = dt.datetime.utcfromtimestamp(t_now - age_sec - 24 * 3600.0)
+    stop = dt.datetime.utcfromtimestamp(t_now + 24 * 3600.0)
+    day = start.date()
+    stop_day = stop.date()
+    dirs = []
+    while day <= stop_day:
+        dirname = os.path.join(output_dir, day.strftime("%Y-%m-%d"))
+        if os.path.isdir(dirname):
+            dirs.append(dirname)
+        day += dt.timedelta(days=1)
+    return dirs
+
+def realtime_ionogram_files(output_dir, t_now, age_sec):
+    files = []
+    for dirname in realtime_date_dirs(output_dir, t_now, age_sec):
+        files.extend(glob.glob("%s/lfm*.h5" % (dirname)))
+    files.sort()
+    return files
+
 def plot_ionogram(conf, fn, normalize_by_frequency=True):
     fig = None
     try:
@@ -323,9 +347,9 @@ if __name__ == "__main__":
                 log("kill.txt found, stopping plot_ionograms.py")
                 sys.exit(0)
             else:
-                fl = glob.glob("%s/*/lfm*.h5" % (conf.output_dir))
-                fl.sort()
                 t_now = time.time()
+                fl = realtime_ionogram_files(
+                    conf.output_dir, t_now, REALTIME_PLOT_AGE_SEC)
                 candidate_records = []
                 missing_records = []
                 for fn in fl[0:(len(fl) - 2)]:
@@ -353,13 +377,14 @@ if __name__ == "__main__":
                 failed_files = {fn: state for fn, state in failed_files.items()
                                 if fn in candidate_file_set}
                 if t_now - last_status_print > STATUS_PRINT_SEC:
-                    log("plot_ionograms.py: output_dir=%s, found %d h5 files, %d candidates newer than %.1f h, %d missing PNGs, %d recently failed, %s" %
+                    log("plot_ionograms.py: output_dir=%s, scanned %d recent h5 files, %d candidates newer than %.1f h, %d missing PNGs, %d recently failed, current rss %.1f MB, %s" %
                         (conf.output_dir,
                          len(fl),
                          len(candidate_files),
                          REALTIME_PLOT_AGE_SEC / 3600.0,
                          len(missing_files),
                          len(failed_files),
+                         current_rss_mb(),
                          memory_monitor.format_stats(memory_monitor.last_stats)))
                     last_status_print = t_now
                 # avoid last file to make sure we don't read and write simultaneously.
@@ -384,6 +409,8 @@ if __name__ == "__main__":
                         log("error with %s" % (fn))
                         log(traceback.format_exc())
                         sample_memory_after_ionogram(memory_monitor, fn)
+                gc.collect()
+                trim_process_memory()
                 time.sleep(10)
     else:
         memory_monitor = MemoryGrowthMonitor()
