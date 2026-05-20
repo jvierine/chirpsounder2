@@ -65,6 +65,7 @@ class chirp_config:
             "downconversion_filter": '"fir"',
             "cic_stages": "2",
             "n_downconversion_threads": "4"            ,
+            "downconversion_block_samples": "4000",
             "min_freq": "0",
             "max_freq": "25e6",
             "manual_freq_extent": "false",
@@ -192,6 +193,8 @@ class chirp_config:
 
         self.n_downconversion_threads = json.loads(
             cf["lfm"]["n_downconversion_threads"])
+        self.downconversion_block_samples = int(json.loads(
+            cf["lfm"]["downconversion_block_samples"]))
         self.max_range_extent = json.loads(cf["lfm"]["max_range_extent"])
 
         self.max_range = json.loads(cf["lfm"]["max_range"])

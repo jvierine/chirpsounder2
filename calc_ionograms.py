@@ -195,7 +195,7 @@ def chirp_downconvert(conf,
     if realtime_req == None:
         realtime_req = dur
     idx = 0
-    step = 1000
+    step = conf.downconversion_block_samples
     n_windows = int(dur * sr / (step * dec)) + 1
 
     cdc = cl.chirp_downconvert(f0=-cf,

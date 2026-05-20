@@ -19,10 +19,14 @@ typedef struct complex_double_str {
 
 static inline int phase_table_index(double chirpt, int tabl, double f0, double rate)
 {
-  int64_t idx = (int64_t)(tabl*(f0+0.5*rate*chirpt)*chirpt) % tabl;
+  int64_t idx = (int64_t)(tabl*(f0+0.5*rate*chirpt)*chirpt);
 
+  if((tabl & (tabl - 1)) == 0)
+    return (int)(idx & (int64_t)(tabl - 1));
+
+  idx %= tabl;
   if(idx < 0)
-    idx = tabl+idx;
+    idx += tabl;
 
   return (int)idx;
 }
