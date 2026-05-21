@@ -6,16 +6,24 @@ import glob
 import os
 import numpy as n
 import scipy.constants as sc
-import psutil
 #from datetime import datetime, timedelta
 from datetime import datetime, timedelta, timezone
 import chirp_config as cc
 import sys
 #plt.style.use('dark_background')
-p = psutil.Process()
-# Set I/O priority to idle (lowest) to avoid interrupting realtime processes
-p.ionice(psutil.IOPRIO_CLASS_IDLE)
-p.nice(19)
+try:
+    import psutil
+except ImportError:
+    psutil = None
+
+
+def set_low_priority():
+    if psutil is None:
+        return
+    p = psutil.Process()
+    # Set I/O priority to idle (lowest) to avoid interrupting realtime processes.
+    p.ionice(psutil.IOPRIO_CLASS_IDLE)
+    p.nice(19)
 
 labels={100:"US (ROTHR)",125:"Australia (JORN)"}
 
@@ -24,9 +32,32 @@ def parse_utc_day(day):
     return datetime.strptime(day, "%Y-%m-%d").replace(tzinfo=timezone.utc)
 
 
-def detection_files(data_dir, max_files=None):
-    files = glob.glob("%s/2*/cdetections*.h5" % (data_dir))
-    files.sort()
+def parse_utc_datetime(value):
+    if len(value) == 10:
+        return parse_utc_day(value)
+    if value.endswith("Z"):
+        value = value[:-1] + "+00:00"
+    parsed = datetime.fromisoformat(value)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def detection_files(data_dir, max_files=None, station_name=None):
+    if station_name:
+        patterns = [
+            "%s/cdetections-%s-*.h5" % (data_dir, station_name),
+            "%s/2*/cdetections-%s-*.h5" % (data_dir, station_name),
+        ]
+    else:
+        patterns = [
+            "%s/cdetections*.h5" % (data_dir),
+            "%s/2*/cdetections*.h5" % (data_dir),
+        ]
+    files = []
+    for pattern in patterns:
+        files += glob.glob(pattern)
+    files = sorted(set(files))
     if max_files is not None:
         files = files[-max_files:]
     return files
@@ -63,6 +94,26 @@ def detection_filter_indices(times, min_detections=5, max_dt=0.033):
     return n.concatenate(keep)
 
 
+def detection_filter_indices_by_floor_time_and_rate(
+        dfs, min_detections=5, max_dt=0.033):
+    seconds = n.floor(dfs[:, 0]).astype(n.int64)
+    rates = n.round(dfs[:, 3]).astype(n.int64)
+    keys = n.column_stack((seconds, rates))
+    _, inverse = n.unique(keys, axis=0, return_inverse=True)
+    keep = []
+    for group in n.unique(inverse):
+        idx0 = n.where(inverse == group)[0]
+        if len(idx0) < min_detections:
+            continue
+        median_time = n.median(dfs[idx0, 0])
+        idx = idx0[n.abs(dfs[idx0, 0] - median_time) <= max_dt]
+        if len(idx) >= min_detections:
+            keep.append(idx)
+    if len(keep) == 0:
+        return n.array([], dtype=int)
+    return n.concatenate(keep)
+
+
 def needs_daily_plot(pfname, now=None):
     if now is None:
         import time
@@ -71,6 +122,81 @@ def needs_daily_plot(pfname, now=None):
         return True
     day_start = n.floor(now/24/3600)*24*3600
     return os.path.getmtime(pfname) < day_start
+
+
+def format_time_span(start_t, n_hours, title_span=None):
+    day_start = datetime.fromtimestamp(start_t, timezone.utc)
+    day_end = datetime.fromtimestamp(start_t+n_hours*3600, timezone.utc)
+    if title_span is not None:
+        time_span_str = title_span
+    elif n_hours <= 24:
+        time_span_str = day_start.strftime("%Y-%m-%d UTC")
+    else:
+        time_span_str = "%s to %s UTC" % (
+            day_start.strftime("%Y-%m-%d"),
+            day_end.strftime("%Y-%m-%d"),
+        )
+    return day_start, day_end, time_span_str
+
+
+def format_time_axis(ax, n_hours):
+    if n_hours <= 24:
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+    else:
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d\n%H:%M"))
+    plt.xticks(rotation=45)
+
+
+def plot_chirp_time(dfs, start_t, n_hours=24, min_detections=5,
+                    pfname="/tmp/chirp-times.png", station_name="TGO",
+                    title_span=None):
+    gidx = n.where((dfs[:, 0] > start_t) & (dfs[:, 0] < (start_t+n_hours*3600)))[0]
+    dfs = dfs[gidx, :]
+    if dfs.shape[0] == 0:
+        print("no detections in requested window for %s" % (pfname))
+        return
+
+    print("filtering")
+    gidx = detection_filter_indices_by_floor_time_and_rate(
+        dfs, min_detections=min_detections, max_dt=0.033)
+    if len(gidx) == 0:
+        print("no soundings with at least %d detections for %s" % (min_detections, pfname))
+        return
+
+    times = pd.to_datetime(dfs[gidx, 0], unit="s", utc=True)
+    chirp_ms = (dfs[gidx, 0] - n.floor(dfs[gidx, 0])) * 1e3
+
+    fig, ax = plt.subplots(1, 1, figsize=(12, 7), constrained_layout=True)
+    sc1 = ax.scatter(
+        times,
+        chirp_ms,
+        c=dfs[gidx, 2] / 1e6,
+        s=0.5,
+        alpha=0.6,
+        cmap="rainbow",
+        vmin=5,
+        vmax=25,
+    )
+    cb1 = plt.colorbar(sc1, ax=ax)
+    cb1.set_label("Frequency (MHz)", fontsize=16)
+    cb1.ax.tick_params(labelsize=14)
+
+    day_start, day_end, time_span_str = format_time_span(start_t, n_hours, title_span)
+    ax.set_xlim(day_start, day_end)
+    ax.set_ylim(0, 1000)
+    ax.set_ylabel(r"$t_0-\lfloor t_0\rfloor$ (ms)", fontsize=16)
+    ax.set_xlabel("Time (UTC)", fontsize=16)
+    ax.set_title(
+        "Chirp detections -> %s %s, >= %d detections per floor(chirp_time), chirp-rate"
+        % (station_name, time_span_str, min_detections),
+        fontsize=18,
+    )
+    ax.tick_params(axis='both', labelsize=14)
+    ax.grid(True, alpha=0.25)
+    format_time_axis(ax, n_hours)
+    plt.savefig(pfname)
+    plt.close()
+    print("saved %s" % (pfname))
 
 
 def plot_propagation_range(dfs, start_t, n_hours=24,min_detections=5, pfname="/tmp/dets.png", station_name="TGO", title_span=None):
@@ -164,22 +290,12 @@ def plot_propagation_range(dfs, start_t, n_hours=24,min_detections=5, pfname="/t
     
     # end of current day (next midnight)
 #    day_end = day_start + timedelta(days=1)
-    day_start = datetime.fromtimestamp(start_t, timezone.utc)
-    day_end = datetime.fromtimestamp(start_t+n_hours*3600, timezone.utc)
+    day_start, day_end, time_span_str = format_time_span(start_t, n_hours, title_span)
     # apply limits
     ax[0].set_xlim(day_start, day_end)
     ax[1].set_xlim(day_start, day_end)
     
     # label
-    if title_span is not None:
-        time_span_str = title_span
-    elif n_hours <= 24:
-        time_span_str = day_start.strftime("%Y-%m-%d UTC")
-    else:
-        time_span_str = "%s to %s UTC" % (
-            day_start.strftime("%Y-%m-%d"),
-            day_end.strftime("%Y-%m-%d"),
-        )
     ax[0].set_title(f"ROTHR & JORN -> %s {time_span_str}"%(station_name), fontsize=20)
     
 #    times = pd.to_datetime(dfs[gidx,0], unit="s", utc=True)
@@ -192,11 +308,7 @@ def plot_propagation_range(dfs, start_t, n_hours=24,min_detections=5, pfname="/t
    # start_str = day_start.strftime("%Y-%m-%d %H:%M:%S UTC")
   #  ax[0].set_title("ROTHR & JORN %s"%(day_start))
     
-    if n_hours <= 24:
-        ax[1].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
-    else:
-        ax[1].xaxis.set_major_formatter(mdates.DateFormatter("%m-%d\n%H:%M"))
-    plt.xticks(rotation=45)
+    format_time_axis(ax[1], n_hours)
 
     fig.align_ylabels(ax)
 #    plt.show()
@@ -210,6 +322,7 @@ def plot_propagation_range(dfs, start_t, n_hours=24,min_detections=5, pfname="/t
 
 
 if __name__ == "__main__":
+    set_low_priority()
     import argparse
     parser = argparse.ArgumentParser(description="Plot range-time-frequency")
     parser.add_argument(
@@ -234,7 +347,25 @@ if __name__ == "__main__":
         "--end",
         type=str,
         default=None,
-        help="Last UTC day to include in the same plot, formatted YYYY-MM-DD. Inclusive. Defaults to --start."
+        help="End UTC day/datetime. YYYY-MM-DD is inclusive; datetime is exclusive. Defaults to --start day."
+    )
+    parser.add_argument(
+        "--plot-mode",
+        choices=("range", "chirp-time"),
+        default="range",
+        help="Use the normal virtual-range plot or chirp_time fraction on the y-axis."
+    )
+    parser.add_argument(
+        "--min-detections",
+        type=int,
+        default=5,
+        help="Minimum detections per sounding/group."
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        help="Output plot filename. Defaults to /tmp/latest-...png."
     )
     args = parser.parse_args()
     if args.end is not None and args.start is None:
@@ -244,35 +375,50 @@ if __name__ == "__main__":
     station_name = conf.station_name
 
     if args.start is not None:
-        start_day = parse_utc_day(args.start)
-        end_day = parse_utc_day(args.end or args.start)
-        if end_day < start_day:
-            raise ValueError("--end must be on or after --start")
+        start_time = parse_utc_datetime(args.start)
+        if args.end is None:
+            end_time = start_time + timedelta(days=1)
+            title_span = start_time.strftime("%Y-%m-%d UTC")
+            output_span = start_time.strftime("%Y-%m-%d")
+        else:
+            end_time = parse_utc_datetime(args.end)
+            if len(args.end) == 10:
+                end_time = end_time + timedelta(days=1)
+            title_span = "%s to %s UTC" % (
+                start_time.strftime("%Y-%m-%d %H:%M"),
+                end_time.strftime("%Y-%m-%d %H:%M"),
+            )
+            output_span = "%s_to_%s" % (
+                start_time.strftime("%Y-%m-%dT%H%M"),
+                end_time.strftime("%Y-%m-%dT%H%M"),
+            )
+        if end_time <= start_time:
+            raise ValueError("--end must be after --start")
 
-        end_exclusive = end_day + timedelta(days=1)
-        n_hours = (end_exclusive - start_day).total_seconds() / 3600.0
-        files = detection_files(data_dir)
+        n_hours = (end_time - start_time).total_seconds() / 3600.0
+        files = detection_files(data_dir, station_name=station_name)
         dfs = read_detection_files(files)
-        plot_propagation_range(
+        if args.output is None:
+            suffix = "chirp-time" if args.plot_mode == "chirp-time" else "rothr_jorn"
+            pfname = "/tmp/latest-%s-%s-%s.png" % (
+                suffix, output_span, station_name)
+        else:
+            pfname = args.output
+        plotter = plot_chirp_time if args.plot_mode == "chirp-time" else plot_propagation_range
+        plotter(
             dfs,
-            start_day.timestamp(),
+            start_time.timestamp(),
             n_hours=n_hours,
-            pfname="/tmp/latest-rothr_jorn-%s_to_%s-%s.png" % (
-                start_day.strftime("%Y-%m-%d"),
-                end_day.strftime("%Y-%m-%d"),
-                station_name,
-            ),
+            min_detections=args.min_detections,
+            pfname=pfname,
             station_name=station_name,
-            title_span="%s to %s UTC" % (
-                start_day.strftime("%Y-%m-%d"),
-                end_day.strftime("%Y-%m-%d"),
-            ))
+            title_span=title_span)
         sys.exit(0)
 
     while True:
         n_days=2
         n_read=96*n_days+1
-        files = detection_files(data_dir, max_files=n_read)
+        files = detection_files(data_dir, max_files=n_read, station_name=station_name)
         dfs = read_detection_files(files)
 
 
@@ -280,10 +426,14 @@ if __name__ == "__main__":
         tnow=time.time()
         t_start=tnow - n_days*24*3600
 
-        plot_propagation_range(
+        plotter = plot_chirp_time if args.plot_mode == "chirp-time" else plot_propagation_range
+        plotter(
             dfs,
             t_start,
             n_hours=24*n_days,
-            pfname="/tmp/latest-rothr_jorn-%s.png" % (station_name),
+            min_detections=args.min_detections,
+            pfname="/tmp/latest-%s-%s.png" % (
+                "chirp-time" if args.plot_mode == "chirp-time" else "rothr_jorn",
+                station_name),
             station_name=station_name)
         time.sleep(15*60)
