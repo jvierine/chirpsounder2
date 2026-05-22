@@ -50,6 +50,11 @@ Australian JORN. Very far away! I see many of these at the right time of day.
 
 <img src="./examples/example04.png" width="100%"/>
 
+Three-station direction-of-arrival analysis of an Australian JORN chirp-time
+band observed from Dombås, Tromsø, and Kjell Henriksen Observatory:
+
+<img src="./examples/australia_chirp_band_aoa.png" width="100%"/>
+
 US ROTHR (hard to tell which one, as I'm so far away)
 
 <img src="./examples/example05.png" width="100%"/>
