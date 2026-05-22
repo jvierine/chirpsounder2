@@ -45,8 +45,8 @@ python3 detections2metadata.py --config $CONF_FILE > logs/detections2metadata.lo
 echo "receive_digisonde.py"
 python3 receive_digisonde.py --config $CONF_FILE > logs/digisonde.log 2>&1 &
 # not enough cpu power to do these
-#python3 receive_digisonde.py --config $CONF_FILE --sounder Juliusruh > logs/digisonde_julius_day.log 2>&1 &
-#python3 receive_digisonde.py --config $CONF_FILE --sounder JuliusruhN > logs/digisonde_julius_night.log 2>&1 &
+python3 receive_digisonde.py --config $CONF_FILE --sounder Juliusruh > logs/digisonde_julius_day.log 2>&1 &
+python3 receive_digisonde.py --config $CONF_FILE --sounder JuliusruhN > logs/digisonde_julius_night.log 2>&1 &
 #python3 receive_digisonde.py --config $CONF_FILE --sounder Chilton > logs/digisonde_chilton.log 2>&1 &
 #python3 receive_digisonde.py --config $CONF_FILE --sounder Dourbes > logs/digisonde_dourbes.log 2>&1 &
 
