@@ -335,7 +335,6 @@ if (!$hasCards && count($tabs) > 1) {
 <head>
 <meta charset="UTF-8">
 <title><?php echo htmlspecialchars($dashboardTitle, ENT_QUOTES, 'UTF-8'); ?></title>
-<meta http-equiv="refresh" content="<?php echo (int)$refreshSeconds; ?>">
 <link rel="icon" type="image/svg+xml" href="favicon.svg?v=4">
 <link rel="shortcut icon" type="image/svg+xml" href="favicon.svg?v=4">
 <link rel="apple-touch-icon" href="uit-logo.png?v=4">
@@ -771,7 +770,7 @@ setInterval(updateUtcTime, 1000);
                     <?php echo htmlspecialchars($card['plotType'], ENT_QUOTES, 'UTF-8'); ?>
                     | updated <?php echo gmdate('Y-m-d H:i:s', (int)$card['mtime']); ?> UTC
                 </div>
-                <img class="dashboard-image" src="<?php echo htmlspecialchars($card['url'], ENT_QUOTES, 'UTF-8'); ?>" alt="<?php echo htmlspecialchars($card['title'], ENT_QUOTES, 'UTF-8'); ?>">
+                <img class="dashboard-image" src="<?php echo htmlspecialchars($card['url'], ENT_QUOTES, 'UTF-8'); ?>" data-refresh-src="<?php echo htmlspecialchars($card['url'], ENT_QUOTES, 'UTF-8'); ?>" alt="<?php echo htmlspecialchars($card['title'], ENT_QUOTES, 'UTF-8'); ?>">
             </div>
         <?php endforeach; ?>
         </div>
@@ -815,6 +814,7 @@ setInterval(updateUtcTime, 1000);
 
 <script>
 const activeTabStorageKey = 'chirpsounder-dashboard-active-tab';
+const imageRefreshSeconds = <?php echo (int)$refreshSeconds; ?>;
 
 function activateTab(tab) {
     const button = Array.from(document.querySelectorAll('.tab-button')).find(b => b.dataset.tab === tab);
@@ -863,6 +863,11 @@ function activateAdjacentTab(step) {
 const overlay = document.getElementById('overlay');
 const overlayImg = document.getElementById('overlayImg');
 let currentOverlayImage = null;
+
+function refreshedImageUrl(baseUrl, stamp) {
+    const separator = baseUrl.includes('?') ? '&' : '?';
+    return `${baseUrl}${separator}refresh=${stamp}`;
+}
 
 function openOverlayFromImage(img) {
     currentOverlayImage = img;
@@ -913,6 +918,23 @@ document.querySelectorAll('img.dashboard-image').forEach(img => {
         openOverlayFromImage(img);
     });
 });
+
+function refreshDashboardImages() {
+    const stamp = Date.now();
+    document.querySelectorAll('img.dashboard-image').forEach(img => {
+        const baseUrl = img.dataset.refreshSrc || img.src.split('?')[0];
+        img.dataset.refreshSrc = baseUrl;
+        img.src = refreshedImageUrl(baseUrl, stamp);
+    });
+
+    if (overlay.classList.contains('active') && currentOverlayImage) {
+        overlayImg.src = currentOverlayImage.src;
+    }
+}
+
+if (imageRefreshSeconds > 0) {
+    window.setInterval(refreshDashboardImages, imageRefreshSeconds * 1000);
+}
 
 overlay.addEventListener('click', event => {
     if (event.target === overlay || event.target === overlayImg) {
