@@ -331,7 +331,7 @@ def plot_propagation_range(dfs, start_t, n_hours=24,min_detections=5, pfname="/t
 
     ax[1].set_ylabel("Frequency (MHz)", fontsize=16)
     ax[1].set_xlabel(f"Time (UTC)", fontsize=16)
-    ax[1].set_ylim(5, 25)
+    ax[1].set_ylim(0, 25)
 
 
     # current time (UTC)
