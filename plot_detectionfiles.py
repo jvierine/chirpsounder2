@@ -173,6 +173,15 @@ def newest_detection_time(dfs, fallback_t):
     return float(n.nanmax(dfs[finite, 0]))
 
 
+def frequency_mhz(freq):
+    freq = n.asarray(freq, dtype=float)
+    finite = n.isfinite(freq)
+    if not n.any(finite):
+        return freq
+    scale = 1e6 if n.nanmedian(n.abs(freq[finite])) > 1e3 else 1.0
+    return freq / scale
+
+
 def plot_chirp_time(dfs, start_t, n_hours=24, min_detections=5,
                     pfname="/tmp/chirp-times.png", station_name="TGO",
                     title_span=None):
@@ -189,6 +198,18 @@ def plot_chirp_time(dfs, start_t, n_hours=24, min_detections=5,
         print("no soundings with at least %d detections for %s" % (min_detections, pfname))
         return
 
+    freqs = frequency_mhz(dfs[gidx, 2])
+    valid = (
+        n.isfinite(dfs[gidx, 0]) &
+        n.isfinite(freqs) &
+        (freqs >= 0.1) &
+        (freqs <= 30.0)
+    )
+    if not n.any(valid):
+        print("no valid frequency rows for %s" % (pfname))
+        return
+    gidx = gidx[valid]
+    freqs = freqs[valid]
     times = unix_to_mpl_dates(dfs[gidx, 0])
     chirp_ms = (dfs[gidx, 0] - n.floor(dfs[gidx, 0])) * 1e3
 
@@ -196,7 +217,7 @@ def plot_chirp_time(dfs, start_t, n_hours=24, min_detections=5,
     sc1 = ax.scatter(
         times,
         chirp_ms,
-        c=dfs[gidx, 2] / 1e6,
+        c=freqs,
         s=0.5,
         alpha=0.6,
         cmap="rainbow",
@@ -242,6 +263,18 @@ def plot_propagation_range(dfs, start_t, n_hours=24,min_detections=5, pfname="/t
         print("no soundings with more than %d detections for %s" % (min_detections, pfname))
         return
     
+    freqs = frequency_mhz(dfs[gidx, 2])
+    valid = (
+        n.isfinite(dfs[gidx, 0]) &
+        n.isfinite(freqs) &
+        (freqs >= 0.1) &
+        (freqs <= 30.0)
+    )
+    if not n.any(valid):
+        print("no valid frequency rows for %s" % (pfname))
+        return
+    gidx = gidx[valid]
+    freqs = freqs[valid]
     times = unix_to_mpl_dates(dfs[gidx, 0])
 
     # Compute group delay
@@ -257,7 +290,7 @@ def plot_propagation_range(dfs, start_t, n_hours=24,min_detections=5, pfname="/t
     sc1 = ax[0].scatter(
         times,
         t_grp * sc.c / 1e3,
-        c=dfs[gidx, 2] / 1e6,
+        c=freqs,
         s=0.5,
         cmap="rainbow",
         vmin=5,vmax=25
@@ -274,9 +307,6 @@ def plot_propagation_range(dfs, start_t, n_hours=24,min_detections=5, pfname="/t
     ax[0].set_ylabel("One-way virtual propagation range (km)", fontsize=16)
     # ax[0].set_ylim([0, 42000])
     ax[0].legend(loc="upper right")
-
-    crs=n.array(dfs[gidx,3]/1e3,dtype=int)
-    freqs=dfs[gidx,2]/1e6
 
     # --- BOTTOM PANEL: frequency vs time (colored by chirp rate) ---
     sc2=ax[1].scatter(
@@ -301,6 +331,7 @@ def plot_propagation_range(dfs, start_t, n_hours=24,min_detections=5, pfname="/t
 
     ax[1].set_ylabel("Frequency (MHz)", fontsize=16)
     ax[1].set_xlabel(f"Time (UTC)", fontsize=16)
+    ax[1].set_ylim(5, 25)
 
 
     # current time (UTC)
