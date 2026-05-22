@@ -119,7 +119,6 @@ function handle_dashboard_png(array $file, string $name, string $dashboardDir): 
     $allowed = (
         preg_match('/^(latest|yesterday|previous)[A-Za-z0-9_.-]*\.png$/i', $name)
         || preg_match('/^map(_all|_scand)?\.png$/i', $name)
-        || preg_match('/(^chirp_band_aoa_[A-Za-z0-9_.-]+|[A-Za-z0-9_.-]+_chirp_band_aoa)\.png$/i', $name)
     );
     if (!$allowed) {
         respond(400, ['ok' => false, 'error' => 'Bad PNG filename']);

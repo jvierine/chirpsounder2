@@ -22,12 +22,7 @@ posted_mtimes = {}
 
 while True:
     files = []
-    for pattern in (
-        "/tmp/latest*.png",
-        "/tmp/yesterday*.png",
-        "/tmp/chirp_band_aoa*.png",
-        "/tmp/chirp_band_aoa/*.png",
-    ):
+    for pattern in ("/tmp/latest*.png", "/tmp/yesterday*.png"):
         files.extend(glob.glob(pattern))
     for fname in sorted(set(files)):
         try:
