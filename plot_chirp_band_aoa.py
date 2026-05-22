@@ -6,8 +6,8 @@ For each 20 ms band of fractional chirp time, this script:
 * filters detections using the plot_detectionfiles.py logic:
   floor(chirp_time), chirp_rate, and +/-33 ms about the group median;
 * keeps only bands with more than a configurable number of detections per day;
-* estimates AoA/range for the detections in that band using the three-station
-  timing code from chirp_aoa_interactive.py;
+* estimates AoA/range for the detections in that band using 1 MHz frequency
+  segments and the three-station timing code from chirp_aoa_interactive.py;
 * renders a 2x2 figure with the detection band, position scatter, position heat
   map, and great-circle path heat map.
 """
@@ -340,6 +340,27 @@ def plot_band_dashboard(
         cbar = fig.colorbar(sc, ax=ax_det, pad=0.01)
         cbar.set_label("Frequency (MHz)")
     ax_det.axhspan(band0_ms, band1_ms, color="0.70", alpha=0.8, zorder=0)
+    if top_data.size:
+        band_idx = (top_frac_ms >= band0_ms) & (top_frac_ms < band1_ms)
+        if np.any(band_idx):
+            median_chirp_rate_khz_s = np.nanmedian(top_data[band_idx, 3]) / 1e3
+            ax_det.text(
+                0.01,
+                0.5 * (band0_ms + band1_ms),
+                "median chirp-rate\n%.0f kHz/s" % median_chirp_rate_khz_s,
+                transform=ax_det.get_yaxis_transform(),
+                ha="left",
+                va="center",
+                fontsize=11,
+                color="0.1",
+                bbox={
+                    "boxstyle": "round,pad=0.2",
+                    "facecolor": "white",
+                    "edgecolor": "0.55",
+                    "alpha": 0.85,
+                },
+                zorder=4,
+            )
     ax_det.set_xlim(start_time, end_time)
     ax_det.set_ylim(0, 200)
     ax_det.set_xlabel("UTC time")
@@ -416,7 +437,7 @@ def main():
     parser.add_argument("--min-band-detections", type=int, default=100)
     parser.add_argument("--min-detections", type=int, default=10)
     parser.add_argument("--max-dt", type=float, default=0.033)
-    parser.add_argument("--frequency-bin-hz", type=float, default=500e3)
+    parser.add_argument("--frequency-bin-hz", type=float, default=1e6)
     parser.add_argument("--min-stations", type=int, default=3)
     parser.add_argument("--plot-station", default="DOB")
     parser.add_argument(
