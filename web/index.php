@@ -1,8 +1,11 @@
 <?php
 $dashboardTitle = 'Live TGO Oblique Sounding Dashboard';
 $imageGlob = '/var/www/html/iono/*.png';
+$statusBaseDir = '/mnt/shovel/ionosonde';
+$statusLookbackDays = 7;
 $imageBaseUrl = '/iono';
 $maxAgeHours = 48;
+$stationStaleHours = 2;
 $refreshSeconds = 60;
 
 $plotTypeOrder = [
@@ -10,6 +13,7 @@ $plotTypeOrder = [
     'rti' => '/^latest-rti-/i',
     'summary' => '/^(?:latest-rothr_jorn-|(?:latest-)?rothr_jorn_|latest_)/i',
     'map' => '/^map(_all|_scand)?\.png$/i',
+    'aoa' => '/(^chirp_band_aoa_.*|.*_chirp_band_aoa)\.png$/i',
     'pc status' => '/-pc\.png$/i',
     'other' => '/.*/',
 ];
@@ -74,6 +78,11 @@ function plot_type_rank(string $plotType, array $plotTypeOrder): int
     return $index === false ? count($labels) : $index;
 }
 
+function is_maps_tab_plot(string $plotType): bool
+{
+    return $plotType === 'map' || $plotType === 'aoa';
+}
+
 function station_label(string $station, array $stationLabels): string
 {
     return $stationLabels[$station] ?? $station;
@@ -101,6 +110,10 @@ function label_from_filename(string $filename, array $stationLabels): string
     if (preg_match('/^(?:latest-)?rothr_jorn_today(?:-([^.]+))?\.png$/i', $filename, $m)) {
         $receiver = isset($m[1]) && $m[1] !== '' ? ' -> ' . $m[1] : '';
         return 'ROTHR/JORN Overview Today' . $receiver;
+    }
+
+    if (preg_match('/^chirp_band_aoa_([0-9]{4}-[0-9]{2}-[0-9]{2})_([0-9]{3})_([0-9]{3})ms\.png$/i', $filename, $m)) {
+        return 'Chirp-band AoA ' . $m[1] . ' ' . (int)$m[2] . '--' . (int)$m[3] . ' ms';
     }
 
     $stem = preg_replace('/\.png$/i', '', $filename);
@@ -133,10 +146,77 @@ function station_sort_key(string $filename, string $plotType, array $stationLabe
     return strtolower($filename);
 }
 
+function format_age(?float $ageSeconds): string
+{
+    if ($ageSeconds === null) {
+        return 'unknown';
+    }
+    if ($ageSeconds < 120) {
+        return sprintf('%.0f s', $ageSeconds);
+    }
+    if ($ageSeconds < 7200) {
+        return sprintf('%.1f min', $ageSeconds / 60.0);
+    }
+    return sprintf('%.1f h', $ageSeconds / 3600.0);
+}
+
+function format_bytes(?float $bytes): string
+{
+    if ($bytes === null) {
+        return 'unknown';
+    }
+    $units = ['B', 'KiB', 'MiB', 'GiB', 'TiB'];
+    $value = (float)$bytes;
+    $unit = 0;
+    while ($value >= 1024.0 && $unit < count($units) - 1) {
+        $value /= 1024.0;
+        $unit++;
+    }
+    return sprintf($unit === 0 ? '%.0f %s' : '%.1f %s', $value, $units[$unit]);
+}
+
+function load_station_statuses(string $statusBaseDir, int $lookbackDays): array
+{
+    $statuses = [];
+    $now = time();
+    for ($dayOffset = 0; $dayOffset < $lookbackDays; $dayOffset++) {
+        $dateDir = gmdate('Y-m-d', $now - $dayOffset * 86400);
+        $pattern = rtrim($statusBaseDir, '/') . '/' . $dateDir . '/station_status-*-*.json';
+        foreach (glob($pattern) ?: [] as $path) {
+            if (!is_file($path)) continue;
+            $filename = basename($path);
+            if (!preg_match('/^station_status-([A-Z0-9]+)-([0-9]{10,}(?:\.[0-9]+)?)\.json$/i', $filename, $m)) {
+                continue;
+            }
+            $json = file_get_contents($path);
+            if ($json === false) continue;
+            $status = json_decode($json, true);
+            if (!is_array($status)) continue;
+            $station = strtoupper((string)($status['station'] ?? $m[1]));
+            $generatedUnix = is_numeric($status['generated_unix'] ?? null)
+                ? (float)$status['generated_unix']
+                : (float)$m[2];
+            $status['generated_unix'] = $generatedUnix;
+            if (
+                !isset($statuses[$station])
+                || $generatedUnix > (float)($statuses[$station]['generated_unix'] ?? 0.0)
+            ) {
+                $status['file_mtime'] = filemtime($path) ?: null;
+                $status['path'] = $path;
+                $statuses[$station] = $status;
+            }
+        }
+    }
+    return $statuses;
+}
+
 $cutoff = time() - ($maxAgeHours * 3600);
+$stationStaleCutoff = time() - ($stationStaleHours * 3600);
 $mapTabId = 'maps';
 $imagePaths = glob($imageGlob) ?: [];
+$monitorStatuses = load_station_statuses($statusBaseDir, $statusLookbackDays);
 $receiverStations = [];
+$stationLatestMtime = [];
 
 foreach ($imagePaths as $path) {
     if (!is_file($path)) continue;
@@ -146,12 +226,23 @@ foreach ($imagePaths as $path) {
     $plotType = detect_plot_type($filename, $plotTypeOrder);
 
     if ($mtime === false) continue;
-    if ($plotType !== 'map' && $mtime < $cutoff) continue;
 
     $receiver = detect_receiver_station($filename);
+    if (!is_maps_tab_plot($plotType) && $receiver !== null) {
+        if (!isset($stationLatestMtime[$receiver]) || $mtime > $stationLatestMtime[$receiver]) {
+            $stationLatestMtime[$receiver] = $mtime;
+        }
+    }
+
+    if (!is_maps_tab_plot($plotType) && $mtime < $cutoff) continue;
+
     if ($receiver !== null) {
         $receiverStations[$receiver] = true;
     }
+}
+
+foreach ($monitorStatuses as $station => $_status) {
+    $receiverStations[$station] = true;
 }
 
 $receiverStations = array_keys($receiverStations);
@@ -160,10 +251,28 @@ usort($receiverStations, static function (string $a, string $b): int {
 });
 
 $tabs = [];
+$stationStatuses = [];
 foreach ($receiverStations as $receiver) {
     $tabs[$receiver] = $receiver;
+    $latestMtime = $stationLatestMtime[$receiver] ?? null;
+    $monitorStatus = $monitorStatuses[$receiver] ?? null;
+    $monitorMtime = $monitorStatus['generated_unix'] ?? ($monitorStatus['file_mtime'] ?? null);
+    $monitorIsStale = $monitorMtime === null || $monitorMtime < $stationStaleCutoff;
+    $monitorProblem = $monitorStatus === null || $monitorIsStale || !($monitorStatus['ok'] ?? false);
+    $plotIsStale = $latestMtime === null || $latestMtime < $stationStaleCutoff;
+    $stationStatuses[$receiver] = [
+        'isStale' => $plotIsStale || $monitorProblem,
+        'plotIsStale' => $plotIsStale,
+        'latestMtime' => $latestMtime,
+        'monitorIsStale' => $monitorIsStale,
+        'monitorProblem' => $monitorProblem,
+    ];
 }
 $tabs[$mapTabId] = 'Maps';
+$stationStatuses[$mapTabId] = [
+    'isStale' => false,
+    'latestMtime' => null,
+];
 $cardsByTab = array_fill_keys(array_keys($tabs), []);
 
 foreach ($imagePaths as $path) {
@@ -175,9 +284,9 @@ foreach ($imagePaths as $path) {
     $receiver = detect_receiver_station($filename);
 
     if ($mtime === false) continue;
-    if ($plotType !== 'map' && $mtime < $cutoff) continue;
+    if (!is_maps_tab_plot($plotType) && $mtime < $cutoff) continue;
 
-    if ($plotType === 'map') {
+    if (is_maps_tab_plot($plotType)) {
         $tab = $mapTabId;
     } elseif ($receiver !== null) {
         $tab = $receiver;
@@ -216,6 +325,9 @@ foreach ($cardsByTab as $cards) {
         $hasCards = true;
         break;
     }
+}
+if (!$hasCards && count($tabs) > 1) {
+    $hasCards = true;
 }
 ?>
 <!DOCTYPE html>
@@ -292,6 +404,17 @@ foreach ($cardsByTab as $cards) {
         border-color: #0f172a;
     }
 
+    .tab-button.stale {
+        background: #dc2626;
+        color: white;
+        border-color: #991b1b;
+    }
+
+    .tab-button.stale.active {
+        background: #991b1b;
+        border-color: #7f1d1d;
+    }
+
     .tab-panel {
         display: none;
     }
@@ -346,6 +469,42 @@ foreach ($cardsByTab as $cards) {
         font-size: 13px;
         color: #475569;
         margin-bottom: 8px;
+    }
+
+    .status-card {
+        border-left: 5px solid #dc2626;
+        color: #7f1d1d;
+    }
+
+    .status-card.status-ok {
+        border-left-color: #16a34a;
+        color: #14532d;
+    }
+
+    .status-card h2 {
+        color: inherit;
+    }
+
+    .status-message {
+        font-size: 15px;
+        line-height: 1.45;
+        text-align: center;
+    }
+
+    .status-details {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 8px;
+        margin-top: 10px;
+        font-size: 13px;
+        color: #334155;
+    }
+
+    .status-details div {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 8px;
     }
 
     img.dashboard-image {
@@ -463,7 +622,13 @@ foreach ($cardsByTab as $cards) {
     <nav class="tabs" aria-label="Receiver tabs">
     <?php $i = 0; ?>
     <?php foreach ($tabs as $tabId => $tabLabel): ?>
-        <button class="tab-button <?php echo $i === 0 ? 'active' : ''; ?>" data-tab="<?php echo htmlspecialchars($tabId, ENT_QUOTES, 'UTF-8'); ?>">
+        <?php
+        $tabIsStale = $stationStatuses[$tabId]['isStale'] ?? false;
+        $tabClasses = ['tab-button'];
+        if ($i === 0) $tabClasses[] = 'active';
+        if ($tabIsStale) $tabClasses[] = 'stale';
+        ?>
+        <button class="<?php echo htmlspecialchars(implode(' ', $tabClasses), ENT_QUOTES, 'UTF-8'); ?>" data-tab="<?php echo htmlspecialchars($tabId, ENT_QUOTES, 'UTF-8'); ?>">
             <?php echo htmlspecialchars($tabLabel, ENT_QUOTES, 'UTF-8'); ?>
         </button>
         <?php $i++; ?>
@@ -507,12 +672,98 @@ setInterval(updateUtcTime, 1000);
 <?php $i = 0; ?>
 <?php foreach ($tabs as $tabId => $tabLabel): ?>
 <section class="tab-panel <?php echo $i === 0 ? 'active' : ''; ?>" id="tab-<?php echo htmlspecialchars($tabId, ENT_QUOTES, 'UTF-8'); ?>">
-    <?php if (!$cardsByTab[$tabId]): ?>
+    <?php
+    $tabStatus = $stationStatuses[$tabId] ?? ['isStale' => false, 'latestMtime' => null];
+    $latestMtime = $tabStatus['latestMtime'];
+    $monitorStatus = $monitorStatuses[$tabId] ?? null;
+    $monitorGenerated = $monitorStatus['generated_unix'] ?? null;
+    $monitorAge = is_numeric($monitorGenerated) ? time() - (float)$monitorGenerated : null;
+    $monitorOk = $monitorStatus !== null && ($monitorStatus['ok'] ?? false) && !($tabStatus['monitorIsStale'] ?? false);
+    $monitorStarting = $monitorStatus !== null && ($monitorStatus['starting'] ?? false);
+    ?>
+    <?php if ($tabId === $mapTabId && !$cardsByTab[$tabId] && $monitorStatus === null): ?>
         <div class="empty-state">
             No plots found for <strong><?php echo htmlspecialchars($tabLabel, ENT_QUOTES, 'UTF-8'); ?></strong>.
         </div>
     <?php else: ?>
         <div class="dashboard">
+        <?php if ($tabId !== $mapTabId && $monitorStatus === null): ?>
+            <div class="card status-card" data-tab="<?php echo htmlspecialchars($tabId, ENT_QUOTES, 'UTF-8'); ?>" data-plot-type="status">
+                <h2>Station monitor</h2>
+                <div class="status-message">
+                    No station status JSON has been received from
+                    <strong><?php echo htmlspecialchars($tabLabel, ENT_QUOTES, 'UTF-8'); ?></strong>.
+                    This station is probably running older receiver software or the monitor upload is not configured.
+                </div>
+            </div>
+        <?php endif; ?>
+        <?php if ($monitorStatus !== null): ?>
+            <div class="card status-card <?php echo $monitorOk ? 'status-ok' : ''; ?>" data-tab="<?php echo htmlspecialchars($tabId, ENT_QUOTES, 'UTF-8'); ?>" data-plot-type="status">
+                <h2>Station monitor</h2>
+                <div class="status-message">
+                    <?php
+                    if ($monitorStarting) {
+                        echo 'Station monitor is waiting for receiver startup.';
+                    } else {
+                        echo $monitorOk ? 'All monitored station checks are OK.' : 'One or more monitored station checks need attention.';
+                    }
+                    ?>
+                    Status age: <?php echo htmlspecialchars(format_age($monitorAge), ENT_QUOTES, 'UTF-8'); ?>.
+                    Software version: <?php echo htmlspecialchars((string)($monitorStatus['chirpsounder2_version'] ?? 'unknown'), ENT_QUOTES, 'UTF-8'); ?>.
+                </div>
+                <div class="status-details">
+                    <?php $ringbuffer = $monitorStatus['ringbuffer'] ?? []; ?>
+                    <div>
+                        <strong>25 MHz ringbuffer:</strong>
+                        <?php echo ($ringbuffer['ok'] ?? false) ? 'OK' : 'ERROR'; ?><br>
+                        newest file age <?php echo htmlspecialchars(format_age($ringbuffer['newest_age_s'] ?? null), ENT_QUOTES, 'UTF-8'); ?><br>
+                        sample rate <?php echo htmlspecialchars(sprintf('%.3f MHz', ((float)($ringbuffer['sample_rate_hz'] ?? 0.0)) / 1e6), ENT_QUOTES, 'UTF-8'); ?>
+                    </div>
+                    <?php $output = $monitorStatus['output'] ?? []; ?>
+                    <div>
+                        <strong>Processing output:</strong>
+                        <?php echo ($output['ok'] ?? false) ? 'OK' : 'ERROR'; ?><br>
+                        newest output age <?php echo htmlspecialchars(format_age($output['newest_age_s'] ?? null), ENT_QUOTES, 'UTF-8'); ?>
+                    </div>
+                    <div>
+                        <strong>Processes:</strong>
+                        <?php
+                        $missing = [];
+                        foreach (($monitorStatus['processes'] ?? []) as $process) {
+                            if (!($process['ok'] ?? false)) {
+                                $missing[] = (string)($process['name'] ?? 'unknown');
+                            }
+                        }
+                        echo $missing ? 'missing ' . htmlspecialchars(implode(', ', $missing), ENT_QUOTES, 'UTF-8') : 'all required processes alive';
+                        ?>
+                    </div>
+                    <?php foreach (($monitorStatus['disks'] ?? []) as $disk): ?>
+                        <div>
+                            <strong><?php echo htmlspecialchars((string)($disk['label'] ?? 'Disk'), ENT_QUOTES, 'UTF-8'); ?>:</strong>
+                            <?php if ($disk['ok'] ?? false): ?>
+                                <?php echo htmlspecialchars(sprintf('%.1f%% used', (float)($disk['used_percent'] ?? 0.0)), ENT_QUOTES, 'UTF-8'); ?><br>
+                                <?php echo htmlspecialchars(format_bytes($disk['free_bytes'] ?? null), ENT_QUOTES, 'UTF-8'); ?> free
+                            <?php else: ?>
+                                ERROR
+                            <?php endif; ?>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        <?php endif; ?>
+        <?php if ($tabStatus['plotIsStale'] ?? false): ?>
+            <div class="card status-card" data-tab="<?php echo htmlspecialchars($tabId, ENT_QUOTES, 'UTF-8'); ?>" data-plot-type="status">
+                <h2>Station status</h2>
+                <div class="status-message">
+                    No plot has been received from
+                    <strong><?php echo htmlspecialchars($tabLabel, ENT_QUOTES, 'UTF-8'); ?></strong>
+                    during the last <?php echo (int)$stationStaleHours; ?> hours.
+                    <?php if ($latestMtime !== null): ?>
+                        Last received plot: <?php echo gmdate('Y-m-d H:i:s', (int)$latestMtime); ?> UTC.
+                    <?php endif; ?>
+                </div>
+            </div>
+        <?php endif; ?>
         <?php foreach ($cardsByTab[$tabId] as $card): ?>
             <div class="card" data-tab="<?php echo htmlspecialchars($tabId, ENT_QUOTES, 'UTF-8'); ?>" data-plot-type="<?php echo htmlspecialchars($card['plotType'], ENT_QUOTES, 'UTF-8'); ?>">
                 <h2><?php echo htmlspecialchars($card['title'], ENT_QUOTES, 'UTF-8'); ?></h2>

@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import glob
 import sys
 import h5py
+import chirpsounder_version as csversion
 import os
 import numpy as n
 
@@ -27,6 +28,7 @@ def normalize(S):
 
 for fi, f in enumerate(fl):
     hin = h5py.File(f, "a")
+    csversion.tag_hdf5(hin)
     if "fof2" in hin.keys():
         print("skipping %s" % (f))
         hin.close()

@@ -1,10 +1,11 @@
-import numpy as n
+import glob
 import os
 import time
 import chirp_config as cc
+import ionowebsync
 
 import argparse
-parser = argparse.ArgumentParser(description="Sync data to jump host")
+parser = argparse.ArgumentParser(description="Upload latest dashboard plots to the web server.")
 parser.add_argument(
     "--config",
     type=str,
@@ -16,7 +17,25 @@ conf=cc.chirp_config(args.config)
 if conf.copy_to_server != True:
     print("Copy to server disabled in configuration. Exiting")
     exit(0)
+
+posted_mtimes = {}
+
 while True:
-    os.system("rsync -av /tmp/latest*.png %s"%(conf.copy_destination))
-    os.system("rsync -av /tmp/yesterday*.png %s"%(conf.copy_destination))
+    files = []
+    for pattern in ("/tmp/latest*.png", "/tmp/yesterday*.png"):
+        files.extend(glob.glob(pattern))
+    for fname in sorted(set(files)):
+        try:
+            mtime = os.path.getmtime(fname)
+        except FileNotFoundError:
+            continue
+        if posted_mtimes.get(fname) == mtime:
+            continue
+        response = ionowebsync.post_to_server(fname)
+        if response is not None and response.ok:
+            posted_mtimes[fname] = mtime
+            print("posted %s" % fname)
+        else:
+            code = "no response" if response is None else "HTTP %d" % response.status_code
+            print("failed to post %s: %s" % (fname, code))
     time.sleep(60)

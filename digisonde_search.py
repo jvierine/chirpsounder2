@@ -18,6 +18,7 @@ import numpy as n
 from mpi4py import MPI
 
 import chirp_config as cc
+import chirpsounder_version as csversion
 import digisonde_stuff as ds
 
 
@@ -154,6 +155,7 @@ class digisonde_code_search:
             return ofname
 
         with h5py.File(ofname, "w") as ho:
+            csversion.tag_hdf5(ho)
             ho["type"] = "digisonde_search"
             ho["channel"] = ch
             ho["i0"] = int(i0)

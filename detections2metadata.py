@@ -10,6 +10,7 @@ import h5py
 import re
 import psutil
 import ionowebsync
+import chirpsounder_version as csversion
 
 p = psutil.Process()
 # Set I/O priority to idle (lowest) to avoid interrupting realtime processes
@@ -89,6 +90,7 @@ def consolidate_files():
             if len(detections) > 0:
                 print("block %d writing %d detections %s"%(m0,len(detections),ofname))
                 ho=h5py.File(ofname,"w")
+                csversion.tag_hdf5(ho)
                 data = n.array(detections)
                 ho["data"]=data
                 ho.close()
@@ -113,6 +115,7 @@ def consolidate_files():
     if len(detections) > 0:
         print("block %d writing %d detections %s"%(m0,len(detections),ofname))
         ho=h5py.File(ofname,"w")
+        csversion.tag_hdf5(ho)
         data = n.array(detections)
         ho["data"]=data
         ho.close()

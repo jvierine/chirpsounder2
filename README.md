@@ -50,6 +50,11 @@ Australian JORN. Very far away! I see many of these at the right time of day.
 
 <img src="./examples/example04.png" width="100%"/>
 
+Three-station direction-of-arrival analysis of an Australian JORN chirp-time
+band observed from Dombås, Tromsø, and Kjell Henriksen Observatory:
+
+<img src="./examples/australia_chirp_band_aoa.png" width="100%"/>
+
 US ROTHR (hard to tell which one, as I'm so far away)
 
 <img src="./examples/example05.png" width="100%"/>
@@ -188,6 +193,19 @@ python calc_ionograms.py configuration.ini
 python plot_ionograms.py configuration.ini
 ```
 
+7) If chirp detections from three synchronized receiver stations are available,
+`plot_chirp_band_aoa.py` can make direction-of-arrival summary plots by
+grouping detections into bands of fractional chirp time. The station locations
+are read from `examples/marieluise/server.ini`.
+
+```
+python plot_chirp_band_aoa.py /data0/2026-05-20 \
+    --station-config examples/marieluise/server.ini \
+    --start 2026-05-20 \
+    --b 0.85 \
+    --output-dir /tmp/chirp_band_aoa
+```
+
 ## Programs
 
 The software consists of several parts:
@@ -195,6 +213,7 @@ The software consists of several parts:
  - find_timings.py # this is used to cluster detections and determine what chirp timings and chirp rates exist
  - calc_ionograms.py # this is used to calculate ionograms based on parameters
  - plot_ionograms.py # plot calculated ionograms
+ - plot_chirp_band_aoa.py # estimate three-station chirp direction of arrival by chirp-time band
 
 ## Output files
 

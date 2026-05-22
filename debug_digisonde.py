@@ -7,6 +7,7 @@ import datetime
 import time
 import chirp_det as cd
 import h5py
+import chirpsounder_version as csversion
 import os
 #
 # Simple simple digisonde receiver. 
@@ -267,6 +268,7 @@ def calculate_ionogram(d,
     plt.savefig("%s.png"%(ofname))
     plt.close()
     ho=h5py.File(ofname,"w")
+    csversion.tag_hdf5(ho)
     ho["S"]=S
     ho["t0"]=i0/25e6
     ho["fvec"]=fvec
@@ -324,4 +326,3 @@ def realtime_ionogram():
 if __name__ == "__main__":
     while True:
         realtime_ionogram()
-

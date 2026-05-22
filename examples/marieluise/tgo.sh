@@ -24,10 +24,10 @@ CONF_FILE=$INSTALL_PATH/examples/marieluise/tgo.ini
 cd $INSTALL_PATH
 # kill possibly existing runtime
 # stop all processes
-#./stop_ringbuffer.sh
+./stop_ringbuffer.sh || true
 # delete old data from ram disk
 #rm -Rf $RINGBUFFER_DIR
-mkdir /dev/shm/hf25
+mkdir -p $RINGBUFFER_DIR
 
 mkdir -p logs
 
@@ -45,8 +45,8 @@ python3 detections2metadata.py --config $CONF_FILE > logs/detections2metadata.lo
 echo "receive_digisonde.py"
 python3 receive_digisonde.py --config $CONF_FILE > logs/digisonde.log 2>&1 &
 # not enough cpu power to do these
-#python3 receive_digisonde.py --config $CONF_FILE --sounder Juliusruh > logs/digisonde_julius_day.log 2>&1 &
-#python3 receive_digisonde.py --config $CONF_FILE --sounder JuliusruhN > logs/digisonde_julius_night.log 2>&1 &
+python3 receive_digisonde.py --config $CONF_FILE --sounder Juliusruh > logs/digisonde_julius_day.log 2>&1 &
+python3 receive_digisonde.py --config $CONF_FILE --sounder JuliusruhN > logs/digisonde_julius_night.log 2>&1 &
 #python3 receive_digisonde.py --config $CONF_FILE --sounder Chilton > logs/digisonde_chilton.log 2>&1 &
 #python3 receive_digisonde.py --config $CONF_FILE --sounder Dourbes > logs/digisonde_dourbes.log 2>&1 &
 
@@ -64,6 +64,9 @@ python3 calc_ionograms.py --config $CONF_FILE > logs/ionograms.log 2>&1 &
 
 echo "plot_ionograms.py"
 python3 plot_ionograms.py --config $CONF_FILE > logs/plot_ionograms.log > logs/plot_ionograms.log 2>&1 &
+
+echo "station_monitor.py"
+python3 station_monitor.py --config $CONF_FILE > logs/station_monitor.log 2>&1 &
 
 echo "Starting rx_uhd with external 1 PPS and 10 MHz. Restarting in 24 hours."
 while true;

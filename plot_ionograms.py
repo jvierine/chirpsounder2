@@ -339,9 +339,6 @@ def plot_ionogram(conf, fn, normalize_by_frequency=True):
     finally:
         if fig is not None:
             plt.close(fig)
-#    if conf.copy_to_server:
- #       os.system("rsync -av %s %s/latest_%s.png" %
-  #                (img_fname, conf.copy_destination, conf.station_name))
 
 def plot_ionogram_subprocess(conf_path, fn):
     """Plot one ionogram in a short-lived child process.

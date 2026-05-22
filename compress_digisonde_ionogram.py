@@ -3,6 +3,7 @@
 import numpy as n
 import matplotlib.pyplot as plt
 import h5py
+import chirpsounder_version as csversion
 import glob
 import os
 
@@ -52,6 +53,7 @@ for path in files:
         #plt.show()
         fnamec="%s.compressed.h5"%(path)
         ho=h5py.File(fnamec,"w")
+        csversion.tag_hdf5(ho)
         ho["fvec"]=n.array(fvec,dtype=n.float32)
         ho["rvec"]=n.array(rvec,dtype=n.float32)
         ho["noise_floors"]=nfloors

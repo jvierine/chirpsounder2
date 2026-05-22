@@ -20,6 +20,7 @@ import os
 import os.path
 import sys
 import traceback
+import chirpsounder_version as csversion
 
 import psutil
 import os
@@ -290,6 +291,7 @@ def chirp_downconvert(conf,
             dname, txname, conf.station_name, ch, cid, t0)
         print("Writing to %s" % ofname)
         ho = h5py.File(ofname, "w")
+        csversion.tag_hdf5(ho)
         # ionogram frequency-range, save space
         #S0 = n.array(S[:, ridx], dtype=n.float16)
 #        ho["S"] = S0[fidx, :]
@@ -483,6 +485,7 @@ def get_next_chirp_par_file(conf, d, ch):
                             # if not already analyzed, analyze it
                             if not os.path.exists("%s.done" % (ftry)):
                                 ho = h5py.File("%s.done" % (ftry), "w")
+                                csversion.tag_hdf5(ho)
                                 ho["t_an"] = time.time()
                                 ho.close()
                                 print("Rank %d analyzing %s time left in sweep %1.2f s" % 
@@ -494,6 +497,7 @@ def get_next_chirp_par_file(conf, d, ch):
                             print("Not able to analyze %s (%1.2f kHz/s), because it is no longer in the buffer. Buffer start at %1.2f and chirp ends at %1.2f" %
                                 (ftry, chirp_rate / 1e3, buffer_t0, t1))
                             ho = h5py.File("%s.done" % (ftry), "w")
+                            csversion.tag_hdf5(ho)
                             ho["t_an"] = time.time()
                             ho.close()
                             time.sleep(0.01)

@@ -10,6 +10,7 @@ import glob
 import matplotlib.pyplot as plt
 import numpy as n
 import matplotlib
+import ionowebsync
 matplotlib.use('Agg')
 
 
@@ -77,9 +78,6 @@ def summary_plots(conf, t0):
     fig.clf()
     plt.clf()
     plt.close("all")
-  #  if conf.copy_to_server:
-   #     os.system("rsync -av %s %s/latest_rstack_%s.png"%(img_fname_r,conf.copy_destination,conf.station_name))
-
     dBV = 10.0 * n.log10(SV.T)
     nfloor = n.median(dBV)
     fig = plt.figure(figsize=(1.5 * 8, 1.5 * 6))
@@ -97,9 +95,6 @@ def summary_plots(conf, t0):
     plt.clf()
     fig.clf()
     plt.close("all")
-#    if conf.copy_to_server:
- #       os.system("rsync -av %s %s/latest_fstack_%s.png"%(img_fname_f,conf.copy_destination,conf.station_name))
-
 
 def summary_page(conf, t0):
     rsfl = glob.glob("%s/2*/rstack*.png" % (conf.output_dir))
@@ -109,26 +104,25 @@ def summary_page(conf, t0):
 
     print(fsfl)
     if conf.copy_to_server:
-        try:
-            os.system("rsync -av %s %s/latest_fstack_%s.png" %
-                      (fsfl[len(fsfl) - 1], conf.copy_destination, conf.station_name))
-        except:
-            print("failed to copy latest fstack")
-        try:
-            os.system("rsync -av %s %s/previous_fstack_%s.png" %
-                      (fsfl[len(fsfl) - 2], conf.copy_destination, conf.station_name))
-        except:
-            print("failed to copy previous fstack")
-        try:
-            os.system("rsync -av %s %s/latest_rstack_%s.png" %
-                      (rsfl[len(rsfl) - 1], conf.copy_destination, conf.station_name))
-        except:
-            print("failed to copy latest rstack")
-        try:
-            os.system("rsync -av %s %s/previous_rstack_%s.png" %
-                      (rsfl[len(rsfl) - 2], conf.copy_destination, conf.station_name))
-        except:
-            print("failed to copy previous rstack")
+        uploads = [
+            (fsfl, -1, "latest_fstack_%s.png" % conf.station_name),
+            (fsfl, -2, "previous_fstack_%s.png" % conf.station_name),
+            (rsfl, -1, "latest_rstack_%s.png" % conf.station_name),
+            (rsfl, -2, "previous_rstack_%s.png" % conf.station_name),
+        ]
+        for files, idx, upload_name in uploads:
+            try:
+                src = files[idx]
+                tmp = os.path.join("/tmp", upload_name)
+                if os.path.exists(tmp):
+                    os.remove(tmp)
+                os.symlink(src, tmp)
+                response = ionowebsync.post_to_server(tmp)
+                if response is None or not response.ok:
+                    code = "no response" if response is None else "HTTP %d" % response.status_code
+                    print("failed to post %s: %s" % (upload_name, code))
+            except Exception as e:
+                print("failed to post %s: %s" % (upload_name, e))
 
 
 def summary(conf, t0):

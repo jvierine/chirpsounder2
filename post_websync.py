@@ -19,7 +19,7 @@ def expand_inputs(patterns):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Manually post HDF5 files with ionowebsync.")
+    parser = argparse.ArgumentParser(description="Manually post files with ionowebsync.")
     parser.add_argument("paths", nargs="+", help="Files or glob patterns to upload")
     args = parser.parse_args()
 
