@@ -16,6 +16,11 @@ import chirp_config as cc
 import chirpsounder_version as csversion
 
 try:
+    import digital_rf as drf
+except ImportError:  # pragma: no cover - digital_rf is installed on stations
+    drf = None
+
+try:
     import psutil
 except ImportError:  # pragma: no cover - psutil is in requirements.txt
     psutil = None
@@ -134,17 +139,75 @@ def disk_status(path: str, label: str) -> dict:
     return status
 
 
+def digital_rf_ringbuffer_status(conf, max_age_s: float) -> dict | None:
+    if drf is None or not os.path.isdir(conf.data_dir):
+        return None
+
+    now = time.time()
+    channels = [str(channel) for channel in getattr(conf, "channel", [])]
+    checks = []
+    newest_sample_unix = None
+
+    try:
+        reader = drf.DigitalRFReader(conf.data_dir)
+    except Exception as exc:
+        return {"digital_rf_error": str(exc)}
+
+    for channel in channels:
+        try:
+            bounds = reader.get_bounds(channel)
+        except Exception as exc:
+            checks.append({"channel": channel, "ok": False, "error": str(exc)})
+            continue
+
+        if bounds is None or len(bounds) < 2 or bounds[0] is None or bounds[1] is None:
+            checks.append({"channel": channel, "ok": False, "bounds": None})
+            continue
+
+        end_sample = int(bounds[1])
+        end_unix = end_sample / float(conf.sample_rate)
+        age_s = now - end_unix
+        newest_sample_unix = end_unix if newest_sample_unix is None else max(newest_sample_unix, end_unix)
+        checks.append(
+            {
+                "channel": channel,
+                "ok": age_s <= max_age_s,
+                "bounds": [int(bounds[0]), end_sample],
+                "newest_sample_unix": end_unix,
+                "newest_age_s": age_s,
+            }
+        )
+
+    if not checks:
+        return None
+
+    newest_age_s = None if newest_sample_unix is None else now - newest_sample_unix
+    return {
+        "newest_file": "DigitalRF:%s" % ",".join(channels),
+        "newest_mtime": newest_sample_unix,
+        "newest_age_s": newest_age_s,
+        "digital_rf_channels": checks,
+        "digital_rf_ok": all(check["ok"] for check in checks),
+    }
+
+
 def ringbuffer_status(conf, max_age_s: float) -> dict:
     now = time.time()
-    newest_path, newest_mtime = newest_matching_file(
-        conf.data_dir,
-        ("rf*.h5", "tmp*rf*.h5", "*.h5"),
-    )
-    age_s = None if newest_mtime is None else now - newest_mtime
+    digital_rf_status = digital_rf_ringbuffer_status(conf, max_age_s)
+    if digital_rf_status is not None and "digital_rf_error" not in digital_rf_status:
+        newest_path = digital_rf_status["newest_file"]
+        newest_mtime = digital_rf_status["newest_mtime"]
+        age_s = digital_rf_status["newest_age_s"]
+    else:
+        newest_path, newest_mtime = newest_matching_file(
+            conf.data_dir,
+            ("rf*.h5", "tmp*rf*.h5", "*.h5"),
+        )
+        age_s = None if newest_mtime is None else now - newest_mtime
     expected_sample_rate_hz = 25e6
     sample_rate_ok = abs(float(conf.sample_rate) - expected_sample_rate_hz) < 1.0
     fresh = age_s is not None and age_s <= max_age_s
-    return {
+    status = {
         "path": conf.data_dir,
         "ok": bool(os.path.isdir(conf.data_dir) and fresh and sample_rate_ok),
         "exists": os.path.isdir(conf.data_dir),
@@ -155,6 +218,9 @@ def ringbuffer_status(conf, max_age_s: float) -> dict:
         "sample_rate_hz": float(conf.sample_rate),
         "sample_rate_ok": sample_rate_ok,
     }
+    if digital_rf_status is not None:
+        status.update(digital_rf_status)
+    return status
 
 
 def output_status(conf, max_age_s: float) -> dict:
