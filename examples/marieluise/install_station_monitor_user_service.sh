@@ -5,7 +5,7 @@ SERVICE_NAME="${SERVICE_NAME:-chirpsounder_station_monitor.service}"
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CONFIG_FILE="${REPO_DIR}/examples/marieluise/tgo.ini"
 PYTHON_BIN="${PYTHON_BIN:-$(command -v python3)}"
-UPLOAD_URL="${UPLOAD_URL:-http://4.235.86.214/upload_status.php}"
+UPLOAD_URL="${UPLOAD_URL:-http://4.235.86.214/upload.php}"
 PERIOD_S="${PERIOD_S:-900}"
 ENABLE_LINGER=0
 

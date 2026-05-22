@@ -16,9 +16,12 @@ FILES_TO_DEPLOY=(
     "${SCRIPT_DIR}/unis-logo-liggende.svg:${IONO_TARGET_DIR}"
     "${SCRIPT_DIR}/map_all.png:${IONO_TARGET_DIR}"
     "${SCRIPT_DIR}/map_scand.png:${IONO_TARGET_DIR}"
-    "${SCRIPT_DIR}/upload_h5.php:${UPLOAD_TARGET_DIR}"
-    "${SCRIPT_DIR}/upload_status.php:${UPLOAD_TARGET_DIR}"
+    "${SCRIPT_DIR}/upload.php:${UPLOAD_TARGET_DIR}"
     "${SCRIPT_DIR}/upload-limit.conf:${APACHE_CONF_DIR}"
+)
+LEGACY_UPLOAD_FILES=(
+    "${UPLOAD_TARGET_DIR}/upload_h5.php"
+    "${UPLOAD_TARGET_DIR}/upload_status.php"
 )
 
 for file_spec in "${FILES_TO_DEPLOY[@]}"; do
@@ -33,6 +36,11 @@ for file_spec in "${FILES_TO_DEPLOY[@]}"; do
     target_file="${target_dir}/$(basename "$source_file")"
     echo "Deploying $source_file to $target_file"
     $SUDO install -m 0644 "$source_file" "$target_file"
+done
+
+for legacy_file in "${LEGACY_UPLOAD_FILES[@]}"; do
+    echo "Removing legacy upload endpoint ${legacy_file}"
+    $SUDO rm -f "$legacy_file"
 done
 
 if command -v a2enconf >/dev/null 2>&1; then

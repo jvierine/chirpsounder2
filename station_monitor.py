@@ -24,6 +24,8 @@ try:
 except ImportError:  # pragma: no cover - requests is in requirements.txt
     requests = None
 
+DEFAULT_UPLOAD_URL = "http://4.235.86.214/upload.php"
+
 
 DEFAULT_PROCESS_GROUPS = [
     "recorder=rx_uhd_ext_gps|rx_uhd|thor.py",
@@ -239,7 +241,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Write chirpsounder station health JSON.")
     parser.add_argument("--config", default="examples/marieluise/tgo.ini")
     parser.add_argument("--output", default=None)
-    parser.add_argument("--upload-url", default=None)
+    parser.add_argument("--upload-url", default=DEFAULT_UPLOAD_URL)
     parser.add_argument("--upload-timeout-s", type=float, default=30.0)
     parser.add_argument("--period-s", type=float, default=900.0)
     parser.add_argument("--once", action="store_true")
