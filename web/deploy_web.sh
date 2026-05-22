@@ -22,6 +22,7 @@ FILES_TO_DEPLOY=(
 )
 LEGACY_UPLOAD_FILES=(
     "${UPLOAD_TARGET_DIR}/upload_status.php"
+    "${UPLOAD_TARGET_DIR}/upload-status.php"
 )
 
 for file_spec in "${FILES_TO_DEPLOY[@]}"; do
