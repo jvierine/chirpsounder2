@@ -13,7 +13,7 @@ $plotTypeOrder = [
     'rti' => '/^latest-rti-/i',
     'summary' => '/^(?:latest-rothr_jorn-|(?:latest-)?rothr_jorn_|latest_)/i',
     'map' => '/^map(_all|_scand)?\.png$/i',
-    'aoa' => '/^chirp_band_aoa_.*\.png$/i',
+    'aoa' => '/(^chirp_band_aoa_.*|.*_chirp_band_aoa)\.png$/i',
     'pc status' => '/-pc\.png$/i',
     'other' => '/.*/',
 ];
