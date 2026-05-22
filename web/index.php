@@ -679,6 +679,7 @@ setInterval(updateUtcTime, 1000);
     $monitorGenerated = $monitorStatus['generated_unix'] ?? null;
     $monitorAge = is_numeric($monitorGenerated) ? time() - (float)$monitorGenerated : null;
     $monitorOk = $monitorStatus !== null && ($monitorStatus['ok'] ?? false) && !($tabStatus['monitorIsStale'] ?? false);
+    $monitorStarting = $monitorStatus !== null && ($monitorStatus['starting'] ?? false);
     ?>
     <?php if ($tabId === $mapTabId && !$cardsByTab[$tabId] && $monitorStatus === null): ?>
         <div class="empty-state">
@@ -700,7 +701,13 @@ setInterval(updateUtcTime, 1000);
             <div class="card status-card <?php echo $monitorOk ? 'status-ok' : ''; ?>" data-tab="<?php echo htmlspecialchars($tabId, ENT_QUOTES, 'UTF-8'); ?>" data-plot-type="status">
                 <h2>Station monitor</h2>
                 <div class="status-message">
-                    <?php echo $monitorOk ? 'All monitored station checks are OK.' : 'One or more monitored station checks need attention.'; ?>
+                    <?php
+                    if ($monitorStarting) {
+                        echo 'Station monitor is waiting for receiver startup.';
+                    } else {
+                        echo $monitorOk ? 'All monitored station checks are OK.' : 'One or more monitored station checks need attention.';
+                    }
+                    ?>
                     Status age: <?php echo htmlspecialchars(format_age($monitorAge), ENT_QUOTES, 'UTF-8'); ?>.
                     Software version: <?php echo htmlspecialchars((string)($monitorStatus['chirpsounder2_version'] ?? 'unknown'), ENT_QUOTES, 'UTF-8'); ?>.
                 </div>

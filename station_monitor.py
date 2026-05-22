@@ -191,7 +191,7 @@ def digital_rf_ringbuffer_status(conf, max_age_s: float) -> dict | None:
     }
 
 
-def ringbuffer_status(conf, max_age_s: float) -> dict:
+def ringbuffer_status(conf, max_age_s: float, starting: bool = False) -> dict:
     now = time.time()
     digital_rf_status = digital_rf_ringbuffer_status(conf, max_age_s)
     if digital_rf_status is not None and "digital_rf_error" not in digital_rf_status:
@@ -209,7 +209,8 @@ def ringbuffer_status(conf, max_age_s: float) -> dict:
     fresh = age_s is not None and age_s <= max_age_s
     status = {
         "path": conf.data_dir,
-        "ok": bool(os.path.isdir(conf.data_dir) and fresh and sample_rate_ok),
+        "ok": bool(os.path.isdir(conf.data_dir) and (fresh or starting) and sample_rate_ok),
+        "starting": bool(starting and not fresh),
         "exists": os.path.isdir(conf.data_dir),
         "newest_file": newest_path,
         "newest_mtime": newest_mtime,
@@ -241,9 +242,18 @@ def output_status(conf, max_age_s: float) -> dict:
     }
 
 
-def build_status(conf, process_groups, ringbuffer_max_age_s, output_max_age_s) -> dict:
+def build_status(
+    conf,
+    process_groups,
+    ringbuffer_max_age_s,
+    output_max_age_s,
+    started_unix,
+    startup_grace_s,
+) -> dict:
+    now = time.time()
+    starting = (now - started_unix) < startup_grace_s
     processes = check_processes(process_groups)
-    ringbuffer = ringbuffer_status(conf, ringbuffer_max_age_s)
+    ringbuffer = ringbuffer_status(conf, ringbuffer_max_age_s, starting=starting)
     output = output_status(conf, output_max_age_s)
     disks = [
         disk_status(conf.data_dir, "RAM disk / ringbuffer"),
@@ -251,16 +261,19 @@ def build_status(conf, process_groups, ringbuffer_max_age_s, output_max_age_s) -
     ]
     checks_ok = (
         ringbuffer["ok"]
-        and output["ok"]
-        and all(process["ok"] for process in processes)
+        and (output["ok"] or starting)
+        and all(process["ok"] or starting for process in processes)
         and all(disk["ok"] for disk in disks)
     )
     return {
         "schema": "chirpsounder2.station_status.v1",
         "station": conf.station_name,
         **csversion.software_metadata(),
-        "generated_unix": time.time(),
-        "generated_utc": utc_now_iso(),
+        "generated_unix": now,
+        "generated_utc": utc_now_iso(now),
+        "starting": starting,
+        "started_unix": started_unix,
+        "startup_grace_s": startup_grace_s,
         "ok": checks_ok,
         "ringbuffer": ringbuffer,
         "output": output,
@@ -315,6 +328,7 @@ def main() -> int:
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--ringbuffer-max-age-s", type=float, default=120.0)
     parser.add_argument("--output-max-age-s", type=float, default=900.0)
+    parser.add_argument("--startup-grace-s", type=float, default=300.0)
     parser.add_argument(
         "--process",
         action="append",
@@ -326,6 +340,7 @@ def main() -> int:
     conf = cc.chirp_config(args.config)
     process_specs = args.process or DEFAULT_PROCESS_GROUPS
     process_groups = [parse_process_group(spec) for spec in process_specs]
+    started_unix = time.time()
 
     while True:
         status = build_status(
@@ -333,6 +348,8 @@ def main() -> int:
             process_groups,
             args.ringbuffer_max_age_s,
             args.output_max_age_s,
+            started_unix,
+            args.startup_grace_s,
         )
         output = args.output or default_output_path(status)
         write_json_atomic(output, status)
