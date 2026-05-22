@@ -24,10 +24,10 @@ CONF_FILE=$INSTALL_PATH/examples/marieluise/dombas.ini
 cd $INSTALL_PATH
 # kill possibly existing runtime
 # stop all processes
-#./stop_ringbuffer.sh
+./stop_ringbuffer.sh || true
 # delete old data from ram disk
 #rm -Rf $RINGBUFFER_DIR
-mkdir /dev/shm/hf25
+mkdir -p $RINGBUFFER_DIR
 
 mkdir -p logs
 
