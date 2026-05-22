@@ -3,6 +3,7 @@ $dashboardTitle = 'Live TGO Oblique Sounding Dashboard';
 $imageGlob = '/var/www/html/iono/*.png';
 $imageBaseUrl = '/iono';
 $maxAgeHours = 48;
+$stationStaleHours = 2;
 $refreshSeconds = 60;
 
 $plotTypeOrder = [
@@ -134,9 +135,11 @@ function station_sort_key(string $filename, string $plotType, array $stationLabe
 }
 
 $cutoff = time() - ($maxAgeHours * 3600);
+$stationStaleCutoff = time() - ($stationStaleHours * 3600);
 $mapTabId = 'maps';
 $imagePaths = glob($imageGlob) ?: [];
 $receiverStations = [];
+$stationLatestMtime = [];
 
 foreach ($imagePaths as $path) {
     if (!is_file($path)) continue;
@@ -146,9 +149,16 @@ foreach ($imagePaths as $path) {
     $plotType = detect_plot_type($filename, $plotTypeOrder);
 
     if ($mtime === false) continue;
-    if ($plotType !== 'map' && $mtime < $cutoff) continue;
 
     $receiver = detect_receiver_station($filename);
+    if ($plotType !== 'map' && $receiver !== null) {
+        if (!isset($stationLatestMtime[$receiver]) || $mtime > $stationLatestMtime[$receiver]) {
+            $stationLatestMtime[$receiver] = $mtime;
+        }
+    }
+
+    if ($plotType !== 'map' && $mtime < $cutoff) continue;
+
     if ($receiver !== null) {
         $receiverStations[$receiver] = true;
     }
@@ -160,10 +170,20 @@ usort($receiverStations, static function (string $a, string $b): int {
 });
 
 $tabs = [];
+$stationStatuses = [];
 foreach ($receiverStations as $receiver) {
     $tabs[$receiver] = $receiver;
+    $latestMtime = $stationLatestMtime[$receiver] ?? null;
+    $stationStatuses[$receiver] = [
+        'isStale' => $latestMtime === null || $latestMtime < $stationStaleCutoff,
+        'latestMtime' => $latestMtime,
+    ];
 }
 $tabs[$mapTabId] = 'Maps';
+$stationStatuses[$mapTabId] = [
+    'isStale' => false,
+    'latestMtime' => null,
+];
 $cardsByTab = array_fill_keys(array_keys($tabs), []);
 
 foreach ($imagePaths as $path) {
@@ -292,6 +312,17 @@ foreach ($cardsByTab as $cards) {
         border-color: #0f172a;
     }
 
+    .tab-button.stale {
+        background: #dc2626;
+        color: white;
+        border-color: #991b1b;
+    }
+
+    .tab-button.stale.active {
+        background: #991b1b;
+        border-color: #7f1d1d;
+    }
+
     .tab-panel {
         display: none;
     }
@@ -346,6 +377,21 @@ foreach ($cardsByTab as $cards) {
         font-size: 13px;
         color: #475569;
         margin-bottom: 8px;
+    }
+
+    .status-card {
+        border-left: 5px solid #dc2626;
+        color: #7f1d1d;
+    }
+
+    .status-card h2 {
+        color: #7f1d1d;
+    }
+
+    .status-message {
+        font-size: 15px;
+        line-height: 1.45;
+        text-align: center;
     }
 
     img.dashboard-image {
@@ -463,7 +509,13 @@ foreach ($cardsByTab as $cards) {
     <nav class="tabs" aria-label="Receiver tabs">
     <?php $i = 0; ?>
     <?php foreach ($tabs as $tabId => $tabLabel): ?>
-        <button class="tab-button <?php echo $i === 0 ? 'active' : ''; ?>" data-tab="<?php echo htmlspecialchars($tabId, ENT_QUOTES, 'UTF-8'); ?>">
+        <?php
+        $tabIsStale = $stationStatuses[$tabId]['isStale'] ?? false;
+        $tabClasses = ['tab-button'];
+        if ($i === 0) $tabClasses[] = 'active';
+        if ($tabIsStale) $tabClasses[] = 'stale';
+        ?>
+        <button class="<?php echo htmlspecialchars(implode(' ', $tabClasses), ENT_QUOTES, 'UTF-8'); ?>" data-tab="<?php echo htmlspecialchars($tabId, ENT_QUOTES, 'UTF-8'); ?>">
             <?php echo htmlspecialchars($tabLabel, ENT_QUOTES, 'UTF-8'); ?>
         </button>
         <?php $i++; ?>
@@ -507,12 +559,29 @@ setInterval(updateUtcTime, 1000);
 <?php $i = 0; ?>
 <?php foreach ($tabs as $tabId => $tabLabel): ?>
 <section class="tab-panel <?php echo $i === 0 ? 'active' : ''; ?>" id="tab-<?php echo htmlspecialchars($tabId, ENT_QUOTES, 'UTF-8'); ?>">
+    <?php
+    $tabStatus = $stationStatuses[$tabId] ?? ['isStale' => false, 'latestMtime' => null];
+    $latestMtime = $tabStatus['latestMtime'];
+    ?>
     <?php if (!$cardsByTab[$tabId]): ?>
         <div class="empty-state">
             No plots found for <strong><?php echo htmlspecialchars($tabLabel, ENT_QUOTES, 'UTF-8'); ?></strong>.
         </div>
     <?php else: ?>
         <div class="dashboard">
+        <?php if ($tabStatus['isStale']): ?>
+            <div class="card status-card" data-tab="<?php echo htmlspecialchars($tabId, ENT_QUOTES, 'UTF-8'); ?>" data-plot-type="status">
+                <h2>Station status</h2>
+                <div class="status-message">
+                    No plot has been received from
+                    <strong><?php echo htmlspecialchars($tabLabel, ENT_QUOTES, 'UTF-8'); ?></strong>
+                    during the last <?php echo (int)$stationStaleHours; ?> hours.
+                    <?php if ($latestMtime !== null): ?>
+                        Last received plot: <?php echo gmdate('Y-m-d H:i:s', (int)$latestMtime); ?> UTC.
+                    <?php endif; ?>
+                </div>
+            </div>
+        <?php endif; ?>
         <?php foreach ($cardsByTab[$tabId] as $card): ?>
             <div class="card" data-tab="<?php echo htmlspecialchars($tabId, ENT_QUOTES, 'UTF-8'); ?>" data-plot-type="<?php echo htmlspecialchars($card['plotType'], ENT_QUOTES, 'UTF-8'); ?>">
                 <h2><?php echo htmlspecialchars($card['title'], ENT_QUOTES, 'UTF-8'); ?></h2>
