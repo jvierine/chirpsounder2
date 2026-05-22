@@ -9,6 +9,7 @@ import scipy.constants as sc
 from datetime import datetime, timedelta, timezone
 import chirp_config as cc
 import sys
+import traceback
 #plt.style.use('dark_background')
 try:
     import psutil
@@ -19,10 +20,13 @@ except ImportError:
 def set_low_priority():
     if psutil is None:
         return
-    p = psutil.Process()
-    # Set I/O priority to idle (lowest) to avoid interrupting realtime processes.
-    p.ionice(psutil.IOPRIO_CLASS_IDLE)
-    p.nice(19)
+    try:
+        p = psutil.Process()
+        # Set I/O priority to idle (lowest) to avoid interrupting realtime processes.
+        p.ionice(psutil.IOPRIO_CLASS_IDLE)
+        p.nice(19)
+    except Exception as exc:
+        print("could not lower plot_detectionfiles.py priority: %s" % exc)
 
 labels={100:"US (ROTHR)",125:"Australia (JORN)"}
 UNIX_EPOCH_MPL = mdates.date2num(datetime(1970, 1, 1, tzinfo=timezone.utc))
@@ -71,10 +75,19 @@ def read_detection_files(files):
     dfs = []
     for f in files:
         print(f)
-        with h5py.File(f, "r") as h:
-            dfs.append(h["data"][()])
+        try:
+            with h5py.File(f, "r") as h:
+                data = h["data"][()]
+        except Exception as exc:
+            print("skipping unreadable detection file %s: %s" % (f, exc))
+            continue
+        data = n.asarray(data)
+        if data.ndim != 2 or data.shape[1] < 4:
+            print("skipping malformed detection file %s shape=%s" % (f, data.shape))
+            continue
+        dfs.append(data)
     if len(dfs) == 0:
-        return n.empty((0, 4))
+        return n.empty((0, 5))
     return n.concatenate(dfs, axis=0)
 
 
@@ -417,22 +430,24 @@ if __name__ == "__main__":
     while True:
         n_days=2
         n_read=96*n_days+1
-        files = detection_files(data_dir, max_files=n_read, station_name=station_name)
-        dfs = read_detection_files(files)
+        try:
+            files = detection_files(data_dir, max_files=n_read, station_name=station_name)
+            dfs = read_detection_files(files)
 
+            import time
+            tnow=time.time()
+            t_start=tnow - n_days*24*3600
 
-        import time
-        tnow=time.time()
-        t_start=tnow - n_days*24*3600
-
-        plotter = plot_chirp_time if args.plot_mode == "chirp-time" else plot_propagation_range
-        plotter(
-            dfs,
-            t_start,
-            n_hours=24*n_days,
-            min_detections=args.min_detections,
-            pfname="/tmp/latest-%s-%s.png" % (
-                "chirp-time" if args.plot_mode == "chirp-time" else "rothr_jorn",
-                station_name),
-            station_name=station_name)
+            plotter = plot_chirp_time if args.plot_mode == "chirp-time" else plot_propagation_range
+            plotter(
+                dfs,
+                t_start,
+                n_hours=24*n_days,
+                min_detections=args.min_detections,
+                pfname="/tmp/latest-%s-%s.png" % (
+                    "chirp-time" if args.plot_mode == "chirp-time" else "rothr_jorn",
+                    station_name),
+                station_name=station_name)
+        except Exception:
+            traceback.print_exc(file=sys.stdout)
         time.sleep(15*60)
