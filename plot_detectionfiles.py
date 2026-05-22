@@ -1,4 +1,3 @@
-import pandas as pd
 import h5py
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -26,6 +25,11 @@ def set_low_priority():
     p.nice(19)
 
 labels={100:"US (ROTHR)",125:"Australia (JORN)"}
+UNIX_EPOCH_MPL = mdates.date2num(datetime(1970, 1, 1, tzinfo=timezone.utc))
+
+
+def unix_to_mpl_dates(times):
+    return UNIX_EPOCH_MPL + n.asarray(times, dtype=float) / 86400.0
 
 
 def parse_utc_day(day):
@@ -163,7 +167,7 @@ def plot_chirp_time(dfs, start_t, n_hours=24, min_detections=5,
         print("no soundings with at least %d detections for %s" % (min_detections, pfname))
         return
 
-    times = pd.to_datetime(dfs[gidx, 0], unit="s", utc=True)
+    times = unix_to_mpl_dates(dfs[gidx, 0])
     chirp_ms = (dfs[gidx, 0] - n.floor(dfs[gidx, 0])) * 1e3
 
     fig, ax = plt.subplots(1, 1, figsize=(12, 7), constrained_layout=True)
@@ -216,12 +220,7 @@ def plot_propagation_range(dfs, start_t, n_hours=24,min_detections=5, pfname="/t
         print("no soundings with more than %d detections for %s" % (min_detections, pfname))
         return
     
-    # Convert unix seconds → UTC datetime
-    times = pd.to_datetime(dfs[gidx,0], unit="s", utc=True)
-
-    # Time window
-    t_end = times.max()
-    t_start = t_end - pd.Timedelta(hours=n_hours)
+    times = unix_to_mpl_dates(dfs[gidx, 0])
 
     # Compute group delay
     t_grp = dfs[gidx,0] - n.floor(dfs[gidx,0])
