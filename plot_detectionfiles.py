@@ -150,18 +150,27 @@ def format_time_span(start_t, n_hours, title_span=None):
         time_span_str = day_start.strftime("%Y-%m-%d UTC")
     else:
         time_span_str = "%s to %s UTC" % (
-            day_start.strftime("%Y-%m-%d"),
-            day_end.strftime("%Y-%m-%d"),
+            day_start.strftime("%Y-%m-%d %H:%M"),
+            day_end.strftime("%Y-%m-%d %H:%M"),
         )
     return day_start, day_end, time_span_str
 
 
 def format_time_axis(ax, n_hours):
     if n_hours <= 24:
-        ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M", tz=timezone.utc))
     else:
-        ax.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d\n%H:%M"))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d\n%H:%M", tz=timezone.utc))
     plt.xticks(rotation=45)
+
+
+def newest_detection_time(dfs, fallback_t):
+    if dfs.shape[0] == 0:
+        return fallback_t
+    finite = n.isfinite(dfs[:, 0])
+    if not n.any(finite):
+        return fallback_t
+    return float(n.nanmax(dfs[finite, 0]))
 
 
 def plot_chirp_time(dfs, start_t, n_hours=24, min_detections=5,
@@ -429,14 +438,18 @@ if __name__ == "__main__":
 
     while True:
         n_days=2
-        n_read=96*n_days+1
+        n_read=96*n_days+8
         try:
             files = detection_files(data_dir, max_files=n_read, station_name=station_name)
             dfs = read_detection_files(files)
 
             import time
-            tnow=time.time()
-            t_start=tnow - n_days*24*3600
+            plot_end = newest_detection_time(dfs, time.time())
+            t_start = plot_end - n_days*24*3600
+            title_span = "last %d hours ending %s UTC" % (
+                24*n_days,
+                datetime.fromtimestamp(plot_end, timezone.utc).strftime("%Y-%m-%d %H:%M"),
+            )
 
             plotter = plot_chirp_time if args.plot_mode == "chirp-time" else plot_propagation_range
             plotter(
@@ -447,7 +460,8 @@ if __name__ == "__main__":
                 pfname="/tmp/latest-%s-%s.png" % (
                     "chirp-time" if args.plot_mode == "chirp-time" else "rothr_jorn",
                     station_name),
-                station_name=station_name)
+                station_name=station_name,
+                title_span=title_span)
         except Exception:
             traceback.print_exc(file=sys.stdout)
         time.sleep(15*60)
