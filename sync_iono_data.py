@@ -5,7 +5,7 @@ import chirp_config as cc
 import ionowebsync
 
 import argparse
-parser = argparse.ArgumentParser(description="Sync data to jump host")
+parser = argparse.ArgumentParser(description="Upload latest dashboard plots to the web server.")
 parser.add_argument(
     "--config",
     type=str,
