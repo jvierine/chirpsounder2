@@ -23,6 +23,6 @@ git -C "${REPO_DIR}" push origin "${BRANCH}"
 
 echo "Pulling ${BRANCH} on ${WEB_SERVER}:${SERVER_REPO_DIR}"
 ssh "${WEB_SERVER}" \
-    "cd '${SERVER_REPO_DIR}' && git fetch origin && git pull --ff-only origin '${BRANCH}' && ./web/deploy_web.sh"
+    "cd '${SERVER_REPO_DIR}' && BRANCH='${BRANCH}' ./web/update_web_from_git.sh"
 
 echo "Deployment completed from git branch ${BRANCH}"

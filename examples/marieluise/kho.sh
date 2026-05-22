@@ -64,6 +64,9 @@ python3 calc_ionograms.py --config $CONF_FILE > logs/ionograms.log 2>&1 &
 echo "plot_ionograms.py"
 python3 plot_ionograms.py --config $CONF_FILE > logs/plot_ionograms.log 2>&1 &
 
+echo "station_monitor.py"
+python3 station_monitor.py --config $CONF_FILE > logs/station_monitor.log 2>&1 &
+
 echo "Starting rx_uhd with internal GPSDO if available, otherwise external 1 PPS and 10 MHz. Restarting in 24 hours."
 while true;
 do
