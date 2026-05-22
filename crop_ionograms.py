@@ -2,6 +2,7 @@ import numpy as n
 import glob
 import matplotlib.pyplot as plt
 import h5py
+import chirpsounder_version as csversion
 import imageio
 import chirp_config as cc
 import sys
@@ -58,6 +59,7 @@ def create_cropped_ionograms(conf,
 
         img_rgs = ranges[(ri0):(ri0 + 200)][::-1] / 1e3 + range_offset
         ho = h5py.File("dl_dataset/lut.h5", "w")
+        csversion.tag_hdf5(ho)
         ho["img_rgs"] = img_rgs
         ho["img_freqs"] = freqs / 1e6
         ho.close()

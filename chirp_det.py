@@ -16,6 +16,7 @@ import re
 import os
 import scipy.fftpack
 import pickle
+import chirpsounder_version as csversion
 fftw = False
 try:
     import pyfftw
@@ -266,6 +267,7 @@ class chirp_matched_filter_bank:
                 # 
                 ofname = "%s/chirp-%s-%d-%d-%d.h5" % (dname, ch, detected_chirp_rate/1e3, i0, int(chirp_time))
                 ho = h5py.File(ofname, "w")
+                csversion.tag_hdf5(ho)
                 ho["f0"] = f0
                 ho["i0"] = i0
                 ho["sample_rate"] = self.conf.sample_rate

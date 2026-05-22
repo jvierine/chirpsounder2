@@ -12,6 +12,7 @@ import scipy.signal as ss
 import chirp_det as cd
 import traceback
 import os
+import chirpsounder_version as csversion
 
 
 def fft(z, l=None):
@@ -76,6 +77,7 @@ if __name__ == "__main__":
                 ofname = "%s/spec-%s-%1.2f.h5" % (dname, conf.station_name, t0)
                 print("Writing to %s" % ofname)
                 ho = h5py.File(ofname, "w")
+                csversion.tag_hdf5(ho)
                 ho["spec"] = S
                 ho["nfft"] = nfft
                 ho["f0"] = conf.center_freq

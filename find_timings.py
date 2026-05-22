@@ -13,6 +13,7 @@ import os
 import os.path
 import time
 import pdb
+import chirpsounder_version as csversion
 
 def kill(conf):
     exists = os.path.isfile(conf.kill_path)
@@ -118,6 +119,7 @@ def scan_for_chirps(conf, ch, dt=0.1):
 
             if not os.path.exists(fname):
                 ho = h5py.File(fname, "w")
+                csversion.tag_hdf5(ho)
                 tnow = time.time()
                 t1 = (t0 + conf.maximum_analysis_frequency / c)
                 print("%s Found chirp-rate %1.2f kHz/s t0=%1.4f num_det %d started %1.2f s ago %1.2f s left" %

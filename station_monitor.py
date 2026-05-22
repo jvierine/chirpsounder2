@@ -13,6 +13,7 @@ import time
 from datetime import datetime, timezone
 
 import chirp_config as cc
+import chirpsounder_version as csversion
 
 try:
     import psutil
@@ -191,6 +192,7 @@ def build_status(conf, process_groups, ringbuffer_max_age_s, output_max_age_s) -
     return {
         "schema": "chirpsounder2.station_status.v1",
         "station": conf.station_name,
+        **csversion.software_metadata(),
         "generated_unix": time.time(),
         "generated_utc": utc_now_iso(),
         "ok": checks_ok,

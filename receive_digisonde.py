@@ -19,6 +19,7 @@ from numpy import ctypeslib
 # Juha Vierinen (2025)
 #
 import configparser
+import chirpsounder_version as csversion
 
 try:
     libdc = ctypes.cdll.LoadLibrary("./libdownconvert.so")
@@ -530,6 +531,7 @@ def calculate_ionogram(d,
     plt.close()
     os.system("cp %s.png /tmp/latest-digisonde-%s-%s.png"%(ofname,transmitter_name,receiver_name))
     ho=h5py.File(ofname,"w")
+    csversion.tag_hdf5(ho)
     SNR[SNR<snr_threshold]=n.nan
     ho["type"]="digisonde"
     ho["freqs"]=n.array(fvec,dtype=n.float32)

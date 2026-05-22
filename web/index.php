@@ -258,7 +258,7 @@ foreach ($receiverStations as $receiver) {
     $monitorStatus = $monitorStatuses[$receiver] ?? null;
     $monitorMtime = $monitorStatus['generated_unix'] ?? ($monitorStatus['file_mtime'] ?? null);
     $monitorIsStale = $monitorMtime === null || $monitorMtime < $stationStaleCutoff;
-    $monitorProblem = $monitorStatus !== null && ($monitorIsStale || !($monitorStatus['ok'] ?? false));
+    $monitorProblem = $monitorStatus === null || $monitorIsStale || !($monitorStatus['ok'] ?? false);
     $plotIsStale = $latestMtime === null || $latestMtime < $stationStaleCutoff;
     $stationStatuses[$receiver] = [
         'isStale' => $plotIsStale || $monitorProblem,
@@ -326,7 +326,7 @@ foreach ($cardsByTab as $cards) {
         break;
     }
 }
-if (!$hasCards && $monitorStatuses) {
+if (!$hasCards && count($tabs) > 1) {
     $hasCards = true;
 }
 ?>
@@ -680,18 +680,29 @@ setInterval(updateUtcTime, 1000);
     $monitorAge = is_numeric($monitorGenerated) ? time() - (float)$monitorGenerated : null;
     $monitorOk = $monitorStatus !== null && ($monitorStatus['ok'] ?? false) && !($tabStatus['monitorIsStale'] ?? false);
     ?>
-    <?php if (!$cardsByTab[$tabId] && $monitorStatus === null): ?>
+    <?php if ($tabId === $mapTabId && !$cardsByTab[$tabId] && $monitorStatus === null): ?>
         <div class="empty-state">
             No plots found for <strong><?php echo htmlspecialchars($tabLabel, ENT_QUOTES, 'UTF-8'); ?></strong>.
         </div>
     <?php else: ?>
         <div class="dashboard">
+        <?php if ($tabId !== $mapTabId && $monitorStatus === null): ?>
+            <div class="card status-card" data-tab="<?php echo htmlspecialchars($tabId, ENT_QUOTES, 'UTF-8'); ?>" data-plot-type="status">
+                <h2>Station monitor</h2>
+                <div class="status-message">
+                    No station status JSON has been received from
+                    <strong><?php echo htmlspecialchars($tabLabel, ENT_QUOTES, 'UTF-8'); ?></strong>.
+                    This station is probably running older receiver software or the monitor upload is not configured.
+                </div>
+            </div>
+        <?php endif; ?>
         <?php if ($monitorStatus !== null): ?>
             <div class="card status-card <?php echo $monitorOk ? 'status-ok' : ''; ?>" data-tab="<?php echo htmlspecialchars($tabId, ENT_QUOTES, 'UTF-8'); ?>" data-plot-type="status">
                 <h2>Station monitor</h2>
                 <div class="status-message">
                     <?php echo $monitorOk ? 'All monitored station checks are OK.' : 'One or more monitored station checks need attention.'; ?>
                     Status age: <?php echo htmlspecialchars(format_age($monitorAge), ENT_QUOTES, 'UTF-8'); ?>.
+                    Software version: <?php echo htmlspecialchars((string)($monitorStatus['chirpsounder2_version'] ?? 'unknown'), ENT_QUOTES, 'UTF-8'); ?>.
                 </div>
                 <div class="status-details">
                     <?php $ringbuffer = $monitorStatus['ringbuffer'] ?? []; ?>
