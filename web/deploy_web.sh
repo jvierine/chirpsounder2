@@ -4,9 +4,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IONO_TARGET_DIR="${IONO_TARGET_DIR:-/var/www/html/iono}"
 UPLOAD_TARGET_DIR="${UPLOAD_TARGET_DIR:-/var/www/html}"
+DATA_TARGET_DIR="${DATA_TARGET_DIR:-/mnt/shovel/ionosonde}"
 APACHE_CONF_DIR="${APACHE_CONF_DIR:-/etc/apache2/conf-available}"
 APACHE_SERVICE="${APACHE_SERVICE:-apache2}"
 APACHE_CONF_NAME="${APACHE_CONF_NAME:-upload-limit}"
+WEB_WRITE_GROUP="${WEB_WRITE_GROUP:-www-data}"
 SUDO="${SUDO:-sudo}"
 FILES_TO_DEPLOY=(
     "${SCRIPT_DIR}/index.php:${IONO_TARGET_DIR}"
@@ -47,6 +49,11 @@ for legacy_file in "${LEGACY_UPLOAD_FILES[@]}"; do
     echo "Removing legacy upload endpoint ${legacy_file}"
     $SUDO rm -f "$legacy_file"
 done
+
+echo "Making upload target directories writable by group ${WEB_WRITE_GROUP}"
+$SUDO mkdir -p "$IONO_TARGET_DIR" "$DATA_TARGET_DIR"
+$SUDO chgrp "$WEB_WRITE_GROUP" "$IONO_TARGET_DIR" "$DATA_TARGET_DIR"
+$SUDO chmod 2775 "$IONO_TARGET_DIR" "$DATA_TARGET_DIR"
 
 if command -v a2enconf >/dev/null 2>&1; then
     echo "Enabling Apache config $APACHE_CONF_NAME"
