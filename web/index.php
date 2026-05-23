@@ -2,8 +2,9 @@
 $dashboardTitle = 'Live TGO Oblique Sounding Dashboard';
 $imageGlob = '/var/www/html/iono/*.png';
 $statusBaseDir = '/mnt/shovel/ionosonde';
-$statusLookbackDays = 7;
+$statusLookbackDays = 2;
 $imageBaseUrl = '/iono';
+$lazyImagePlaceholder = 'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%201%201%22%3E%3C/svg%3E';
 $maxAgeHours = 48;
 $stationStaleHours = 2;
 $refreshSeconds = 60;
@@ -178,6 +179,7 @@ function format_bytes(?float $bytes): string
 function load_station_statuses(string $statusBaseDir, int $lookbackDays): array
 {
     $statuses = [];
+    $candidates = [];
     $now = time();
     for ($dayOffset = 0; $dayOffset < $lookbackDays; $dayOffset++) {
         $dateDir = gmdate('Y-m-d', $now - $dayOffset * 86400);
@@ -188,23 +190,38 @@ function load_station_statuses(string $statusBaseDir, int $lookbackDays): array
             if (!preg_match('/^station_status-([A-Z0-9]+)-([0-9]{10,}(?:\.[0-9]+)?)\.json$/i', $filename, $m)) {
                 continue;
             }
-            $json = file_get_contents($path);
-            if ($json === false) continue;
-            $status = json_decode($json, true);
-            if (!is_array($status)) continue;
-            $station = strtoupper((string)($status['station'] ?? $m[1]));
-            $generatedUnix = is_numeric($status['generated_unix'] ?? null)
-                ? (float)$status['generated_unix']
-                : (float)$m[2];
-            $status['generated_unix'] = $generatedUnix;
+            $station = strtoupper($m[1]);
+            $generatedUnix = (float)$m[2];
             if (
-                !isset($statuses[$station])
-                || $generatedUnix > (float)($statuses[$station]['generated_unix'] ?? 0.0)
+                !isset($candidates[$station])
+                || $generatedUnix > (float)$candidates[$station]['generated_unix']
             ) {
-                $status['file_mtime'] = filemtime($path) ?: null;
-                $status['path'] = $path;
-                $statuses[$station] = $status;
+                $candidates[$station] = [
+                    'path' => $path,
+                    'generated_unix' => $generatedUnix,
+                ];
             }
+        }
+    }
+
+    foreach ($candidates as $stationFromFile => $candidate) {
+        $path = $candidate['path'];
+        $json = file_get_contents($path);
+        if ($json === false) continue;
+        $status = json_decode($json, true);
+        if (!is_array($status)) continue;
+        $station = strtoupper((string)($status['station'] ?? $stationFromFile));
+        $generatedUnix = is_numeric($status['generated_unix'] ?? null)
+            ? (float)$status['generated_unix']
+            : (float)$candidate['generated_unix'];
+        $status['generated_unix'] = $generatedUnix;
+        if (
+            !isset($statuses[$station])
+            || $generatedUnix > (float)($statuses[$station]['generated_unix'] ?? 0.0)
+        ) {
+            $status['file_mtime'] = filemtime($path) ?: null;
+            $status['path'] = $path;
+            $statuses[$station] = $status;
         }
     }
     return $statuses;
@@ -770,7 +787,7 @@ setInterval(updateUtcTime, 1000);
                     <?php echo htmlspecialchars($card['plotType'], ENT_QUOTES, 'UTF-8'); ?>
                     | updated <?php echo gmdate('Y-m-d H:i:s', (int)$card['mtime']); ?> UTC
                 </div>
-                <img class="dashboard-image" src="<?php echo htmlspecialchars($card['url'], ENT_QUOTES, 'UTF-8'); ?>" data-refresh-src="<?php echo htmlspecialchars($card['url'], ENT_QUOTES, 'UTF-8'); ?>" alt="<?php echo htmlspecialchars($card['title'], ENT_QUOTES, 'UTF-8'); ?>">
+                <img class="dashboard-image" src="<?php echo htmlspecialchars($lazyImagePlaceholder, ENT_QUOTES, 'UTF-8'); ?>" data-lazy-src="<?php echo htmlspecialchars($card['url'], ENT_QUOTES, 'UTF-8'); ?>" data-refresh-src="<?php echo htmlspecialchars($card['url'], ENT_QUOTES, 'UTF-8'); ?>" loading="lazy" alt="<?php echo htmlspecialchars($card['title'], ENT_QUOTES, 'UTF-8'); ?>">
             </div>
         <?php endforeach; ?>
         </div>
@@ -816,6 +833,16 @@ setInterval(updateUtcTime, 1000);
 const activeTabStorageKey = 'chirpsounder-dashboard-active-tab';
 const imageRefreshSeconds = <?php echo (int)$refreshSeconds; ?>;
 
+function loadPanelImages(panel) {
+    panel.querySelectorAll('img.dashboard-image[data-lazy-src]').forEach(img => {
+        const imageUrl = img.dataset.lazySrc;
+        if (!imageUrl) return;
+        img.src = imageUrl;
+        img.dataset.refreshSrc = imageUrl;
+        delete img.dataset.lazySrc;
+    });
+}
+
 function activateTab(tab) {
     const button = Array.from(document.querySelectorAll('.tab-button')).find(b => b.dataset.tab === tab);
     const panel = document.getElementById('tab-' + tab);
@@ -826,6 +853,7 @@ function activateTab(tab) {
 
     button.classList.add('active');
     panel.classList.add('active');
+    loadPanelImages(panel);
     localStorage.setItem(activeTabStorageKey, tab);
     return true;
 }
@@ -837,8 +865,9 @@ document.querySelectorAll('.tab-button').forEach(button => {
 });
 
 const savedTab = localStorage.getItem(activeTabStorageKey);
-if (savedTab !== null) {
-    activateTab(savedTab);
+if (savedTab === null || !activateTab(savedTab)) {
+    const activePanel = document.querySelector('.tab-panel.active');
+    if (activePanel) loadPanelImages(activePanel);
 }
 
 function tabButtons() {
@@ -921,7 +950,7 @@ document.querySelectorAll('img.dashboard-image').forEach(img => {
 
 function refreshDashboardImages() {
     const stamp = Date.now();
-    document.querySelectorAll('img.dashboard-image').forEach(img => {
+    document.querySelectorAll('img.dashboard-image:not([data-lazy-src])').forEach(img => {
         const baseUrl = img.dataset.refreshSrc || img.src.split('?')[0];
         img.dataset.refreshSrc = baseUrl;
         img.src = refreshedImageUrl(baseUrl, stamp);
