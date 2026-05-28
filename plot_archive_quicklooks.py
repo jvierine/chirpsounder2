@@ -28,8 +28,14 @@ def copy_if_exists(src, dst):
             log("copied %s -> %s" % (src, dst))
             return True
         except PermissionError as exc:
-            log("could not copy %s -> %s: %s" % (src, dst, exc))
-            return False
+            try:
+                os.unlink(dst)
+                shutil.copy2(src, dst)
+                log("replaced %s with %s" % (dst, src))
+                return True
+            except PermissionError:
+                log("could not copy %s -> %s: %s" % (src, dst, exc))
+                return False
     log("missing expected plot %s" % src)
     return False
 
@@ -132,13 +138,14 @@ def deploy_static_web(repo_dir, web_dir):
 
 
 def run_once(args):
-    repo_dir = os.path.dirname(os.path.abspath(__file__))
     conf = cc.chirp_config(args.config, build_fvec=False, verbose=False)
     data_dir = args.data_dir or conf.output_dir
     web_dir = args.web_dir
     os.makedirs(web_dir, exist_ok=True)
 
-    deploy_static_web(repo_dir, web_dir)
+    if args.deploy_static:
+        repo_dir = os.path.dirname(os.path.abspath(__file__))
+        deploy_static_web(repo_dir, web_dir)
 
     for tx in args.lfm_tx:
         log("plotting latest LFM %s-%s" % (tx, conf.station_name))
@@ -169,6 +176,7 @@ def main():
     parser.add_argument("--interval", type=float, default=15 * 60.0)
     parser.add_argument("--hours", type=int, default=48)
     parser.add_argument("--once", action="store_true")
+    parser.add_argument("--deploy-static", action="store_true")
     parser.add_argument("--lfm-tx", action="append", default=["SGO"])
     parser.add_argument("--digisonde-tx", action="append", default=["Ramfjordmoen"])
     args = parser.parse_args()
