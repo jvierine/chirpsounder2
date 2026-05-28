@@ -121,6 +121,14 @@ def run_once(args):
 
     deploy_static_web(repo_dir, web_dir)
 
+    for tx in args.lfm_tx:
+        log("plotting latest LFM %s-%s" % (tx, conf.station_name))
+        plot_lfm_latest(conf, data_dir, web_dir, tx)
+
+    for tx in args.digisonde_tx:
+        log("plotting latest Digisonde %s-%s" % (tx, conf.station_name))
+        plot_digisonde_latest(data_dir, web_dir, tx, conf.station_name)
+
     log("plotting RTF links for %s from %s" % (conf.station_name, data_dir))
     plot_rtf.plot_rtf_links(conf, conf.rtf_links, data_dir=data_dir)
     for tx, rx in conf.rtf_links:
@@ -132,14 +140,6 @@ def run_once(args):
 
     log("plotting detection quick-look for %s" % conf.station_name)
     plot_detection_quicklook(conf, data_dir, web_dir, hours=args.hours)
-
-    for tx in args.lfm_tx:
-        log("plotting latest LFM %s-%s" % (tx, conf.station_name))
-        plot_lfm_latest(conf, data_dir, web_dir, tx)
-
-    for tx in args.digisonde_tx:
-        log("plotting latest Digisonde %s-%s" % (tx, conf.station_name))
-        plot_digisonde_latest(data_dir, web_dir, tx, conf.station_name)
 
 
 def main():
