@@ -3,6 +3,7 @@ import argparse
 import datetime as dt
 import glob
 import os
+import re
 import shutil
 import sys
 import time
@@ -36,13 +37,19 @@ def copy_if_exists(src, dst):
 def newest_file(patterns):
     if isinstance(patterns, str):
         patterns = [patterns]
-    files = []
+    newest = None
+    newest_t = -1.0
     for pattern in patterns:
-        files.extend(glob.glob(pattern))
-    if not files:
-        return None
-    files.sort(key=os.path.getmtime)
-    return files[-1]
+        for path in glob.glob(pattern):
+            match = re.search(r"-(1\d+(?:\.\d+)?)\.h5$", os.path.basename(path))
+            if match:
+                t_file = float(match.group(1))
+            else:
+                t_file = os.path.getmtime(path)
+            if t_file > newest_t:
+                newest = path
+                newest_t = t_file
+    return newest
 
 
 def newest_lfm_file(data_dir, tx, rx):

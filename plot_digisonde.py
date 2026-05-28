@@ -54,7 +54,7 @@ def find_digisonde_files(data_dir, tx=None, rx=None, days=3):
     files = []
     for pattern in patterns:
         files.extend(glob.glob(pattern))
-    files = sorted(set(files), key=file_time)
+    files = sorted(set(files), key=lambda path: file_time_from_name(path) or os.path.getmtime(path))
     if days is not None and files:
         newest = file_time(files[-1])
         cutoff = newest - days * 24 * 3600
@@ -67,6 +67,13 @@ def latest_digisonde_file(data_dir, tx=None, rx=None, days=3):
     if not files:
         return None
     return files[-1]
+
+
+def file_time_from_name(path):
+    match = re.search(r"-(1\d+(?:\.\d+)?)\.h5$", os.path.basename(path))
+    if match:
+        return float(match.group(1))
+    return None
 
 
 def read_digisonde(path, mode="auto"):
