@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import datetime as dt
 import glob
 import os
 import shutil
@@ -32,8 +33,12 @@ def copy_if_exists(src, dst):
     return False
 
 
-def newest_file(pattern):
-    files = glob.glob(pattern)
+def newest_file(patterns):
+    if isinstance(patterns, str):
+        patterns = [patterns]
+    files = []
+    for pattern in patterns:
+        files.extend(glob.glob(pattern))
     if not files:
         return None
     files.sort(key=os.path.getmtime)
@@ -41,7 +46,14 @@ def newest_file(pattern):
 
 
 def newest_lfm_file(data_dir, tx, rx):
-    return newest_file(os.path.join(data_dir, "2*-*-*", "lfm_ionogram-%s-%s-*.h5" % (tx, rx)))
+    basename = "lfm_ionogram-%s-%s-*.h5" % (tx, rx)
+    today = dt.datetime.utcnow().date()
+    patterns = []
+    for day_offset in range(4):
+        day = today - dt.timedelta(days=day_offset)
+        patterns.append(os.path.join(data_dir, day.strftime("%Y-%m-%d"), basename))
+    patterns.append(os.path.join(data_dir, basename))
+    return newest_file(patterns)
 
 
 def plot_detection_quicklook(conf, data_dir, web_dir, hours=48):

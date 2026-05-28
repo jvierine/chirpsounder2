@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import datetime as dt
 import glob
 import os
 import re
@@ -32,7 +33,6 @@ def file_time(path):
 
 
 def find_digisonde_files(data_dir, tx=None, rx=None, days=3):
-    patterns = []
     if tx and rx:
         basename = "digisonde_ionogram-%s-%s-*.h5" % (tx, rx)
     elif tx:
@@ -42,8 +42,14 @@ def find_digisonde_files(data_dir, tx=None, rx=None, days=3):
     else:
         basename = "digisonde_ionogram-*.h5"
 
-    patterns.append(os.path.join(data_dir, basename))
-    patterns.append(os.path.join(data_dir, "2*-*-*", basename))
+    patterns = [os.path.join(data_dir, basename)]
+    if days is None:
+        patterns.append(os.path.join(data_dir, "2*-*-*", basename))
+    else:
+        today = dt.datetime.utcnow().date()
+        for day_offset in range(int(days) + 2):
+            day = today - dt.timedelta(days=day_offset)
+            patterns.append(os.path.join(data_dir, day.strftime("%Y-%m-%d"), basename))
 
     files = []
     for pattern in patterns:
