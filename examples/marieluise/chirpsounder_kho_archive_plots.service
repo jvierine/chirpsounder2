@@ -5,7 +5,7 @@ After=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=%h/src/chirpsounder2
-ExecStart=%h/src/chirpsounder2/.venv/bin/python %h/src/chirpsounder2/plot_archive_quicklooks.py --config examples/marieluise/kho_archive.ini --data-dir /mnt/shovel/ionosonde --web-dir /var/www/html/iono
+ExecStart=%h/venvs/chirpsounder2/bin/python %h/src/chirpsounder2/plot_archive_quicklooks.py --config examples/marieluise/kho_archive.ini --data-dir /mnt/shovel/ionosonde --web-dir /var/www/html/iono
 Restart=always
 RestartSec=30
 Nice=10
