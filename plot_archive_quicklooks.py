@@ -21,9 +21,13 @@ def log(msg):
 def copy_if_exists(src, dst):
     if os.path.exists(src):
         os.makedirs(os.path.dirname(dst), exist_ok=True)
-        shutil.copy2(src, dst)
-        log("copied %s -> %s" % (src, dst))
-        return True
+        try:
+            shutil.copy2(src, dst)
+            log("copied %s -> %s" % (src, dst))
+            return True
+        except PermissionError as exc:
+            log("could not copy %s -> %s: %s" % (src, dst, exc))
+            return False
     log("missing expected plot %s" % src)
     return False
 
@@ -98,6 +102,7 @@ def plot_digisonde_latest(data_dir, web_dir, tx, rx):
 
 
 def deploy_static_web(repo_dir, web_dir):
+    """Refresh optional static assets when permissions allow it."""
     src = os.path.join(repo_dir, "web")
     if not os.path.isdir(src):
         return
