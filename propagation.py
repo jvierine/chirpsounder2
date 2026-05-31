@@ -89,7 +89,11 @@ def auto_propagation_bands(
             continue
         tx = station_info[tx_name]
         center = virtual_distance_km(tx, receiver, propagation_factor)
-        half_width = max(100.0, center * float(fractional_half_width))
+        override = band_overrides.get(tx_name, {})
+        band_fractional_half_width = float(
+            override.get("fractional_half_width", fractional_half_width)
+        )
+        half_width = max(100.0, center * band_fractional_half_width)
         band = {
             "name": tx_name,
             "label": tx.get("name", tx_name),
@@ -100,7 +104,6 @@ def auto_propagation_bands(
                 tx["lat"], tx["lon"], receiver["lat"], receiver["lon"]
             ),
         }
-        override = band_overrides.get(tx_name, {})
         if "label" in override:
             band["label"] = override["label"]
         if "min_km" in override:
