@@ -841,6 +841,9 @@ setInterval(updateUtcTime, 1000);
             Mikko Syrjäsuo and Lisa Baddeley. These plots are operational
             monitoring products and should be interpreted as quick-look data.
         </p>
+        <p>
+            Contributors include Nathaniel A. Frissell (W2NAF).
+        </p>
     </section>
 </footer>
 
