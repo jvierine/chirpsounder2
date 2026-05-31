@@ -1,8 +1,7 @@
 <?php
 $dashboardTitle = 'Live TGO Oblique Sounding Dashboard';
 $imageGlob = '/var/www/html/iono/*.png';
-$statusBaseDir = '/mnt/shovel/ionosonde';
-$statusLookbackDays = 2;
+$statusGlob = '/var/www/html/iono/station_status_latest-*.json';
 $imageBaseUrl = '/iono';
 $lazyImagePlaceholder = 'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%201%201%22%3E%3C/svg%3E';
 $maxAgeHours = 48;
@@ -26,6 +25,7 @@ $stationLabels = [
     'TGO' => 'TGO',
     'DOB' => 'DOB',
     'KHO' => 'KHO',
+    'W2NAF' => 'W2NAF',
 ];
 
 function detect_plot_type(string $filename, array $plotTypeOrder): string
@@ -64,7 +64,7 @@ function detect_receiver_station(string $filename): ?string
 
 function station_sort_order(string $station): string
 {
-    $preferred = ['TGO', 'DOB', 'KHO'];
+    $preferred = ['TGO', 'DOB', 'KHO', 'W2NAF'];
     $index = array_search($station, $preferred, true);
     if ($index !== false) {
         return sprintf('%03d-%s', $index, $station);
@@ -176,36 +176,16 @@ function format_bytes(?float $bytes): string
     return sprintf($unit === 0 ? '%.0f %s' : '%.1f %s', $value, $units[$unit]);
 }
 
-function load_station_statuses(string $statusBaseDir, int $lookbackDays): array
+function load_station_statuses(string $statusGlob): array
 {
     $statuses = [];
-    $candidates = [];
-    $now = time();
-    for ($dayOffset = 0; $dayOffset < $lookbackDays; $dayOffset++) {
-        $dateDir = gmdate('Y-m-d', $now - $dayOffset * 86400);
-        $pattern = rtrim($statusBaseDir, '/') . '/' . $dateDir . '/station_status-*-*.json';
-        foreach (glob($pattern) ?: [] as $path) {
-            if (!is_file($path)) continue;
-            $filename = basename($path);
-            if (!preg_match('/^station_status-([A-Z0-9]+)-([0-9]{10,}(?:\.[0-9]+)?)\.json$/i', $filename, $m)) {
-                continue;
-            }
-            $station = strtoupper($m[1]);
-            $generatedUnix = (float)$m[2];
-            if (
-                !isset($candidates[$station])
-                || $generatedUnix > (float)$candidates[$station]['generated_unix']
-            ) {
-                $candidates[$station] = [
-                    'path' => $path,
-                    'generated_unix' => $generatedUnix,
-                ];
-            }
+    foreach (glob($statusGlob) ?: [] as $path) {
+        if (!is_file($path)) continue;
+        $filename = basename($path);
+        if (!preg_match('/^station_status_latest-([A-Z0-9]+)\.json$/i', $filename, $m)) {
+            continue;
         }
-    }
-
-    foreach ($candidates as $stationFromFile => $candidate) {
-        $path = $candidate['path'];
+        $stationFromFile = strtoupper($m[1]);
         $json = file_get_contents($path);
         if ($json === false) continue;
         $status = json_decode($json, true);
@@ -213,7 +193,7 @@ function load_station_statuses(string $statusBaseDir, int $lookbackDays): array
         $station = strtoupper((string)($status['station'] ?? $stationFromFile));
         $generatedUnix = is_numeric($status['generated_unix'] ?? null)
             ? (float)$status['generated_unix']
-            : (float)$candidate['generated_unix'];
+            : (float)(filemtime($path) ?: 0);
         $status['generated_unix'] = $generatedUnix;
         if (
             !isset($statuses[$station])
@@ -231,7 +211,7 @@ $cutoff = time() - ($maxAgeHours * 3600);
 $stationStaleCutoff = time() - ($stationStaleHours * 3600);
 $mapTabId = 'maps';
 $imagePaths = glob($imageGlob) ?: [];
-$monitorStatuses = load_station_statuses($statusBaseDir, $statusLookbackDays);
+$monitorStatuses = load_station_statuses($statusGlob);
 $receiverStations = [];
 $stationLatestMtime = [];
 

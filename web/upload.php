@@ -75,7 +75,20 @@ function handle_h5(array $file, string $name, string $archiveBaseDir): void {
     ]);
 }
 
-function handle_status_json(array $file, string $name, string $archiveBaseDir): void {
+function copy_file_atomic(string $source, string $destination): void {
+    $tmpDest = $destination . '.tmp';
+    if (!copy($source, $tmpDest)) {
+        respond(500, ['ok' => false, 'error' => 'Cache copy failed']);
+    }
+    chmod($tmpDest, 0664);
+    if (!rename($tmpDest, $destination)) {
+        @unlink($tmpDest);
+        respond(500, ['ok' => false, 'error' => 'Cache replace failed']);
+    }
+    chmod($destination, 0664);
+}
+
+function handle_status_json(array $file, string $name, string $archiveBaseDir, string $dashboardDir): void {
     if (!preg_match('/^station_status-([A-Z0-9]+)-([0-9]{10,}(?:\.[0-9]+)?)\.json$/i', $name, $m)) {
         respond(400, ['ok' => false, 'error' => 'Bad status filename']);
     }
@@ -104,6 +117,9 @@ function handle_status_json(array $file, string $name, string $archiveBaseDir): 
     ensure_writable_dir($targetDir);
     $destination = $targetDir . '/' . $name;
     save_upload($file, $destination);
+    ensure_writable_dir($dashboardDir);
+    $latestDestination = rtrim($dashboardDir, '/') . '/station_status_latest-' . $stationFromName . '.json';
+    copy_file_atomic($destination, $latestDestination);
     respond(201, [
         'ok' => true,
         'type' => 'station_status',
@@ -112,6 +128,7 @@ function handle_status_json(array $file, string $name, string $archiveBaseDir): 
         'unix' => $m[2],
         'date_dir' => $dateDir,
         'path' => $destination,
+        'latest_path' => $latestDestination,
     ]);
 }
 
@@ -171,7 +188,7 @@ if (str_ends_with(strtolower($name), '.h5')) {
 }
 
 if (str_ends_with(strtolower($name), '.json')) {
-    handle_status_json($file, $name, $archiveBaseDir);
+    handle_status_json($file, $name, $archiveBaseDir, $dashboardDir);
 }
 
 if (str_ends_with(strtolower($name), '.png')) {
