@@ -2,6 +2,8 @@
 $dashboardTitle = 'Live TGO Oblique Sounding Dashboard';
 $imageGlob = '/var/www/html/iono/*.png';
 $statusGlob = '/var/www/html/iono/station_status_latest-*.json';
+$statusArchiveBaseDir = '/mnt/shovel/ionosonde';
+$statusArchiveFallbackDays = 2;
 $imageBaseUrl = '/iono';
 $lazyImagePlaceholder = 'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%201%201%22%3E%3C/svg%3E';
 $maxAgeHours = 48;
@@ -176,42 +178,79 @@ function format_bytes(?float $bytes): string
     return sprintf($unit === 0 ? '%.0f %s' : '%.1f %s', $value, $units[$unit]);
 }
 
-function load_station_statuses(string $statusGlob): array
+function load_station_status_file(string $path, string $stationFromFile): ?array
+{
+    $json = file_get_contents($path);
+    if ($json === false) return null;
+    $status = json_decode($json, true);
+    if (!is_array($status)) return null;
+    $station = strtoupper((string)($status['station'] ?? $stationFromFile));
+    $generatedUnix = is_numeric($status['generated_unix'] ?? null)
+        ? (float)$status['generated_unix']
+        : (float)(filemtime($path) ?: 0);
+    $status['station'] = $station;
+    $status['generated_unix'] = $generatedUnix;
+    $status['file_mtime'] = filemtime($path) ?: null;
+    $status['path'] = $path;
+    return $status;
+}
+
+function add_station_status(array &$statuses, array $status): void
+{
+    $station = strtoupper((string)($status['station'] ?? ''));
+    if ($station === '') return;
+    $generatedUnix = (float)($status['generated_unix'] ?? 0.0);
+    if (
+        !isset($statuses[$station])
+        || $generatedUnix > (float)($statuses[$station]['generated_unix'] ?? 0.0)
+    ) {
+        $statuses[$station] = $status;
+    }
+}
+
+function load_cached_station_statuses(string $statusGlob): array
 {
     $statuses = [];
     foreach (glob($statusGlob) ?: [] as $path) {
         if (!is_file($path)) continue;
         $filename = basename($path);
-        if (!preg_match('/^station_status_latest-([A-Z0-9]+)\.json$/i', $filename, $m)) {
-            continue;
-        }
-        $stationFromFile = strtoupper($m[1]);
-        $json = file_get_contents($path);
-        if ($json === false) continue;
-        $status = json_decode($json, true);
-        if (!is_array($status)) continue;
-        $station = strtoupper((string)($status['station'] ?? $stationFromFile));
-        $generatedUnix = is_numeric($status['generated_unix'] ?? null)
-            ? (float)$status['generated_unix']
-            : (float)(filemtime($path) ?: 0);
-        $status['generated_unix'] = $generatedUnix;
-        if (
-            !isset($statuses[$station])
-            || $generatedUnix > (float)($statuses[$station]['generated_unix'] ?? 0.0)
-        ) {
-            $status['file_mtime'] = filemtime($path) ?: null;
-            $status['path'] = $path;
-            $statuses[$station] = $status;
+        if (!preg_match('/^station_status_latest-([A-Z0-9]+)\.json$/i', $filename, $m)) continue;
+        $status = load_station_status_file($path, strtoupper($m[1]));
+        if ($status !== null) add_station_status($statuses, $status);
+    }
+    return $statuses;
+}
+
+function load_archived_station_statuses(string $statusArchiveBaseDir, int $fallbackDays): array
+{
+    $statuses = [];
+    $now = time();
+    for ($dayOffset = 0; $dayOffset < $fallbackDays; $dayOffset++) {
+        $dateDir = gmdate('Y-m-d', $now - $dayOffset * 86400);
+        $pattern = rtrim($statusArchiveBaseDir, '/') . '/' . $dateDir . '/station_status-*-*.json';
+        foreach (glob($pattern) ?: [] as $path) {
+            if (!is_file($path)) continue;
+            $filename = basename($path);
+            if (!preg_match('/^station_status-([A-Z0-9]+)-([0-9]{10,}(?:\.[0-9]+)?)\.json$/i', $filename, $m)) continue;
+            $status = load_station_status_file($path, strtoupper($m[1]));
+            if ($status !== null) add_station_status($statuses, $status);
         }
     }
     return $statuses;
+}
+
+function load_station_statuses(string $statusGlob, string $statusArchiveBaseDir, int $fallbackDays): array
+{
+    $statuses = load_cached_station_statuses($statusGlob);
+    if ($statuses) return $statuses;
+    return load_archived_station_statuses($statusArchiveBaseDir, $fallbackDays);
 }
 
 $cutoff = time() - ($maxAgeHours * 3600);
 $stationStaleCutoff = time() - ($stationStaleHours * 3600);
 $mapTabId = 'maps';
 $imagePaths = glob($imageGlob) ?: [];
-$monitorStatuses = load_station_statuses($statusGlob);
+$monitorStatuses = load_station_statuses($statusGlob, $statusArchiveBaseDir, $statusArchiveFallbackDays);
 $receiverStations = [];
 $stationLatestMtime = [];
 
