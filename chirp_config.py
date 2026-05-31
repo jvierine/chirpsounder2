@@ -65,7 +65,7 @@ class chirp_config:
             "propagation_range_transmitters": '["NIC","JORN","ROTHR1","ROTHR2","ROTHR3"]',
             "propagation_range_factor": '"auto"',
             "propagation_band_fraction": "0.15",
-            "propagation_range_band_overrides": '{"JORN":{"fractional_half_width":0.35}}',
+            "propagation_range_band_overrides": '{"JORN":{"paths":["short","long"]}}',
         }
         cf["lfm"] = {
             "range_resolution": "2e3",

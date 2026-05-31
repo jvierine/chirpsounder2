@@ -10,6 +10,7 @@ import math
 
 
 EARTH_RADIUS_KM = 6371.0088
+EARTH_CIRCUMFERENCE_KM = 2.0 * math.pi * EARTH_RADIUS_KM
 
 
 def great_circle_distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -52,14 +53,20 @@ def virtual_distance_km(
     transmitter: dict,
     receiver: dict,
     propagation_factor: float,
+    path: str = "short",
 ) -> float:
     """Estimate one-way virtual distance from transmitter/receiver coordinates."""
-    return propagation_factor * great_circle_distance_km(
+    distance_km = great_circle_distance_km(
         transmitter["lat"],
         transmitter["lon"],
         receiver["lat"],
         receiver["lon"],
     )
+    if path == "long":
+        distance_km = EARTH_CIRCUMFERENCE_KM - distance_km
+    elif path != "short":
+        raise ValueError("great-circle path must be 'short' or 'long'")
+    return propagation_factor * distance_km
 
 
 def auto_propagation_bands(
@@ -88,29 +95,38 @@ def auto_propagation_bands(
         if tx_name not in station_info:
             continue
         tx = station_info[tx_name]
-        center = virtual_distance_km(tx, receiver, propagation_factor)
         override = band_overrides.get(tx_name, {})
+        paths = override.get("paths", ["short"])
         band_fractional_half_width = float(
             override.get("fractional_half_width", fractional_half_width)
         )
-        half_width = max(100.0, center * band_fractional_half_width)
-        band = {
-            "name": tx_name,
-            "label": tx.get("name", tx_name),
-            "center_km": center,
-            "min_km": max(0.0, center - half_width),
-            "max_km": center + half_width,
-            "distance_km": great_circle_distance_km(
-                tx["lat"], tx["lon"], receiver["lat"], receiver["lon"]
-            ),
-        }
-        if "label" in override:
-            band["label"] = override["label"]
-        if "min_km" in override:
-            band["min_km"] = float(override["min_km"])
-        if "max_km" in override:
-            band["max_km"] = float(override["max_km"])
-        if "center_km" in override:
-            band["center_km"] = float(override["center_km"])
-        bands.append(band)
+        short_distance_km = great_circle_distance_km(
+            tx["lat"], tx["lon"], receiver["lat"], receiver["lon"]
+        )
+        for path in paths:
+            center = virtual_distance_km(tx, receiver, propagation_factor, path=path)
+            half_width = max(100.0, center * band_fractional_half_width)
+            label = override.get("label", tx.get("name", tx_name))
+            if len(paths) > 1:
+                label = "%s %s" % (label, path)
+            band = {
+                "name": tx_name,
+                "path": path,
+                "label": label,
+                "center_km": center,
+                "min_km": max(0.0, center - half_width),
+                "max_km": center + half_width,
+                "distance_km": (
+                    short_distance_km
+                    if path == "short"
+                    else EARTH_CIRCUMFERENCE_KM - short_distance_km
+                ),
+            }
+            if "min_km" in override and path == "short":
+                band["min_km"] = float(override["min_km"])
+            if "max_km" in override and path == "short":
+                band["max_km"] = float(override["max_km"])
+            if "center_km" in override and path == "short":
+                band["center_km"] = float(override["center_km"])
+            bands.append(band)
     return bands
