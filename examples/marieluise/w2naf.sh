@@ -26,6 +26,13 @@ mkdir -p "$RINGBUFFER_DIR"
 mkdir -p /home/hamsci/data/ionosonde
 mkdir -p logs
 
+GPS_LOCK_TIMEOUT=$(python3 - <<PY
+import chirp_config as cc
+conf = cc.chirp_config("$CONF_FILE", verbose=False, build_fvec=False)
+print(conf.gps_lock_timeout_sec if not conf.require_gps_lock else -1)
+PY
+)
+
 echo "sync_iono_data.py"
 python3 sync_iono_data.py --config "$CONF_FILE" > logs/sync.log 2>&1 &
 
@@ -47,7 +54,7 @@ python3 station_monitor.py --config "$CONF_FILE" > logs/station_monitor.log 2>&1
 echo "Starting rx_uhd_ext_gps for W2NAF USRP N200 at 192.168.10.2. Restarting every 24 hours."
 while true;
 do
-    ./rx_uhd_ext_gps --outdir="$RINGBUFFER_DIR" --usrp_args="$UHD_ARGS" --gps-lock-timeout=30 > logs/w2naf.log 2>&1
+    ./rx_uhd_ext_gps --outdir="$RINGBUFFER_DIR" --usrp_args="$UHD_ARGS" --gps-lock-timeout="$GPS_LOCK_TIMEOUT" > logs/w2naf.log 2>&1
     sleep 5
     echo "Restarting recording."
     echo "Rotating logs"

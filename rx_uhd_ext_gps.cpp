@@ -344,7 +344,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         ("subdev", po::value<std::string>(&subdev)->default_value("A:A"), "subdevice")
         ("rate", po::value<double>(&rate)->default_value(25e6), "rate of incoming samples")
         ("channels", po::value<std::string>(&channel_list)->default_value("0"), "which channel(s) to use (specify \"0\", \"1\", \"0,1\", etc)")
-        ("gps-lock-timeout", po::value<int>(&gps_lock_timeout_sec)->default_value(300), "seconds to wait for internal GPSDO lock before continuing; use -1 to wait indefinitely")
+        ("gps-lock-timeout", po::value<int>(&gps_lock_timeout_sec)->default_value(-1), "seconds to wait for internal GPSDO lock before continuing; use -1 to wait indefinitely")
     ;
     
     // clang-format on

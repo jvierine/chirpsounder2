@@ -38,6 +38,8 @@ class chirp_config:
                         "ringbuffer_max_age_min":"4",
                         "ringbuffer_max_age_sec":"70",
                         "ringbuffer_cleanup":"false",
+                        "require_gps_lock": "true",
+                        "gps_lock_timeout_sec": "-1",
                         "serendipitous": "false",
                         }
         cf["detection"] = {
@@ -148,6 +150,8 @@ class chirp_config:
         else:
             self.ringbuffer_max_age_sec=json.loads(cf["config"]["ringbuffer_max_age_sec"])
         self.ringbuffer_cleanup=json.loads(cf["config"]["ringbuffer_cleanup"])#":"false",
+        self.require_gps_lock=json.loads(cf["config"]["require_gps_lock"])
+        self.gps_lock_timeout_sec=json.loads(cf["config"]["gps_lock_timeout_sec"])
 
         
         self.debug_timings = json.loads(cf["detection"]["debug_timings"])
