@@ -123,7 +123,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     plot_map(cc.chirp_config(args.config),set_extent=False,ofname="map_all.png")
-    plot_map(cc.chirp_config(args.config),set_extent=True,ofname="map_scand.png")
+    plot_map(
+        cc.chirp_config(args.config),
+        set_extent=True,
+        ofname="map_scand.png",
+        extent=[-10, 40, 45, 90],
+        target_stations={"DOB", "TGO", "KHO"})
     plot_map(
         cc.chirp_config(args.config),
         set_extent=True,
