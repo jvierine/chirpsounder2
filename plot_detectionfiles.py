@@ -413,7 +413,7 @@ def plot_propagation_range(
         vmin=5,vmax=25
     )
     y_min = -5e3
-    y_max = 17.5e3
+    y_max = 30e3
     cb1 = plt.colorbar(sc1, ax=ax[0])
     cb1.set_label("Frequency (MHz)", fontsize=16)
     
@@ -449,7 +449,7 @@ def plot_propagation_range(
         s=0.5,
         cmap="rainbow",
         vmin=-5e3,
-        vmax=max(20e3, y_max),
+        vmax=y_max,
     )
 
 
