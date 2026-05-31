@@ -189,11 +189,14 @@ def plot_map(conf, set_extent=True, ofname="map.png", extent=None, target_statio
 
             ax.plot(
                 lon, lat,
-                marker='o' if is_receiver else '^',
+                marker='o' if is_receiver else 's',
+                linestyle='None',
                 transform=ccrs.PlateCarree(),
                 label=s["name"],
                 color=station_colors.get(name, "black" if is_receiver else "0.25"),
-                markersize=7 if is_receiver else 6,
+                markeredgecolor="black" if is_receiver else "0.15",
+                markeredgewidth=0.7,
+                markersize=7 if is_receiver else 5,
             )
 
 
