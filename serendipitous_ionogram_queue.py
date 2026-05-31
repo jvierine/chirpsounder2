@@ -59,7 +59,7 @@ def read_par(path):
         }
 
 
-def mark_done(path, status, reason=None):
+def mark_done(path, status, reason=None, remove_par=False):
     done = "%s.done" % path
     if os.path.exists(done):
         return
@@ -69,6 +69,11 @@ def mark_done(path, status, reason=None):
         h["status"] = status
         if reason:
             h["reason"] = reason
+    if remove_par:
+        try:
+            os.unlink(path)
+        except FileNotFoundError:
+            pass
 
 
 def try_claim(path):
@@ -87,6 +92,18 @@ def release_claim(path):
         os.unlink("%s.lock" % path)
     except FileNotFoundError:
         pass
+
+
+def release_stale_claim(path, timeout_s):
+    lock = "%s.lock" % path
+    try:
+        age_s = time.time() - os.path.getmtime(lock)
+    except FileNotFoundError:
+        return
+    if age_s <= timeout_s:
+        return
+    log("removing stale lock %s age %.1f s" % (lock, age_s))
+    release_claim(path)
 
 
 def raw_start_available(conf, bounds, par):
@@ -123,7 +140,7 @@ def worker(conf_path, par_path):
     ok, reason = raw_start_available(conf, bounds, par)
     if not ok:
         if reason.startswith("start_lost"):
-            mark_done(par_path, "abandoned", reason)
+            mark_done(par_path, "abandoned", reason, remove_par=True)
             return "abandoned %s %s" % (par_path, reason)
         raise RuntimeError(reason)
 
@@ -141,7 +158,7 @@ def worker(conf_path, par_path):
         cid=0,
         num_detections=par["num_detections"],
     )
-    mark_done(par_path, "done")
+    mark_done(par_path, "done", remove_par=True)
     return "done %s" % par_path
 
 
@@ -152,6 +169,7 @@ def submit_ready_jobs(conf, conf_path, executor, futures):
     for path in par_files(conf):
         if len(futures) >= conf.serendipitous_ionogram_workers:
             return
+        release_stale_claim(path, conf.parameter_file_lock_timeout_sec)
         if os.path.exists("%s.done" % path) or os.path.exists("%s.lock" % path):
             continue
         try:
@@ -168,7 +186,7 @@ def submit_ready_jobs(conf, conf_path, executor, futures):
         if not ok:
             if reason.startswith("start_lost"):
                 log("abandoning %s: %s" % (path, reason))
-                mark_done(path, "abandoned", reason)
+                mark_done(path, "abandoned", reason, remove_par=True)
             continue
 
         if try_claim(path):
@@ -186,6 +204,7 @@ def reap_finished(futures):
         except Exception as e:
             log("job failed %s: %s" % (path, e))
             traceback.print_exc(file=sys.stdout)
+        finally:
             release_claim(path)
 
 

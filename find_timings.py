@@ -117,7 +117,7 @@ def scan_for_chirps(conf, ch, dt=0.1):
 
             fname = "%s/par-%s-%1.4f.h5" % (dname, ch, n.floor(t0))
 
-            if not os.path.exists(fname):
+            if not os.path.exists(fname) and not os.path.exists("%s.done" % fname):
                 ho = h5py.File(fname, "w")
                 csversion.tag_hdf5(ho)
                 tnow = time.time()

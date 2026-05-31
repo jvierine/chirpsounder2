@@ -172,6 +172,25 @@ def cleanup_ringbuffer_files(data_dir, max_age_s):
                 print(f"could not remove {path}: {e}")
 
 
+def cleanup_parameter_files(output_dir, max_age_s):
+    now = time.time()
+    patterns = ("par-*.h5", "par-*.h5.done", "par-*.h5.lock")
+    for root, _, files in os.walk(output_dir):
+        for fname in files:
+            if not any(fnmatch.fnmatch(fname, pattern) for pattern in patterns):
+                continue
+            path = os.path.join(root, fname)
+            try:
+                age_s = now - os.path.getmtime(path)
+                if age_s > max_age_s:
+                    os.remove(path)
+                    print(f"removed old parameter artifact {path}")
+            except FileNotFoundError:
+                pass
+            except Exception as e:
+                print(f"could not remove {path}: {e}")
+
+
 def housekeeping(conf):
     t_hist = collections.deque(maxlen=24 * 60)
     temp_histories = {}
@@ -184,6 +203,7 @@ def housekeeping(conf):
             max_age_s = getattr(conf, "ringbuffer_max_age_sec", conf.ringbuffer_max_age_min * 60)
             print("cleaning files older than %d seconds" % (max_age_s))
             cleanup_ringbuffer_files(conf.data_dir, max_age_s)
+        cleanup_parameter_files(conf.output_dir, conf.parameter_file_retention_sec)
         now = time.time()
 #        try:
  #           if now >= next_pc_status_time:
