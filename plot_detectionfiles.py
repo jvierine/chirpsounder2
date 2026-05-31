@@ -321,6 +321,7 @@ def plot_auto_propagation_bands(
     transmitter_names=None,
     propagation_factor="auto",
     fractional_half_width=0.15,
+    band_overrides=None,
 ):
     if transmitter_names is None:
         transmitter_names = ["NIC", "JORN", "ROTHR1", "ROTHR2", "ROTHR3"]
@@ -330,6 +331,7 @@ def plot_auto_propagation_bands(
         transmitter_names,
         propagation_factor=propagation_factor,
         fractional_half_width=fractional_half_width,
+        band_overrides=band_overrides,
     )
     alphas = [0.18, 0.10, 0.26, 0.22, 0.18, 0.14]
     for i, band in enumerate(bands):
@@ -357,6 +359,7 @@ def plot_propagation_range(
     propagation_range_transmitters=None,
     propagation_range_factor="auto",
     propagation_band_fraction=0.15,
+    propagation_range_band_overrides=None,
 ):
 
     gidx=n.where( (dfs[:,0]>start_t) & (dfs[:,0]<(start_t+n_hours*3600)))[0]
@@ -427,6 +430,7 @@ def plot_propagation_range(
             transmitter_names=propagation_range_transmitters,
             propagation_factor=propagation_range_factor,
             fractional_half_width=propagation_band_fraction,
+            band_overrides=propagation_range_band_overrides,
         )
         if bands:
             y_max = max(y_max, max(band["max_km"] for band in bands) * 1.05)
@@ -609,7 +613,8 @@ if __name__ == "__main__":
             propagation_range_bands=conf.propagation_range_bands,
             propagation_range_transmitters=conf.propagation_range_transmitters,
             propagation_range_factor=conf.propagation_range_factor,
-            propagation_band_fraction=conf.propagation_band_fraction)
+            propagation_band_fraction=conf.propagation_band_fraction,
+            propagation_range_band_overrides=conf.propagation_range_band_overrides)
         sys.exit(0)
 
     while True:
@@ -650,7 +655,8 @@ if __name__ == "__main__":
                 propagation_range_bands=conf.propagation_range_bands,
                 propagation_range_transmitters=conf.propagation_range_transmitters,
                 propagation_range_factor=conf.propagation_range_factor,
-                propagation_band_fraction=conf.propagation_band_fraction)
+                propagation_band_fraction=conf.propagation_band_fraction,
+                propagation_range_band_overrides=conf.propagation_range_band_overrides)
         except Exception:
             traceback.print_exc(file=sys.stdout)
         time.sleep(15*60)

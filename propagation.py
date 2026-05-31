@@ -68,6 +68,7 @@ def auto_propagation_bands(
     transmitter_names: list[str] | tuple[str, ...],
     propagation_factor: float | str = "auto",
     fractional_half_width: float = 0.15,
+    band_overrides: dict | None = None,
 ) -> list[dict]:
     """Return plot bands estimated from great-circle distance.
 
@@ -79,6 +80,8 @@ def auto_propagation_bands(
     if propagation_factor == "auto":
         propagation_factor = propagation_factor_from_calibration(station_info)
     propagation_factor = float(propagation_factor)
+    if band_overrides is None:
+        band_overrides = {}
     receiver = station_info[receiver_name]
     bands = []
     for tx_name in transmitter_names:
@@ -87,16 +90,24 @@ def auto_propagation_bands(
         tx = station_info[tx_name]
         center = virtual_distance_km(tx, receiver, propagation_factor)
         half_width = max(100.0, center * float(fractional_half_width))
-        bands.append(
-            {
-                "name": tx_name,
-                "label": tx.get("name", tx_name),
-                "center_km": center,
-                "min_km": max(0.0, center - half_width),
-                "max_km": center + half_width,
-                "distance_km": great_circle_distance_km(
-                    tx["lat"], tx["lon"], receiver["lat"], receiver["lon"]
-                ),
-            }
-        )
+        band = {
+            "name": tx_name,
+            "label": tx.get("name", tx_name),
+            "center_km": center,
+            "min_km": max(0.0, center - half_width),
+            "max_km": center + half_width,
+            "distance_km": great_circle_distance_km(
+                tx["lat"], tx["lon"], receiver["lat"], receiver["lon"]
+            ),
+        }
+        override = band_overrides.get(tx_name, {})
+        if "label" in override:
+            band["label"] = override["label"]
+        if "min_km" in override:
+            band["min_km"] = float(override["min_km"])
+        if "max_km" in override:
+            band["max_km"] = float(override["max_km"])
+        if "center_km" in override:
+            band["center_km"] = float(override["center_km"])
+        bands.append(band)
     return bands

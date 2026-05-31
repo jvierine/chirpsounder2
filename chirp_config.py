@@ -65,6 +65,7 @@ class chirp_config:
             "propagation_range_transmitters": '["NIC","JORN","ROTHR1","ROTHR2","ROTHR3"]',
             "propagation_range_factor": '"auto"',
             "propagation_band_fraction": "0.15",
+            "propagation_range_band_overrides": "{}",
         }
         cf["lfm"] = {
             "range_resolution": "2e3",
@@ -186,6 +187,7 @@ class chirp_config:
         self.propagation_range_transmitters = json.loads(cf["detection"]["propagation_range_transmitters"])
         self.propagation_range_factor = json.loads(cf["detection"]["propagation_range_factor"])
         self.propagation_band_fraction = json.loads(cf["detection"]["propagation_band_fraction"])
+        self.propagation_range_band_overrides = json.loads(cf["detection"]["propagation_range_band_overrides"])
 #        print(cf["stations"]["station_info"])
         self.station_info = shared_station_info
         self.station_info.update(json.loads(cf["stations"]["station_info"]))
