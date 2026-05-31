@@ -69,11 +69,21 @@ def newest_lfm_file(data_dir, tx, rx):
     return newest_file(patterns)
 
 
+def recent_date_dirs(hours, extra_days=1):
+    n_days = max(1, int((hours + 23) // 24) + extra_days)
+    today = dt.datetime.utcnow().date()
+    return [
+        (today - dt.timedelta(days=day_offset)).strftime("%Y-%m-%d")
+        for day_offset in range(n_days)
+    ]
+
+
 def plot_detection_quicklook(conf, data_dir, web_dir, hours=48):
     files = plot_detectionfiles.detection_files(
         data_dir,
         max_files=int(hours / 24.0 * 96) + 16,
         station_name=conf.station_name,
+        date_dirs=recent_date_dirs(hours),
     )
     dfs = plot_detectionfiles.read_detection_files(files)
     plot_end = plot_detectionfiles.newest_detection_time(dfs, time.time())

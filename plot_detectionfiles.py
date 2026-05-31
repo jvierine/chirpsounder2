@@ -51,20 +51,34 @@ def parse_utc_datetime(value):
     return parsed.astimezone(timezone.utc)
 
 
-def detection_files(data_dir, max_files=None, station_name=None):
+def utc_date_dirs(start_t, end_t):
+    day_start = n.floor(start_t/24/3600)*24*3600
+    day_end = n.floor(end_t/24/3600)*24*3600
+    dirs = []
+    day_t = day_start
+    while day_t <= day_end:
+        dirs.append(datetime.fromtimestamp(day_t, timezone.utc).strftime("%Y-%m-%d"))
+        day_t += 24*3600
+    return dirs
+
+
+def detection_files(data_dir, max_files=None, station_name=None, date_dirs=None):
+    search_dirs = [data_dir]
+    if date_dirs is None:
+        now = datetime.now(timezone.utc)
+        date_dirs = [
+            (now - timedelta(days=day_offset)).strftime("%Y-%m-%d")
+            for day_offset in range(3)
+        ]
+    search_dirs.extend(os.path.join(data_dir, dirname) for dirname in date_dirs)
+
     if station_name:
-        patterns = [
-            "%s/cdetections-%s-*.h5" % (data_dir, station_name),
-            "%s/2*/cdetections-%s-*.h5" % (data_dir, station_name),
-        ]
+        filename_pattern = "cdetections-%s-*.h5" % (station_name)
     else:
-        patterns = [
-            "%s/cdetections*.h5" % (data_dir),
-            "%s/2*/cdetections*.h5" % (data_dir),
-        ]
+        filename_pattern = "cdetections*.h5"
     files = []
-    for pattern in patterns:
-        files += glob.glob(pattern)
+    for search_dir in search_dirs:
+        files += glob.glob(os.path.join(search_dir, filename_pattern))
     files = sorted(set(files))
     if max_files is not None:
         files = files[-max_files:]
@@ -419,6 +433,12 @@ if __name__ == "__main__":
         default=None,
         help="Output plot filename. Defaults to /tmp/latest-...png."
     )
+    parser.add_argument(
+        "--recent-days",
+        type=int,
+        default=3,
+        help="In live mode, only list cdetections files in root and the last N UTC date directories."
+    )
     args = parser.parse_args()
     if args.end is not None and args.start is None:
         parser.error("--end requires --start")
@@ -448,7 +468,10 @@ if __name__ == "__main__":
             raise ValueError("--end must be after --start")
 
         n_hours = (end_time - start_time).total_seconds() / 3600.0
-        files = detection_files(data_dir, station_name=station_name)
+        files = detection_files(
+            data_dir,
+            station_name=station_name,
+            date_dirs=utc_date_dirs(start_time.timestamp(), end_time.timestamp()))
         dfs = read_detection_files(files)
         if args.output is None:
             suffix = "chirp-time" if args.plot_mode == "chirp-time" else "rothr_jorn"
@@ -471,7 +494,15 @@ if __name__ == "__main__":
         n_days=2
         n_read=96*n_days+8
         try:
-            files = detection_files(data_dir, max_files=n_read, station_name=station_name)
+            recent_dirs = [
+                (datetime.now(timezone.utc) - timedelta(days=day_offset)).strftime("%Y-%m-%d")
+                for day_offset in range(max(1, args.recent_days))
+            ]
+            files = detection_files(
+                data_dir,
+                max_files=n_read,
+                station_name=station_name,
+                date_dirs=recent_dirs)
             dfs = read_detection_files(files)
 
             import time

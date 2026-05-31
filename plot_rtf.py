@@ -65,12 +65,23 @@ def read_ionogram(h):
     n_r = min(len(ranges), snr.shape[1])
     return ranges[:n_r], freqs[:n_f], snr[:n_f, :n_r], h["t0"][()]
 
-def get_ionogram_files(data_dir, tx, rx, dirname=None):
+def recent_utc_date_dirs(n_days=3):
+    now = datetime.now(timezone.utc)
+    return [
+        (now - timedelta(days=day_offset)).strftime("%Y-%m-%d")
+        for day_offset in range(max(1, n_days))
+    ]
+
+
+def get_ionogram_files(data_dir, tx, rx, dirname=None, recent_days=3):
     if dirname is None:
-        pattern = "%s/2*/*_ionogram-%s-%s-*.h5" % (data_dir, tx, rx)
+        fl = []
+        for date_dir in recent_utc_date_dirs(recent_days):
+            pattern = "%s/%s/*_ionogram-%s-%s-*.h5" % (data_dir, date_dir, tx, rx)
+            fl.extend(glob.glob(pattern))
     else:
         pattern = "%s/%s/*_ionogram-%s-%s-*.h5" % (data_dir, dirname, tx, rx)
-    fl = glob.glob(pattern)
+        fl = glob.glob(pattern)
     fl.sort()
     return fl
 

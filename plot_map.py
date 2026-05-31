@@ -8,7 +8,7 @@ import cartopy.feature as cfeature
 
 import argparse
 
-def plot_map(conf, set_extent=True, ofname="map.png"):
+def plot_map(conf, set_extent=True, ofname="map.png", extent=None, target_stations=None):
     print(conf.station_info)
     stations = conf.station_info
     station_colors = {
@@ -20,11 +20,20 @@ def plot_map(conf, set_extent=True, ofname="map.png"):
   # Create map
     fig = plt.figure(figsize=(10, 8),constrained_layout=True)
 
+    if extent is None:
+        central_longitude = 15
+        central_latitude = 65
+        standard_parallels = (55, 75)
+    else:
+        central_longitude = 0.5 * (extent[0] + extent[1])
+        central_latitude = 0.5 * (extent[2] + extent[3])
+        standard_parallels = (extent[2] + 5, extent[3] - 5)
+
     proj = ccrs.LambertConformal(
-    central_longitude=15,
-    central_latitude=65,
-    standard_parallels=(55, 75)
-)
+        central_longitude=central_longitude,
+        central_latitude=central_latitude,
+        standard_parallels=standard_parallels
+    )
     ax = plt.axes(projection=proj)
 
     # Add basic features
@@ -35,7 +44,7 @@ def plot_map(conf, set_extent=True, ofname="map.png"):
 
     # Set extent
     if set_extent:
-        ax.set_extent([-90, 40, 35, 90])
+        ax.set_extent(extent or [-90, 40, 35, 90])
 
     # ✅ Add gridlines
     gl = ax.gridlines(
@@ -54,7 +63,8 @@ def plot_map(conf, set_extent=True, ofname="map.png"):
     gl.ylabel_style = {'size': 14}
 
     # Filter for the receiver stations shown on the live dashboard.
-    target_stations = {"DOB", "TGO", "KHO", "W2NAF"}
+    if target_stations is None:
+        target_stations = {"DOB", "TGO", "KHO", "W2NAF"}
     filtered_links = [l for l in conf.station_links if (l[0] in target_stations or l[1] in target_stations)]
     stations_to_plot = target_stations.copy()
 
@@ -114,3 +124,9 @@ if __name__ == "__main__":
 
     plot_map(cc.chirp_config(args.config),set_extent=False,ofname="map_all.png")
     plot_map(cc.chirp_config(args.config),set_extent=True,ofname="map_scand.png")
+    plot_map(
+        cc.chirp_config(args.config),
+        set_extent=True,
+        ofname="map_us.png",
+        extent=[-130, -60, 20, 55],
+        target_stations={"W2NAF"})

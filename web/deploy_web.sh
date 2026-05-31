@@ -18,6 +18,7 @@ FILES_TO_DEPLOY=(
     "${SCRIPT_DIR}/unis-logo-liggende.svg:${IONO_TARGET_DIR}"
     "${SCRIPT_DIR}/map_all.png:${IONO_TARGET_DIR}"
     "${SCRIPT_DIR}/map_scand.png:${IONO_TARGET_DIR}"
+    "${SCRIPT_DIR}/map_us.png:${IONO_TARGET_DIR}"
     "${SCRIPT_DIR}/chirp_band_aoa_2026-05-20_000_020ms.png:${IONO_TARGET_DIR}"
     "${SCRIPT_DIR}/chirp_band_aoa_2026-05-20_020_040ms.png:${IONO_TARGET_DIR}"
     "${SCRIPT_DIR}/chirp_band_aoa_2026-05-20_040_060ms.png:${IONO_TARGET_DIR}"
