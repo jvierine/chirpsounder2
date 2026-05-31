@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 240" role="img" aria-labelledby="title desc">
-  <title id="title">University of Scranton logo</title>
-  <desc id="desc">Stylized purple and black University of Scranton S mark.</desc>
-  <path fill="#ffffff" d="M0 0h180v240H0z"/>
-  <path fill="#8b7f9d" d="M144 12v56h-39zM27 211l43-68h75v-40H97v37H60c-40 0-57-22-57-62V41C3 16 18 1 43 1h112v66H92V48H64v38h52c42 0 61 22 61 63v40c0 34-20 53-55 53H17v-31z"/>
-  <path fill="#272525" fill-rule="evenodd" d="M0 41C0 14 17 0 43 0h122v75H99V56H72v21h44c47 0 64 26 64 72v40c0 39-23 51-58 51H9v-38h37v-51H0V41zm11 0v99h70v39h-31v12h72c30 0 47-13 47-40v-40c0-36-15-53-54-53H61V45h49v19h44V11H43C23 11 11 22 11 41z"/>
-  <path fill="#ffffff" d="M19 132h71v40h20v-61H59c-31 0-48-19-48-52V41c0-19 12-30 32-30h111v53h-44V45H61v52h54c40 0 54 18 54 54v38c0 27-17 40-47 40H20v-27h31v-70z"/>
-  <path fill="#272525" d="M78 52h38v25h49V0H43C17 0 0 14 0 41v37c0 41 20 65 60 65h38v21H78v-32H19v70h-10v38h113c35 0 58-12 58-51v-40c0-46-17-72-64-72H88V62h-10zM11 41c0-19 12-30 32-30h111v53h-38V52H78v36h37c39 0 54 17 54 53v48c0 27-17 40-47 40H20v-27h42v-70H60c-34 0-49-18-49-54z"/>
-</svg>

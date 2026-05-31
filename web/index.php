@@ -701,7 +701,7 @@ if (!$hasCards && count($tabs) > 1) {
             <img class="logo logo-unis" src="unis-logo-liggende.svg" alt="UNIS logo">
         </a>
         <a href="https://www.scranton.edu/" aria-label="University of Scranton">
-            <img class="logo logo-scranton" src="university-of-scranton-logo.svg" alt="University of Scranton logo">
+            <img class="logo logo-scranton" src="university-of-scranton-logo.png" alt="University of Scranton logo">
         </a>
     </div>
 </header>
@@ -868,7 +868,7 @@ setInterval(updateUtcTime, 1000);
             monitoring products and should be interpreted as quick-look data.
         </p>
         <div class="contributors">
-            <img class="contributor-logo" src="university-of-scranton-logo.svg" alt="University of Scranton logo">
+            <img class="contributor-logo" src="university-of-scranton-logo.png" alt="University of Scranton logo">
             <p>
                 Contributors include Nathaniel A. Frissell (W2NAF), University of Scranton.
             </p>
