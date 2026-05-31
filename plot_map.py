@@ -64,6 +64,32 @@ def _add_inside_grid_labels(ax, extent, lon_step=60, lat_step=30):
             )
 
 
+def _add_global_axes_labels(ax):
+    label_style = {
+        "fontsize": 9,
+        "color": "0.2",
+        "bbox": {"facecolor": "white", "alpha": 0.55, "edgecolor": "none", "pad": 1.5},
+        "clip_on": True,
+        "zorder": 20,
+    }
+    for x, label in [
+        (0.12, "120 degW"),
+        (0.30, "60 degW"),
+        (0.50, "0 deg"),
+        (0.68, "60 degE"),
+        (0.86, "120 degE"),
+    ]:
+        ax.text(x, 0.05, label, ha="center", va="bottom", transform=ax.transAxes, **label_style)
+
+    for y, label in [
+        (0.19, "30 degS"),
+        (0.39, "0 deg"),
+        (0.59, "30 degN"),
+        (0.79, "60 degN"),
+    ]:
+        ax.text(0.02, y, label, ha="left", va="center", transform=ax.transAxes, **label_style)
+
+
 def plot_map(conf, set_extent=True, ofname="map.png", extent=None, target_stations=None):
     stations = conf.station_info
     station_colors = {
@@ -78,7 +104,11 @@ def plot_map(conf, set_extent=True, ofname="map.png", extent=None, target_statio
 
     if global_map:
         extent = [-170, 170, -45, 85]
-        proj = ccrs.PlateCarree()
+        proj = ccrs.RotatedPole(
+            pole_longitude=180,
+            pole_latitude=35,
+            central_rotated_longitude=0,
+        )
     elif extent is None:
         central_longitude = 15
         central_latitude = 65
@@ -120,7 +150,7 @@ def plot_map(conf, set_extent=True, ofname="map.png", extent=None, target_statio
     if global_map:
         gl.xlocator = mticker.FixedLocator(range(-120, 181, 60))
         gl.ylocator = mticker.FixedLocator(range(-30, 91, 30))
-        _add_inside_grid_labels(ax, extent, lon_step=60, lat_step=30)
+        _add_global_axes_labels(ax)
     else:
         _add_inside_grid_labels(ax, extent or [-90, 40, 35, 90], lon_step=25, lat_step=10)
 
@@ -171,7 +201,7 @@ def plot_map(conf, set_extent=True, ofname="map.png", extent=None, target_statio
             )
 
 
-    plt.legend(fontsize=12)
+    plt.legend(fontsize=12, loc="upper right" if global_map else "best")
     plt.title("Ionospheric Sounding Network", fontsize=20)
 
     plt.savefig(ofname, dpi=150)  # save BEFORE show
