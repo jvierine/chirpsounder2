@@ -104,11 +104,7 @@ def plot_map(conf, set_extent=True, ofname="map.png", extent=None, target_statio
 
     if global_map:
         extent = [-170, 170, -45, 85]
-        proj = ccrs.RotatedPole(
-            pole_longitude=180,
-            pole_latitude=35,
-            central_rotated_longitude=0,
-        )
+        proj = ccrs.PlateCarree()
     elif extent is None:
         central_longitude = 15
         central_latitude = 65
