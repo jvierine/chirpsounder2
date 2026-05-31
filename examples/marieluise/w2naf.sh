@@ -23,7 +23,7 @@ cd "$INSTALL_PATH"
 
 ./stop_ringbuffer.sh || true
 mkdir -p "$RINGBUFFER_DIR"
-mkdir -p /home/hamsci/data/ionosonde
+mkdir -p /home/hamsci/data/chirpsounder2
 mkdir -p logs
 
 GPS_LOCK_TIMEOUT=$(python3 - <<PY
