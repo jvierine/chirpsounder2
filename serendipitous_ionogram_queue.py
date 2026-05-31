@@ -43,10 +43,19 @@ def par_files(conf):
 
 def read_par(path):
     with h5py.File(path, "r") as h:
+        if "num_detections" in h.keys():
+            num_detections = int(h["num_detections"][()])
+        elif "snrs" in h.keys():
+            num_detections = len(h["snrs"])
+        elif "t0s" in h.keys():
+            num_detections = len(h["t0s"])
+        else:
+            num_detections = -1
         return {
             "t0": float(h["t0"][()]),
             "chirp_rate": float(h["chirp_rate"][()]),
             "channel": h["channel"][()].decode("utf-8") if hasattr(h["channel"][()], "decode") else str(h["channel"][()]),
+            "num_detections": num_detections,
         }
 
 
@@ -130,6 +139,7 @@ def worker(conf_path, par_path):
         dec=conf.decimation,
         txname="unknown",
         cid=0,
+        num_detections=par["num_detections"],
     )
     mark_done(par_path, "done")
     return "done %s" % par_path

@@ -187,7 +187,8 @@ def chirp_downconvert(conf,
                       dec=2500,
                       realtime_req=None,
                       txname="unkown",
-                      cid=0):
+                      cid=0,
+                      num_detections=-1):
     cput0 = time.time()
     sleep_time = 0.0
     sr = conf.sample_rate
@@ -334,6 +335,8 @@ def chirp_downconvert(conf,
         ho["id"] = cid
         ho["txname"]=txname
         ho["station_name"] = conf.station_name
+        if conf.serendipitous and num_detections >= 0:
+            ho["num_detections"] = int(num_detections)
         ho["sr"] = float(sr_dec)  # ionogram sample-rate
         if conf.save_raw_voltage:
             ho["z"] = zd

@@ -126,6 +126,17 @@ def detection_filter_indices(times, min_detections=5, max_dt=0.033):
     return n.concatenate(keep)
 
 
+def save_empty_plot(pfname, title, message):
+    fig, ax = plt.subplots(1, 1, figsize=(10, 6), constrained_layout=True)
+    ax.text(0.5, 0.5, message, ha="center", va="center",
+            transform=ax.transAxes, fontsize=16)
+    ax.set_title(title, fontsize=18)
+    ax.set_axis_off()
+    fig.savefig(pfname)
+    plt.close(fig)
+    print("saved %s" % (pfname))
+
+
 def detection_filter_indices_by_floor_time_and_rate(
         dfs, min_detections=5, max_dt=0.033):
     seconds = n.floor(dfs[:, 0]).astype(n.int64)
@@ -316,17 +327,22 @@ def plot_propagation_range(
 
     gidx=n.where( (dfs[:,0]>start_t) & (dfs[:,0]<(start_t+n_hours*3600)))[0]
     dfs=dfs[gidx,:]
+    day_start, day_end, time_span_str = format_time_span(start_t, n_hours, title_span)
+    title = "ROTHR & JORN -> %s %s, >= %d detections per floor(chirp_time), chirp-rate" % (
+        station_name, time_span_str, min_detections)
     if dfs.shape[0] == 0:
         print("no detections in requested window for %s" % (pfname))
+        save_empty_plot(pfname, title, "No detections in requested window")
         return
     
     # filter soundings so that only ones with sufficiently many detections are shown
     print("filtering")
-    # less than 10 km separation between points
-    gidx = detection_filter_indices(dfs[:, 0], min_detections=min_detections, max_dt=0.033)
+    gidx = detection_filter_indices_by_floor_time_and_rate(
+        dfs, min_detections=min_detections, max_dt=0.033)
 
     if len(gidx) == 0:
-        print("no soundings with more than %d detections for %s" % (min_detections, pfname))
+        print("no soundings with at least %d detections for %s" % (min_detections, pfname))
+        save_empty_plot(pfname, title, "No soundings with at least %d detections" % min_detections)
         return
     
     freqs = frequency_mhz(dfs[gidx, 2])
@@ -338,6 +354,7 @@ def plot_propagation_range(
     )
     if not n.any(valid):
         print("no valid frequency rows for %s" % (pfname))
+        save_empty_plot(pfname, title, "No valid frequency rows")
         return
     gidx = gidx[valid]
     freqs = freqs[valid]
@@ -423,13 +440,12 @@ def plot_propagation_range(
     
     # end of current day (next midnight)
 #    day_end = day_start + timedelta(days=1)
-    day_start, day_end, time_span_str = format_time_span(start_t, n_hours, title_span)
     # apply limits
     ax[0].set_xlim(day_start, day_end)
     ax[1].set_xlim(day_start, day_end)
     
     # label
-    ax[0].set_title(f"ROTHR & JORN -> %s {time_span_str}"%(station_name), fontsize=20)
+    ax[0].set_title(title, fontsize=20)
     
 #    times = pd.to_datetime(dfs[gidx,0], unit="s", utc=True)
     # --- shared x-axis formatting ---

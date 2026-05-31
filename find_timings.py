@@ -132,6 +132,7 @@ def scan_for_chirps(conf, ch, dt=0.1):
                 ho["f0"] = f0[sweep_idx]
                 ho["t0s"] = chirp_times[sweep_idx]
                 ho["snrs"] = snrs[sweep_idx]
+                ho["num_detections"] = num_dets[ti]
                 ho["channel"] = ch
                 ho.close()
 

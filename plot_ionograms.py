@@ -331,9 +331,13 @@ def plot_ionogram(conf, fn, normalize_by_frequency=True):
                         latest_txname = "unknown-%dkm" % int(n.round(range_gate_start_m / 1e3))
                 except Exception:
                     pass
+            num_detections = None
+            if range_offset_applied and "num_detections" in ho.keys():
+                num_detections = int(ho["num_detections"][()])
+            detection_text = "" if num_detections is None or num_detections < 0 else ", %d detections" % num_detections
 
-            ax.set_title("%s Chirp-rate %1.2f kHz/s t0=%1.5f (unix s)\n%s-%s %s (UTC)" % (
-                ch, rate / 1e3, t0, txname, station_name, cd.unix2datestr(t0)))
+            ax.set_title("%s Chirp-rate %1.2f kHz/s%s t0=%1.5f (unix s)\n%s-%s %s (UTC)" % (
+                ch, rate / 1e3, detection_text, t0, txname, station_name, cd.unix2datestr(t0)))
             ax.set_xlabel("Frequency (MHz)")
             ax.set_ylabel("One-way range offset (km)")
 
