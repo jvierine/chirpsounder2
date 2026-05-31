@@ -196,8 +196,17 @@ def plot_digisonde_latest(data_dir, web_dir, tx, rx, date_dir):
     return True
 
 
-def plot_rtf_day(conf, data_dir, web_dir, tx, rx, date_dir):
-    plot_rtf.get_day_view(conf, tx, rx, dirname=date_dir, data_dir=data_dir)
+def plot_rtf_latest_files(conf, data_dir, web_dir, tx, rx, date_dir, max_files):
+    files = plot_rtf.get_ionogram_files(data_dir, tx, rx, dirname=date_dir)
+    files = files[-max_files:]
+    title_span = "latest %d ionograms from %s UTC" % (len(files), date_dir)
+    plot_rtf.plot_ionogram_files(
+        files,
+        tx,
+        rx,
+        pfname="/tmp/latest-rti-%s-%s.png" % (tx, conf.station_name),
+        title_span=title_span,
+    )
     if rx != conf.station_name:
         return False
     return copy_if_exists(
@@ -272,7 +281,7 @@ def run_once(args):
             log("skipping unchanged RTF %s-%s" % (tx, rx))
             continue
         log("plotting RTF %s-%s for %s" % (tx, rx, date_dir))
-        if plot_rtf_day(conf, data_dir, web_dir, tx, rx, date_dir):
+        if plot_rtf_latest_files(conf, data_dir, web_dir, tx, rx, date_dir, args.rtf_max_files):
             state[key] = token
 
     trigger = station_file(data_dir, date_dir, "cdetections-%s-*.h5" % conf.station_name)
@@ -294,6 +303,7 @@ def main():
     parser.add_argument("--web-dir", default="/var/www/html/iono")
     parser.add_argument("--interval", type=float, default=15 * 60.0)
     parser.add_argument("--hours", type=int, default=48)
+    parser.add_argument("--rtf-max-files", type=int, default=24, help="Maximum newest ionograms per link to use for RTI/RTF plots")
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--deploy-static", action="store_true")
     parser.add_argument("--force", action="store_true", help="Regenerate plots even when the newest input file is unchanged")
