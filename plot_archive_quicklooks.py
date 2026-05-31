@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import argparse
-import datetime as dt
 import glob
+import json
 import os
 import re
 import shutil
@@ -58,33 +58,85 @@ def newest_file(patterns):
     return newest
 
 
-def newest_lfm_file(data_dir, tx, rx):
-    basename = "lfm_ionogram-%s-%s-*.h5" % (tx, rx)
-    today = dt.datetime.utcnow().date()
-    patterns = []
-    for day_offset in range(4):
-        day = today - dt.timedelta(days=day_offset)
-        patterns.append(os.path.join(data_dir, day.strftime("%Y-%m-%d"), basename))
-    patterns.append(os.path.join(data_dir, basename))
-    return newest_file(patterns)
+def latest_archive_date_dir(data_dir):
+    newest = None
+    try:
+        with os.scandir(data_dir) as entries:
+            for entry in entries:
+                if not entry.is_dir():
+                    continue
+                if not re.match(r"^\d{4}-\d{2}-\d{2}$", entry.name):
+                    continue
+                if newest is None or entry.name > newest:
+                    newest = entry.name
+    except FileNotFoundError:
+        return None
+    return newest
 
 
-def recent_date_dirs(hours, extra_days=1):
-    n_days = max(1, int((hours + 23) // 24) + extra_days)
-    today = dt.datetime.utcnow().date()
-    return [
-        (today - dt.timedelta(days=day_offset)).strftime("%Y-%m-%d")
-        for day_offset in range(n_days)
-    ]
+def state_path(web_dir, station_name):
+    return os.path.join(web_dir, ".plot_archive_quicklooks_state-%s.json" % station_name)
 
 
-def plot_detection_quicklook(conf, data_dir, web_dir, hours=48):
-    files = plot_detectionfiles.detection_files(
-        data_dir,
-        max_files=int(hours / 24.0 * 96) + 16,
-        station_name=conf.station_name,
-        date_dirs=recent_date_dirs(hours),
+def load_state(path):
+    try:
+        with open(path, "r") as f:
+            state = json.load(f)
+        if isinstance(state, dict):
+            return state
+    except FileNotFoundError:
+        pass
+    except Exception as exc:
+        log("could not read state file %s: %s" % (path, exc))
+    return {}
+
+
+def save_state(path, state):
+    tmp = "%s.tmp" % path
+    with open(tmp, "w") as f:
+        json.dump(state, f, sort_keys=True, indent=2)
+        f.write("\n")
+    os.replace(tmp, path)
+
+
+def file_token(path):
+    if path is None:
+        return None
+    st = os.stat(path)
+    return {
+        "path": path,
+        "mtime_ns": st.st_mtime_ns,
+        "size": st.st_size,
+    }
+
+
+def input_changed(state, key, path, force=False):
+    token = file_token(path)
+    if token is None:
+        return False, None
+    if force:
+        return True, token
+    return state.get(key) != token, token
+
+
+def station_file(data_dir, date_dir, pattern):
+    if date_dir is None:
+        return None
+    return newest_file(os.path.join(data_dir, date_dir, pattern))
+
+
+def plot_detection_quicklook(conf, data_dir, web_dir, date_dir, hours=48):
+    files = sorted(
+        glob.glob(
+            os.path.join(
+                data_dir,
+                date_dir,
+                "cdetections-%s-*.h5" % conf.station_name,
+            )
+        )
     )
+    max_files = int(hours / 24.0 * 96) + 16
+    files = files[-max_files:]
     dfs = plot_detectionfiles.read_detection_files(files)
     plot_end = plot_detectionfiles.newest_detection_time(dfs, time.time())
     t_start = plot_end - hours * 3600.0
@@ -104,8 +156,12 @@ def plot_detection_quicklook(conf, data_dir, web_dir, hours=48):
     )
 
 
-def plot_lfm_latest(conf, data_dir, web_dir, tx):
-    path = newest_lfm_file(data_dir, tx, conf.station_name)
+def plot_lfm_latest(conf, data_dir, web_dir, tx, date_dir):
+    path = station_file(
+        data_dir,
+        date_dir,
+        "lfm_ionogram-%s-%s-*.h5" % (tx, conf.station_name),
+    )
     if path is None:
         log("no LFM files found for %s-%s" % (tx, conf.station_name))
         return False
@@ -125,8 +181,12 @@ def plot_lfm_latest(conf, data_dir, web_dir, tx):
     )
 
 
-def plot_digisonde_latest(data_dir, web_dir, tx, rx):
-    path = plot_digisonde.latest_digisonde_file(data_dir, tx=tx, rx=rx, days=3.0)
+def plot_digisonde_latest(data_dir, web_dir, tx, rx, date_dir):
+    path = station_file(
+        data_dir,
+        date_dir,
+        "digisonde_ionogram-%s-%s-*.h5" % (tx, rx),
+    )
     if path is None:
         log("no Digisonde files found for %s-%s" % (tx, rx))
         return False
@@ -134,6 +194,16 @@ def plot_digisonde_latest(data_dir, web_dir, tx, rx):
     plot_digisonde.plot_digisonde_file(path, output=output, mode="auto")
     log("saved %s from %s" % (output, path))
     return True
+
+
+def plot_rtf_day(conf, data_dir, web_dir, tx, rx, date_dir):
+    plot_rtf.get_day_view(conf, tx, rx, dirname=date_dir, data_dir=data_dir)
+    if rx != conf.station_name:
+        return False
+    return copy_if_exists(
+        "/tmp/latest-rti-%s-%s.png" % (tx, conf.station_name),
+        os.path.join(web_dir, "latest-rti-%s-%s.png" % (tx, conf.station_name)),
+    )
 
 
 def deploy_static_web(repo_dir, web_dir):
@@ -152,30 +222,69 @@ def run_once(args):
     data_dir = args.data_dir or conf.output_dir
     web_dir = args.web_dir
     os.makedirs(web_dir, exist_ok=True)
+    date_dir = latest_archive_date_dir(data_dir)
+    if date_dir is None:
+        log("no archive date directories found under %s" % data_dir)
+        return
+    log("using latest archive directory %s/%s" % (data_dir, date_dir))
+    state_file = state_path(web_dir, conf.station_name)
+    state = load_state(state_file)
 
     if args.deploy_static:
         repo_dir = os.path.dirname(os.path.abspath(__file__))
         deploy_static_web(repo_dir, web_dir)
 
     for tx in args.lfm_tx:
+        trigger = station_file(
+            data_dir,
+            date_dir,
+            "lfm_ionogram-%s-%s-*.h5" % (tx, conf.station_name),
+        )
+        key = "lfm:%s:%s" % (tx, conf.station_name)
+        changed, token = input_changed(state, key, trigger, force=args.force)
+        if not changed:
+            log("skipping unchanged LFM %s-%s" % (tx, conf.station_name))
+            continue
         log("plotting latest LFM %s-%s" % (tx, conf.station_name))
-        plot_lfm_latest(conf, data_dir, web_dir, tx)
+        if plot_lfm_latest(conf, data_dir, web_dir, tx, date_dir):
+            state[key] = token
 
     for tx in args.digisonde_tx:
+        trigger = station_file(
+            data_dir,
+            date_dir,
+            "digisonde_ionogram-%s-%s-*.h5" % (tx, conf.station_name),
+        )
+        key = "digisonde:%s:%s" % (tx, conf.station_name)
+        changed, token = input_changed(state, key, trigger, force=args.force)
+        if not changed:
+            log("skipping unchanged Digisonde %s-%s" % (tx, conf.station_name))
+            continue
         log("plotting latest Digisonde %s-%s" % (tx, conf.station_name))
-        plot_digisonde_latest(data_dir, web_dir, tx, conf.station_name)
+        if plot_digisonde_latest(data_dir, web_dir, tx, conf.station_name, date_dir):
+            state[key] = token
 
-    log("plotting RTF links for %s from %s" % (conf.station_name, data_dir))
-    plot_rtf.plot_rtf_links(conf, conf.rtf_links, data_dir=data_dir)
     for tx, rx in conf.rtf_links:
-        if rx == conf.station_name:
-            copy_if_exists(
-                "/tmp/latest-rti-%s-%s.png" % (tx, conf.station_name),
-                os.path.join(web_dir, "latest-rti-%s-%s.png" % (tx, conf.station_name)),
-            )
+        trigger = station_file(data_dir, date_dir, "*_ionogram-%s-%s-*.h5" % (tx, rx))
+        key = "rtf:%s:%s" % (tx, rx)
+        changed, token = input_changed(state, key, trigger, force=args.force)
+        if not changed:
+            log("skipping unchanged RTF %s-%s" % (tx, rx))
+            continue
+        log("plotting RTF %s-%s for %s" % (tx, rx, date_dir))
+        if plot_rtf_day(conf, data_dir, web_dir, tx, rx, date_dir):
+            state[key] = token
 
-    log("plotting detection quick-look for %s" % conf.station_name)
-    plot_detection_quicklook(conf, data_dir, web_dir, hours=args.hours)
+    trigger = station_file(data_dir, date_dir, "cdetections-%s-*.h5" % conf.station_name)
+    key = "detections:%s" % conf.station_name
+    changed, token = input_changed(state, key, trigger, force=args.force)
+    if not changed:
+        log("skipping unchanged detection quick-look for %s" % conf.station_name)
+    else:
+        log("plotting detection quick-look for %s" % conf.station_name)
+        plot_detection_quicklook(conf, data_dir, web_dir, date_dir, hours=args.hours)
+        state[key] = token
+    save_state(state_file, state)
 
 
 def main():
@@ -187,6 +296,7 @@ def main():
     parser.add_argument("--hours", type=int, default=48)
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--deploy-static", action="store_true")
+    parser.add_argument("--force", action="store_true", help="Regenerate plots even when the newest input file is unchanged")
     parser.add_argument("--lfm-tx", action="append", default=["SGO"])
     parser.add_argument("--digisonde-tx", action="append", default=["Ramfjordmoen"])
     args = parser.parse_args()
