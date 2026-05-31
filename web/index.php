@@ -842,7 +842,7 @@ setInterval(updateUtcTime, 1000);
             monitoring products and should be interpreted as quick-look data.
         </p>
         <p>
-            Contributors include Nathaniel A. Frissell (W2NAF).
+            Contributors include Nathaniel A. Frissell (W2NAF), University of Scranton.
         </p>
     </section>
 </footer>
