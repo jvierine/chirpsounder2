@@ -40,9 +40,9 @@ echo "Configuring system-wide kernel and user limits for high-rate USRP capture.
 sudo tee "$SYSCTL_CONF" >/dev/null <<'EOF'
 # Chirpsounder2 / UHD receive tuning
 net.core.rmem_max = 500000000
-net.core.wmem_max = 500000000
+net.core.wmem_max = 2500000
 net.core.rmem_default = 500000000
-net.core.wmem_default = 500000000
+net.core.wmem_default = 212992
 net.core.netdev_max_backlog = 5000
 EOF
 

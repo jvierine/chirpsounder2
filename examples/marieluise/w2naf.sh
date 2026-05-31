@@ -14,7 +14,7 @@ if [ -f "$INSTALL_PATH/.venv/bin/activate" ]; then
 fi
 
 MPIRUN=mpirun
-RINGBUFFER_DIR=/dev/shm/hf25
+RINGBUFFER_DIR=/mnt/ramdisk/hf25
 CONF_FILE=$INSTALL_PATH/examples/marieluise/w2naf.ini
 LOGROTATE_CONF=$INSTALL_PATH/examples/marieluise/tgo-logrotate.conf
 UHD_ARGS="addr0=192.168.10.2,recv_buff_size=500000000"
