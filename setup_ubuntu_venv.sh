@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="${VENV_DIR:-$SCRIPT_DIR/.venv}"
 DIGITAL_RF_REPO="${DIGITAL_RF_REPO:-https://github.com/MITHaystack/digital_rf.git}"
 DIGITAL_RF_SRC_DIR="${DIGITAL_RF_SRC_DIR:-$(mktemp -d)/digital_rf}"
-SYSCTL_CONF="/etc/sysctl.d/90-chirpsounder2-usrp.conf"
+SYSCTL_CONF="/etc/sysctl.d/zz-chirpsounder2-usrp.conf"
 LIMITS_CONF="/etc/security/limits.d/90-chirpsounder2-usrp.conf"
 
 echo "Installing Ubuntu system packages needed for chirpsounder2..."

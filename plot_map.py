@@ -15,6 +15,7 @@ def plot_map(conf, set_extent=True, ofname="map.png"):
         "TGO": "orange",
         "DOB": "green",
         "KHO": "red",
+        "W2NAF": "blue",
     }
   # Create map
     fig = plt.figure(figsize=(10, 8),constrained_layout=True)
@@ -34,7 +35,7 @@ def plot_map(conf, set_extent=True, ofname="map.png"):
 
     # Set extent
     if set_extent:
-        ax.set_extent([-10, 40, 45, 90])
+        ax.set_extent([-90, 40, 35, 90])
 
     # ✅ Add gridlines
     gl = ax.gridlines(
@@ -53,7 +54,7 @@ def plot_map(conf, set_extent=True, ofname="map.png"):
     gl.ylabel_style = {'size': 14}
 
     # Filter for the receiver stations shown on the live dashboard.
-    target_stations = {"DOB", "TGO", "KHO"}
+    target_stations = {"DOB", "TGO", "KHO", "W2NAF"}
     filtered_links = [l for l in conf.station_links if (l[0] in target_stations or l[1] in target_stations)]
     stations_to_plot = target_stations.copy()
 
