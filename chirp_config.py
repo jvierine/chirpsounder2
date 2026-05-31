@@ -42,6 +42,14 @@ class chirp_config:
                         "gps_lock_timeout_sec": "-1",
                         "serendipitous": "false",
                         "serendipitous_ionogram_workers": "1",
+                        "required_processes": '''
+["recorder=rx_uhd_ext_gps|rx_uhd|thor.py",
+ "detect_chirps=detect_chirps.py",
+ "detections2metadata=detections2metadata.py",
+ "plot_ionograms=plot_ionograms.py",
+ "plot_detectionfiles=plot_detectionfiles.py",
+ "sync_iono_data=sync_iono_data.py"]
+''',
                         }
         cf["detection"] = {
             "threshold_snr": "13.0",
@@ -195,6 +203,7 @@ class chirp_config:
 
         self.serendipitous = json.loads(cf["config"]["serendipitous"])
         self.serendipitous_ionogram_workers = int(json.loads(cf["config"]["serendipitous_ionogram_workers"]))
+        self.required_processes = json.loads(cf["config"]["required_processes"])
         self.storage_snr_threshold = json.loads(cf["lfm"]["storage_snr_threshold"])
         self.min_detections = int(json.loads(cf["detection"]["min_detections"]))
         

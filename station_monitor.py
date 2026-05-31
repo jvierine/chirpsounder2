@@ -33,14 +33,11 @@ except ImportError:  # pragma: no cover - requests is in requirements.txt
 DEFAULT_UPLOAD_URL = "http://4.235.86.214/upload.php"
 
 
-DEFAULT_PROCESS_GROUPS = [
+DEFAULT_REQUIRED_PROCESSES = [
     "recorder=rx_uhd_ext_gps|rx_uhd|thor.py",
     "detect_chirps=detect_chirps.py",
     "detections2metadata=detections2metadata.py",
-    "receive_digisonde=receive_digisonde.py",
-    "calc_ionograms=calc_ionograms.py",
     "plot_ionograms=plot_ionograms.py",
-    "plot_rtf=plot_rtf.py",
     "plot_detectionfiles=plot_detectionfiles.py",
     "sync_iono_data=sync_iono_data.py",
 ]
@@ -338,7 +335,7 @@ def main() -> int:
     args = parser.parse_args()
 
     conf = cc.chirp_config(args.config)
-    process_specs = args.process or DEFAULT_PROCESS_GROUPS
+    process_specs = args.process or getattr(conf, "required_processes", DEFAULT_REQUIRED_PROCESSES)
     process_groups = [parse_process_group(spec) for spec in process_specs]
     started_unix = time.time()
 
