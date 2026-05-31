@@ -478,6 +478,11 @@ if (!$hasCards && count($tabs) > 1) {
         max-width: 95px;
     }
 
+    .logo-scranton {
+        height: 38px;
+        max-width: 46px;
+    }
+
     .dashboard {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
@@ -694,6 +699,9 @@ if (!$hasCards && count($tabs) > 1) {
         </a>
         <a href="https://www.unis.no/" aria-label="UNIS">
             <img class="logo logo-unis" src="unis-logo-liggende.svg" alt="UNIS logo">
+        </a>
+        <a href="https://www.scranton.edu/" aria-label="University of Scranton">
+            <img class="logo logo-scranton" src="university-of-scranton-logo.svg" alt="University of Scranton logo">
         </a>
     </div>
 </header>
