@@ -8,6 +8,7 @@ import scipy.constants as sc
 #from datetime import datetime, timedelta
 from datetime import datetime, timedelta, timezone
 import chirp_config as cc
+import propagation
 import sys
 import traceback
 #plt.style.use('dark_background')
@@ -198,7 +199,7 @@ def frequency_mhz(freq):
 
 def plot_chirp_time(dfs, start_t, n_hours=24, min_detections=5,
                     pfname="/tmp/chirp-times.png", station_name="TGO",
-                    title_span=None):
+                    title_span=None, **_ignored):
     gidx = n.where((dfs[:, 0] > start_t) & (dfs[:, 0] < (start_t+n_hours*3600)))[0]
     dfs = dfs[gidx, :]
     if dfs.shape[0] == 0:
@@ -260,7 +261,58 @@ def plot_chirp_time(dfs, start_t, n_hours=24, min_detections=5,
     print("saved %s" % (pfname))
 
 
-def plot_propagation_range(dfs, start_t, n_hours=24,min_detections=5, pfname="/tmp/dets.png", station_name="TGO", title_span=None):
+def transmitter_label(band):
+    label = band.get("label", band.get("name", "tx"))
+    center = band.get("center_km")
+    if center is None:
+        return label
+    return "%s %.0f km" % (label, center)
+
+
+def plot_auto_propagation_bands(
+    ax,
+    station_info,
+    station_name,
+    transmitter_names=None,
+    propagation_factor="auto",
+    fractional_half_width=0.15,
+):
+    if transmitter_names is None:
+        transmitter_names = ["NIC", "JORN", "ROTHR1", "ROTHR2", "ROTHR3"]
+    bands = propagation.auto_propagation_bands(
+        station_info,
+        station_name,
+        transmitter_names,
+        propagation_factor=propagation_factor,
+        fractional_half_width=fractional_half_width,
+    )
+    alphas = [0.18, 0.10, 0.26, 0.22, 0.18, 0.14]
+    for i, band in enumerate(bands):
+        ax.axhspan(
+            band["min_km"],
+            band["max_km"],
+            color="grey",
+            alpha=alphas[i % len(alphas)],
+            label=transmitter_label(band),
+            zorder=0,
+        )
+    return bands
+
+
+def plot_propagation_range(
+    dfs,
+    start_t,
+    n_hours=24,
+    min_detections=5,
+    pfname="/tmp/dets.png",
+    station_name="TGO",
+    title_span=None,
+    station_info=None,
+    propagation_range_bands="auto",
+    propagation_range_transmitters=None,
+    propagation_range_factor="auto",
+    propagation_band_fraction=0.15,
+):
 
     gidx=n.where( (dfs[:,0]>start_t) & (dfs[:,0]<(start_t+n_hours*3600)))[0]
     dfs=dfs[gidx,:]
@@ -309,15 +361,30 @@ def plot_propagation_range(dfs, start_t, n_hours=24,min_detections=5, pfname="/t
         cmap="rainbow",
         vmin=5,vmax=25
     )
-    ax[0].set_ylim([-5e3,17.5e3])
+    y_min = -5e3
+    y_max = 17.5e3
     cb1 = plt.colorbar(sc1, ax=ax[0])
     cb1.set_label("Frequency (MHz)", fontsize=16)
     
-    # grey band
-    ax[0].axhspan(3900, 5500, color='grey', alpha=0.2, label='Cyprus', zorder=0)
-    ax[0].axhspan(13500, 16900,color='grey', alpha=0.1, label='Australia', zorder=0)
-    ax[0].axhspan(6.3e3, 10e3, color='grey', alpha=0.3, label='US', zorder=0)    
+    # Grey bands show expected one-way virtual ranges from transmitter sites.
+    # The "auto" path is calibrated from the old TGO Cyprus/JORN manual bands.
+    if propagation_range_bands == "auto" and station_info is not None:
+        bands = plot_auto_propagation_bands(
+            ax[0],
+            station_info,
+            station_name,
+            transmitter_names=propagation_range_transmitters,
+            propagation_factor=propagation_range_factor,
+            fractional_half_width=propagation_band_fraction,
+        )
+        if bands:
+            y_max = max(y_max, max(band["max_km"] for band in bands) * 1.05)
+    else:
+        ax[0].axhspan(3900, 5500, color='grey', alpha=0.2, label='Cyprus', zorder=0)
+        ax[0].axhspan(13500, 16900,color='grey', alpha=0.1, label='Australia', zorder=0)
+        ax[0].axhspan(6.3e3, 10e3, color='grey', alpha=0.3, label='US', zorder=0)
     
+    ax[0].set_ylim([y_min, y_max])
     ax[0].set_ylabel("One-way virtual propagation range (km)", fontsize=16)
     # ax[0].set_ylim([0, 42000])
     ax[0].legend(loc="upper right")
@@ -331,7 +398,7 @@ def plot_propagation_range(dfs, start_t, n_hours=24,min_detections=5, pfname="/t
         s=0.5,
         cmap="rainbow",
         vmin=-5e3,
-        vmax=20e3,
+        vmax=max(20e3, y_max),
     )
 
 
@@ -487,7 +554,12 @@ if __name__ == "__main__":
             min_detections=args.min_detections,
             pfname=pfname,
             station_name=station_name,
-            title_span=title_span)
+            title_span=title_span,
+            station_info=conf.station_info,
+            propagation_range_bands=conf.propagation_range_bands,
+            propagation_range_transmitters=conf.propagation_range_transmitters,
+            propagation_range_factor=conf.propagation_range_factor,
+            propagation_band_fraction=conf.propagation_band_fraction)
         sys.exit(0)
 
     while True:
@@ -523,7 +595,12 @@ if __name__ == "__main__":
                     "chirp-time" if args.plot_mode == "chirp-time" else "rothr_jorn",
                     station_name),
                 station_name=station_name,
-                title_span=title_span)
+                title_span=title_span,
+                station_info=conf.station_info,
+                propagation_range_bands=conf.propagation_range_bands,
+                propagation_range_transmitters=conf.propagation_range_transmitters,
+                propagation_range_factor=conf.propagation_range_factor,
+                propagation_band_fraction=conf.propagation_band_fraction)
         except Exception:
             traceback.print_exc(file=sys.stdout)
         time.sleep(15*60)

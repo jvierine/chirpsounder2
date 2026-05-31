@@ -51,6 +51,10 @@ class chirp_config:
             "minimum_frequency_spacing": "0.2e6",
             "chirp_rates": "[50e3,100e3,125e3,500.0084e3]",
             "debug_timings": "false",            
+            "propagation_range_bands": '"auto"',
+            "propagation_range_transmitters": '["NIC","JORN","ROTHR1","ROTHR2","ROTHR3"]',
+            "propagation_range_factor": '"auto"',
+            "propagation_band_fraction": "0.15",
         }
         cf["lfm"] = {
             "range_resolution": "2e3",
@@ -94,6 +98,15 @@ class chirp_config:
 	      "Ramfjordmoen":{"name":"Ramfjordmoen",
 	                      "lat":69.58187184247221,
 			      "lon":19.220853348827067},
+	      "ROTHR1":{"name":"ROTHR Chesapeake Bay",
+	             "lat":37.56561111111111, 
+		     "lon":-76.26387222222223},
+	      "ROTHR2":{"name":"ROTHR Culebra",
+	             "lat":18.00889, 
+		     "lon":-66.50611},
+	      "ROTHR3":{"name":"ROTHR Texas",
+	             "lat":27.527361111111112, 
+		     "lon":-98.71644444444444},
 	      "ROTHR":{"name":"ROTHR",
 	             "lat":36.11793762278912, 
 		     "lon":-82.5807086169964},
@@ -155,6 +168,10 @@ class chirp_config:
 
         
         self.debug_timings = json.loads(cf["detection"]["debug_timings"])
+        self.propagation_range_bands = json.loads(cf["detection"]["propagation_range_bands"])
+        self.propagation_range_transmitters = json.loads(cf["detection"]["propagation_range_transmitters"])
+        self.propagation_range_factor = json.loads(cf["detection"]["propagation_range_factor"])
+        self.propagation_band_fraction = json.loads(cf["detection"]["propagation_band_fraction"])
 #        print(cf["stations"]["station_info"])
         self.station_info = shared_station_info
         self.station_info.update(json.loads(cf["stations"]["station_info"]))

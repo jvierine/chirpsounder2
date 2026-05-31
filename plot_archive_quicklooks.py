@@ -153,6 +153,11 @@ def plot_detection_quicklook(conf, data_dir, web_dir, date_dir, hours=48, max_fi
         pfname=tmp_output,
         station_name=conf.station_name,
         title_span=title_span,
+        station_info=conf.station_info,
+        propagation_range_bands=conf.propagation_range_bands,
+        propagation_range_transmitters=conf.propagation_range_transmitters,
+        propagation_range_factor=conf.propagation_range_factor,
+        propagation_band_fraction=conf.propagation_band_fraction,
     )
     return copy_if_exists(tmp_output, output)
 
