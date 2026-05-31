@@ -1,6 +1,5 @@
 import matplotlib
-#matplotlib.use("Agg")  # safe for headless
-import numpy as n
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import chirp_config as cc
 import cartopy.crs as ccrs
@@ -8,8 +7,8 @@ import cartopy.feature as cfeature
 
 import argparse
 
+
 def plot_map(conf, set_extent=True, ofname="map.png", extent=None, target_stations=None):
-    print(conf.station_info)
     stations = conf.station_info
     station_colors = {
         "TGO": "orange",
@@ -17,8 +16,8 @@ def plot_map(conf, set_extent=True, ofname="map.png", extent=None, target_statio
         "KHO": "red",
         "W2NAF": "blue",
     }
-  # Create map
-    fig = plt.figure(figsize=(10, 8),constrained_layout=True)
+    # Create map
+    fig = plt.figure(figsize=(10, 8), constrained_layout=True)
 
     if extent is None:
         central_longitude = 15
@@ -65,7 +64,7 @@ def plot_map(conf, set_extent=True, ofname="map.png", extent=None, target_statio
     # Filter for the receiver stations shown on the live dashboard.
     if target_stations is None:
         target_stations = {"DOB", "TGO", "KHO", "W2NAF"}
-    filtered_links = [l for l in conf.station_links if (l[0] in target_stations or l[1] in target_stations)]
+    filtered_links = [l for l in conf.station_links if len(l) >= 2 and l[1] in target_stations]
     stations_to_plot = target_stations.copy()
 
     # Add stations that connect to the receiver stations.
@@ -73,34 +72,39 @@ def plot_map(conf, set_extent=True, ofname="map.png", extent=None, target_statio
         stations_to_plot.add(l[0])
         stations_to_plot.add(l[1])
 
-    
     # Plot links
     for l in filtered_links:
-        print(l)
-        lons=n.linspace(conf.station_info[l[0]]["lon"],conf.station_info[l[1]]["lon"],num=50)
-        lats=n.linspace(conf.station_info[l[0]]["lat"],conf.station_info[l[1]]["lat"],num=50)
+        tx, rx = l[0], l[1]
+        if tx not in conf.station_info or rx not in conf.station_info:
+            continue
 
-        # Determine link color based on receiver station.
-        color = "black"
-        for station_name, station_color in station_colors.items():
-            if station_name in l:
-                color = station_color
-                break
-        
-        ax.plot(lons,lats,
-                color=color,transform=ccrs.PlateCarree())
+        tx_info = conf.station_info[tx]
+        rx_info = conf.station_info[rx]
+        color = station_colors.get(rx, "black")
+
+        ax.plot(
+            [tx_info["lon"], rx_info["lon"]],
+            [tx_info["lat"], rx_info["lat"]],
+            color=color,
+            linewidth=1.2,
+            alpha=0.8,
+            transform=ccrs.Geodetic(),
+        )
+
     # Plot stations
     for name, s in stations.items():
         if name in stations_to_plot:
             lat = s["lat"]
             lon = s["lon"]
+            is_receiver = name in target_stations
 
             ax.plot(
                 lon, lat,
-                marker='o',
+                marker='o' if is_receiver else '^',
                 transform=ccrs.PlateCarree(),
                 label=s["name"],
-                color=station_colors.get(name, None)
+                color=station_colors.get(name, "black" if is_receiver else "0.25"),
+                markersize=7 if is_receiver else 6,
             )
 
 
@@ -108,9 +112,9 @@ def plot_map(conf, set_extent=True, ofname="map.png", extent=None, target_statio
     plt.title("Ionospheric Sounding Network", fontsize=20)
 
     plt.savefig(ofname, dpi=150)  # save BEFORE show
-    plt.show()
+    plt.close(fig)
 
-    print("Saved")
+    print(f"Saved {ofname}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Realtime digisonde ionogram")
