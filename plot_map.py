@@ -98,6 +98,35 @@ def plot_map(conf, set_extent=True, ofname="map.png", extent=None, target_statio
         "KHO": "red",
         "W2NAF": "blue",
     }
+    transmitter_styles = {
+        "SGO": {"marker": "s", "color": "0.35"},
+        "NIC": {"marker": "^", "color": "purple"},
+        "Ramfjordmoen": {"marker": "v", "color": "brown"},
+        "ROTHR1": {"marker": "P", "color": "tab:cyan"},
+        "ROTHR2": {"marker": "X", "color": "tab:pink"},
+        "ROTHR3": {"marker": "D", "color": "tab:olive"},
+        "ROTHR": {"marker": "P", "color": "tab:cyan"},
+        "JORN": {"marker": "*", "color": "goldenrod"},
+        "Juliusruh": {"marker": "<", "color": "tab:purple"},
+        "Dourbes": {"marker": ">", "color": "tab:brown"},
+        "Chilton": {"marker": "h", "color": "tab:gray"},
+        "DB049": {"marker": "8", "color": "tab:orange"},
+    }
+    transmitter_fallback_markers = ["s", "^", "v", "D", "P", "X", "*", "<", ">", "h", "8", "p"]
+    transmitter_fallback_colors = [
+        "0.35",
+        "purple",
+        "brown",
+        "tab:cyan",
+        "tab:pink",
+        "tab:olive",
+        "goldenrod",
+        "tab:purple",
+        "tab:brown",
+        "tab:gray",
+        "tab:orange",
+        "tab:blue",
+    ]
     global_map = not set_extent and extent is None
     # Create map
     fig = plt.figure(figsize=(12, 5.5) if global_map else (10, 8), constrained_layout=True)
@@ -161,6 +190,14 @@ def plot_map(conf, set_extent=True, ofname="map.png", extent=None, target_statio
         stations_to_plot.add(l[0])
         stations_to_plot.add(l[1])
 
+    transmitters_to_plot = sorted(stations_to_plot - target_stations)
+    for idx, station_name in enumerate(transmitters_to_plot):
+        if station_name not in transmitter_styles:
+            transmitter_styles[station_name] = {
+                "marker": transmitter_fallback_markers[idx % len(transmitter_fallback_markers)],
+                "color": transmitter_fallback_colors[idx % len(transmitter_fallback_colors)],
+            }
+
     # Plot links
     for l in filtered_links:
         tx, rx = l[0], l[1]
@@ -186,17 +223,18 @@ def plot_map(conf, set_extent=True, ofname="map.png", extent=None, target_statio
             lat = s["lat"]
             lon = s["lon"]
             is_receiver = name in target_stations
+            transmitter_style = transmitter_styles.get(name, {"marker": "s", "color": "0.35"})
 
             ax.plot(
                 lon, lat,
-                marker='o' if is_receiver else 's',
+                marker='o' if is_receiver else transmitter_style["marker"],
                 linestyle='None',
                 transform=ccrs.PlateCarree(),
                 label=s["name"],
-                color=station_colors.get(name, "black" if is_receiver else "0.25"),
+                color=station_colors.get(name, transmitter_style["color"]),
                 markeredgecolor="black" if is_receiver else "0.15",
                 markeredgewidth=0.7,
-                markersize=7 if is_receiver else 5,
+                markersize=7 if is_receiver else 6,
             )
 
 
