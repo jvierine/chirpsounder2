@@ -48,6 +48,9 @@ python3 plot_detectionfiles.py --config "$CONF_FILE" --min-detections 10 > logs/
 echo "plot_ionograms.py"
 python3 plot_ionograms.py --config "$CONF_FILE" > logs/plot_ionograms.log 2>&1 &
 
+echo "serendipitous_ionogram_queue.py"
+python3 serendipitous_ionogram_queue.py --config "$CONF_FILE" --scan-interval 5 > logs/serendipitous_ionogram_queue.log 2>&1 &
+
 echo "detect_chirps.py"
 $MPIRUN -np 2 python3 detect_chirps.py --config "$CONF_FILE" > logs/detect.log 2>&1 &
 
