@@ -106,24 +106,17 @@ def read_detection_files(files):
     return n.concatenate(dfs, axis=0)
 
 
-def detection_filter_indices(times, min_detections=5, max_dt=0.033):
-    rtimes = n.round(times)
-    order = n.argsort(rtimes, kind="mergesort")
-    sorted_rtimes = rtimes[order]
-    group_start = n.r_[0, n.flatnonzero(n.diff(sorted_rtimes)) + 1]
-    group_end = n.r_[group_start[1:], len(order)]
+def detection_filter_indices(times, min_detections=5, dt=0.1, dt2=0.02):
+    t0s, _num_dets = cluster_times_for_plot(
+        times, dt=dt, dt2=dt2, min_det=min_detections)
     keep = []
-    for start, end in zip(group_start, group_end):
-        idx0 = order[start:end]
-        if len(idx0) <= min_detections:
-            continue
-        median_time = n.median(times[idx0])
-        idx = idx0[n.abs(times[idx0] - median_time) < max_dt]
-        if len(idx) > min_detections:
+    for t0 in t0s:
+        idx = n.where(n.abs(times - t0) < dt2)[0]
+        if len(idx) >= min_detections:
             keep.append(idx)
     if len(keep) == 0:
         return n.array([], dtype=int)
-    return n.concatenate(keep)
+    return n.unique(n.concatenate(keep))
 
 
 def save_empty_plot(pfname, title, message):
@@ -137,24 +130,65 @@ def save_empty_plot(pfname, title, message):
     print("saved %s" % (pfname))
 
 
-def detection_filter_indices_by_floor_time_and_rate(
-        dfs, min_detections=5, max_dt=0.033):
-    seconds = n.floor(dfs[:, 0]).astype(n.int64)
-    rates = n.round(dfs[:, 3]).astype(n.int64)
-    keys = n.column_stack((seconds, rates))
-    _, inverse = n.unique(keys, axis=0, return_inverse=True)
+def cluster_times_for_plot(t, dt=0.1, dt2=0.02, min_det=2):
+    """Match find_timings.py clustering without writing timing parameter files."""
+    t = n.asarray(t, dtype=float)
+    finite = n.isfinite(t)
+    t = t[finite]
+    if len(t) == 0:
+        return ([], [])
+
+    t0s = dt * n.array(n.unique(n.array(n.round(t / dt), dtype=int)), dtype=float)
+    ct0s = []
+
+    for t0 in t0s:
+        tidx = n.where(n.abs(t - t0) < dt)[0]
+        if len(tidx) >= min_det:
+            ct0s.append(n.mean(t[tidx]))
+
+    t0s = n.unique(ct0s)
+    ct0s = []
+    num_dets = []
+    for t0 in t0s:
+        tidx = n.where(n.abs(t - t0) < dt2)[0]
+        if len(tidx) >= min_det:
+            meant = n.mean(t[tidx])
+            good = True
+            for ct in ct0s:
+                if n.abs(meant - ct) < dt:
+                    good = False
+            if good:
+                ct0s.append(meant)
+                num_dets.append(len(tidx))
+
+    return (ct0s, num_dets)
+
+
+def detection_filter_indices_by_rate_cluster(
+        dfs, min_detections=5, dt=0.1, dt2=0.02):
     keep = []
-    for group in n.unique(inverse):
-        idx0 = n.where(inverse == group)[0]
-        if len(idx0) < min_detections:
-            continue
-        median_time = n.median(dfs[idx0, 0])
-        idx = idx0[n.abs(dfs[idx0, 0] - median_time) <= max_dt]
-        if len(idx) >= min_detections:
-            keep.append(idx)
+    finite = n.where(n.isfinite(dfs[:, 0]) & n.isfinite(dfs[:, 3]))[0]
+    if len(finite) == 0:
+        return n.array([], dtype=int)
+    rates = n.unique(dfs[finite, 3])
+    for rate in rates:
+        ridx = finite[n.where(dfs[finite, 3] == rate)[0]]
+        t0s, _num_dets = cluster_times_for_plot(
+            dfs[ridx, 0], dt=dt, dt2=dt2, min_det=min_detections)
+        for t0 in t0s:
+            idx = ridx[n.where(n.abs(dfs[ridx, 0] - t0) < dt2)[0]]
+            if len(idx) >= min_detections:
+                keep.append(idx)
     if len(keep) == 0:
         return n.array([], dtype=int)
-    return n.concatenate(keep)
+    return n.unique(n.concatenate(keep))
+
+
+def detection_filter_indices_by_floor_time_and_rate(
+        dfs, min_detections=5, max_dt=0.033):
+    """Backward-compatible name; use find_timings-style rate/time clusters."""
+    return detection_filter_indices_by_rate_cluster(
+        dfs, min_detections=min_detections, dt=0.1, dt2=0.02)
 
 
 def needs_daily_plot(pfname, now=None):
@@ -218,8 +252,8 @@ def plot_chirp_time(dfs, start_t, n_hours=24, min_detections=5,
         return
 
     print("filtering")
-    gidx = detection_filter_indices_by_floor_time_and_rate(
-        dfs, min_detections=min_detections, max_dt=0.033)
+    gidx = detection_filter_indices_by_rate_cluster(
+        dfs, min_detections=min_detections, dt=0.1, dt2=0.02)
     if len(gidx) == 0:
         print("no soundings with at least %d detections for %s" % (min_detections, pfname))
         return
@@ -260,7 +294,7 @@ def plot_chirp_time(dfs, start_t, n_hours=24, min_detections=5,
     ax.set_ylabel(r"$t_0-\lfloor t_0\rfloor$ (ms)", fontsize=16)
     ax.set_xlabel("Time (UTC)", fontsize=16)
     ax.set_title(
-        "Chirp detections -> %s %s, >= %d detections per floor(chirp_time), chirp-rate"
+        "Chirp detections -> %s %s, >= %d detections per chirp-rate time cluster"
         % (station_name, time_span_str, min_detections),
         fontsize=18,
     )
@@ -328,7 +362,7 @@ def plot_propagation_range(
     gidx=n.where( (dfs[:,0]>start_t) & (dfs[:,0]<(start_t+n_hours*3600)))[0]
     dfs=dfs[gidx,:]
     day_start, day_end, time_span_str = format_time_span(start_t, n_hours, title_span)
-    title = "ROTHR & JORN -> %s %s, >= %d detections per floor(chirp_time), chirp-rate" % (
+    title = "ROTHR & JORN -> %s %s, >= %d detections per chirp-rate time cluster" % (
         station_name, time_span_str, min_detections)
     if dfs.shape[0] == 0:
         print("no detections in requested window for %s" % (pfname))
@@ -337,8 +371,8 @@ def plot_propagation_range(
     
     # filter soundings so that only ones with sufficiently many detections are shown
     print("filtering")
-    gidx = detection_filter_indices_by_floor_time_and_rate(
-        dfs, min_detections=min_detections, max_dt=0.033)
+    gidx = detection_filter_indices_by_rate_cluster(
+        dfs, min_detections=min_detections, dt=0.1, dt2=0.02)
 
     if len(gidx) == 0:
         print("no soundings with at least %d detections for %s" % (min_detections, pfname))
