@@ -630,6 +630,24 @@ if (!$hasCards && count($tabs) > 1) {
         font-size: 13px;
     }
 
+    .contributors {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 0 0 10px;
+    }
+
+    .contributor-logo {
+        width: 38px;
+        height: 52px;
+        object-fit: contain;
+        flex: 0 0 auto;
+    }
+
+    .contributors p {
+        margin: 0;
+    }
+
     @media (max-width: 850px) {
         .menu-bar {
             grid-template-columns: 1fr;
@@ -841,9 +859,12 @@ setInterval(updateUtcTime, 1000);
             Mikko Syrjäsuo and Lisa Baddeley. These plots are operational
             monitoring products and should be interpreted as quick-look data.
         </p>
-        <p>
-            Contributors include Nathaniel A. Frissell (W2NAF), University of Scranton.
-        </p>
+        <div class="contributors">
+            <img class="contributor-logo" src="university-of-scranton-logo.svg" alt="University of Scranton logo">
+            <p>
+                Contributors include Nathaniel A. Frissell (W2NAF), University of Scranton.
+            </p>
+        </div>
     </section>
 </footer>
 
