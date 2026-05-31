@@ -125,7 +125,7 @@ def station_file(data_dir, date_dir, pattern):
     return newest_file(os.path.join(data_dir, date_dir, pattern))
 
 
-def plot_detection_quicklook(conf, data_dir, web_dir, date_dir, hours=48):
+def plot_detection_quicklook(conf, data_dir, web_dir, date_dir, hours=48, max_files=24):
     files = sorted(
         glob.glob(
             os.path.join(
@@ -135,7 +135,6 @@ def plot_detection_quicklook(conf, data_dir, web_dir, date_dir, hours=48):
             )
         )
     )
-    max_files = int(hours / 24.0 * 96) + 16
     files = files[-max_files:]
     dfs = plot_detectionfiles.read_detection_files(files)
     plot_end = plot_detectionfiles.newest_detection_time(dfs, time.time())
@@ -144,16 +143,18 @@ def plot_detection_quicklook(conf, data_dir, web_dir, date_dir, hours=48):
         hours,
         datetime.fromtimestamp(plot_end, timezone.utc).strftime("%Y-%m-%d %H:%M"),
     )
+    tmp_output = "/tmp/latest-rothr_jorn-%s.png" % conf.station_name
     output = os.path.join(web_dir, "latest-rothr_jorn-%s.png" % conf.station_name)
     plot_detectionfiles.plot_propagation_range(
         dfs,
         t_start,
         n_hours=hours,
         min_detections=conf.min_detections,
-        pfname=output,
+        pfname=tmp_output,
         station_name=conf.station_name,
         title_span=title_span,
     )
+    return copy_if_exists(tmp_output, output)
 
 
 def plot_lfm_latest(conf, data_dir, web_dir, tx, date_dir):
@@ -291,8 +292,15 @@ def run_once(args):
         log("skipping unchanged detection quick-look for %s" % conf.station_name)
     else:
         log("plotting detection quick-look for %s" % conf.station_name)
-        plot_detection_quicklook(conf, data_dir, web_dir, date_dir, hours=args.hours)
-        state[key] = token
+        if plot_detection_quicklook(
+            conf,
+            data_dir,
+            web_dir,
+            date_dir,
+            hours=args.hours,
+            max_files=args.detection_max_files,
+        ):
+            state[key] = token
     save_state(state_file, state)
 
 
@@ -304,6 +312,7 @@ def main():
     parser.add_argument("--interval", type=float, default=15 * 60.0)
     parser.add_argument("--hours", type=int, default=48)
     parser.add_argument("--rtf-max-files", type=int, default=24, help="Maximum newest ionograms per link to use for RTI/RTF plots")
+    parser.add_argument("--detection-max-files", type=int, default=24, help="Maximum newest detection files to use for ROTHR/JORN quicklooks")
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--deploy-static", action="store_true")
     parser.add_argument("--force", action="store_true", help="Regenerate plots even when the newest input file is unchanged")
