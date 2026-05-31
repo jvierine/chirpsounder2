@@ -43,7 +43,10 @@ echo "detections2metadata.py"
 python3 detections2metadata.py --config "$CONF_FILE" > logs/detections2metadata.log 2>&1 &
 
 echo "plot_detectionfiles.py"
-python3 plot_detectionfiles.py --config "$CONF_FILE" > logs/plot_detectionfiles.log 2>&1 &
+python3 plot_detectionfiles.py --config "$CONF_FILE" --min-detections 10 > logs/plot_detectionfiles.log 2>&1 &
+
+echo "plot_ionograms.py"
+python3 plot_ionograms.py --config "$CONF_FILE" > logs/plot_ionograms.log 2>&1 &
 
 echo "detect_chirps.py"
 $MPIRUN -np 2 python3 detect_chirps.py --config "$CONF_FILE" > logs/detect.log 2>&1 &

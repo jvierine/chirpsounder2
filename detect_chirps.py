@@ -29,10 +29,26 @@ def scan_for_chirps(conf, cfb, block0=None):
         print("no data")
         return None
     
+    block_span = conf.n_samples_per_block * conf.step
+
     # figure out what is the next block for this thread
     if block0 == None:
-        block0=int(n.ceil(b0[0]/(conf.n_samples_per_block*conf.step)))
-    block1 = int(n.floor(b0[1]/(conf.n_samples_per_block*conf.step)))
+        block0=int(n.ceil(b0[0]/block_span))
+    block1 = int(n.floor(b0[1]/block_span))
+
+    if conf.realtime and conf.realtime_detection_lag_sec > 0:
+        newest_target_start = b0[1] - conf.realtime_detection_lag_sec * conf.sample_rate - conf.n_samples_per_block
+        min_block0 = int(n.floor(newest_target_start / block_span))
+        oldest_buffer_block = int(n.ceil(b0[0] / block_span))
+        min_block0 = max(min_block0, oldest_buffer_block)
+        if block0 < min_block0:
+            print("%d/%d skipping detection backlog from %s to %s to stay %1.1f s behind upper bound" %
+                  (rank + 1,
+                   size,
+                   c.unix2datestr(block0 * block_span / conf.sample_rate),
+                   c.unix2datestr(min_block0 * block_span / conf.sample_rate),
+                   conf.realtime_detection_lag_sec))
+            block0 = min_block0
 
     
     # mpi scan through dataset
@@ -93,5 +109,3 @@ if __name__ == "__main__":
                 except:
                     print("problem. retrying in a bit.")
                     time.sleep(60)
-
-

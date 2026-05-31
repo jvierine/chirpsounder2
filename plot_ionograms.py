@@ -294,8 +294,15 @@ def plot_ionogram(conf, fn, normalize_by_frequency=True):
             # therefore, the propagation time is anything added to a full second
             dt = (t0 - n.floor(t0))
             dr = dt * c.c / 1e3
-            # converted to one-way travel time
-            range_gates = dr + ranges / 1e3
+            range_offset_applied = bool(ho["range_offset_applied"][()]) if "range_offset_applied" in ho.keys() else False
+            if range_offset_applied:
+                range_start_m = float(ho["range_gate_start_m"][()]) if "range_gate_start_m" in ho.keys() else 0.0
+                if n.isfinite(range_start_m) and len(ranges) > 0 and n.nanmedian(ranges) < 0.75 * range_start_m:
+                    ranges = ranges + range_start_m
+                range_gates = ranges / 1e3
+            else:
+                # converted to one-way travel time
+                range_gates = dr + ranges / 1e3
             fig, ax = plt.subplots(figsize=(1.5 * 8, 1.5 * 6))
             mesh = ax.pcolormesh(freqs / 1e6, range_gates, dB,
                                  vmin=0, vmax=20.0, cmap="gist_yarg")
@@ -316,13 +323,25 @@ def plot_ionogram(conf, fn, normalize_by_frequency=True):
                     txname="JORN"
                 else:
                     txname="unknown"
+            latest_txname = txname
+            if txname == "unknown" and "range_gate_start_m" in ho.keys():
+                try:
+                    range_gate_start_m = float(ho["range_gate_start_m"][()])
+                    if n.isfinite(range_gate_start_m):
+                        latest_txname = "unknown-%dkm" % int(n.round(range_gate_start_m / 1e3))
+                except Exception:
+                    pass
 
             ax.set_title("%s Chirp-rate %1.2f kHz/s t0=%1.5f (unix s)\n%s-%s %s (UTC)" % (
                 ch, rate / 1e3, t0, txname, station_name, cd.unix2datestr(t0)))
             ax.set_xlabel("Frequency (MHz)")
             ax.set_ylabel("One-way range offset (km)")
 
-            if conf.manual_range_extent:
+            if range_offset_applied and "range_gate_stop_m" in ho.keys() and "range_gate_start_m" in ho.keys():
+                lower_km = n.nanmin(range_gates) if len(range_gates) else 0.0
+                upper_km = float(ho["range_gate_stop_m"][()]) / 1e3
+                ax.set_ylim([lower_km, upper_km])
+            elif conf.manual_range_extent:
                 ax.set_ylim([conf.min_range / 1e3, conf.max_range / 1e3])
             else:
                 ax.set_ylim([dr - conf.max_range_extent / 1e3,
@@ -334,7 +353,14 @@ def plot_ionogram(conf, fn, normalize_by_frequency=True):
                 ax.set_xlim([0, conf.maximum_analysis_frequency / 1e6])
             fig.tight_layout()
             fig.savefig(img_fname)
-            shutil.copy2(img_fname, "/tmp/latest-lfm-%s-%s.png"%(txname,station_name))
+            latest_fname = "/tmp/latest-lfm-%s-%s.png"%(latest_txname,station_name)
+            shutil.copy2(img_fname, latest_fname)
+            if conf.copy_to_server:
+                import ionowebsync
+                response = ionowebsync.post_to_server(latest_fname)
+                if response is None or not response.ok:
+                    code = "no response" if response is None else "HTTP %d" % response.status_code
+                    log("failed to post %s: %s" % (latest_fname, code))
             return True
     finally:
         if fig is not None:

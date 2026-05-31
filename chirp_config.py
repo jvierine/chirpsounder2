@@ -41,6 +41,7 @@ class chirp_config:
                         "require_gps_lock": "true",
                         "gps_lock_timeout_sec": "-1",
                         "serendipitous": "false",
+                        "serendipitous_ionogram_workers": "1",
                         }
         cf["detection"] = {
             "threshold_snr": "13.0",
@@ -48,6 +49,7 @@ class chirp_config:
             "min_detections": "3",            
             "step": "1",
             "n_samples_per_block": "5000000",
+            "realtime_detection_lag_sec": "0",
             "minimum_frequency_spacing": "0.2e6",
             "chirp_rates": "[50e3,100e3,125e3,500.0084e3]",
             "debug_timings": "false",            
@@ -62,6 +64,10 @@ class chirp_config:
             "maximum_analysis_frequency": "25e6",
             "minimum_analysis_frequency": "0.0",
             "max_range_extent": "2000e3",
+            "serendipitous_range_quantization_km": "0",
+            "serendipitous_range_extent_km": "2000",
+            "serendipitous_range_buffer_km": "0",
+            "max_ionogram_frequency_steps": "0",
             "min_range": "200e3",
             "storage_snr_threshold": "2",                        
             "max_range": "1500e3",
@@ -188,6 +194,7 @@ class chirp_config:
             cf["lfm"]["manual_freq_extent"])
 
         self.serendipitous = json.loads(cf["config"]["serendipitous"])
+        self.serendipitous_ionogram_workers = int(json.loads(cf["config"]["serendipitous_ionogram_workers"]))
         self.storage_snr_threshold = json.loads(cf["lfm"]["storage_snr_threshold"])
         self.min_detections = int(json.loads(cf["detection"]["min_detections"]))
         
@@ -222,6 +229,10 @@ class chirp_config:
         self.downconversion_block_samples = int(json.loads(
             cf["lfm"]["downconversion_block_samples"]))
         self.max_range_extent = json.loads(cf["lfm"]["max_range_extent"])
+        self.serendipitous_range_quantization_km = json.loads(cf["lfm"]["serendipitous_range_quantization_km"])
+        self.serendipitous_range_extent_km = json.loads(cf["lfm"]["serendipitous_range_extent_km"])
+        self.serendipitous_range_buffer_km = json.loads(cf["lfm"]["serendipitous_range_buffer_km"])
+        self.max_ionogram_frequency_steps = int(json.loads(cf["lfm"]["max_ionogram_frequency_steps"]))
 
         self.max_range = json.loads(cf["lfm"]["max_range"])
         self.min_range = json.loads(cf["lfm"]["min_range"])
@@ -231,6 +242,8 @@ class chirp_config:
 
         self.n_samples_per_block = json.loads(
             cf["detection"]["n_samples_per_block"])
+        self.realtime_detection_lag_sec = json.loads(
+            cf["detection"]["realtime_detection_lag_sec"])
         self.sample_rate = json.loads(cf["config"]["sample_rate"])
         self.center_freq = json.loads(cf["config"]["center_freq"])
         self.chirp_rates = json.loads(cf["detection"]["chirp_rates"])

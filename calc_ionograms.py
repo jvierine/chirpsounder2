@@ -260,16 +260,38 @@ def chirp_downconvert(conf,
     freqs = rate * np.arange(S.shape[0]) * fft_step / sr_dec
     range_gates = ds * np.fft.fftshift(np.fft.fftfreq(fftlen, d=1.0 / sr_dec))
     
-    if conf.manual_range_extent:
+    range_offset = (t0 - np.floor(t0)) * c.c
+    range_offset_applied = False
+    range_start_m = np.nan
+    range_stop_m = np.nan
+    stored_ranges = None
+
+    if conf.serendipitous and conf.serendipitous_range_quantization_km > 0:
+        delay_km = range_offset / 1e3
+        start_km = np.floor(delay_km / conf.serendipitous_range_quantization_km) * conf.serendipitous_range_quantization_km
+        stop_km = start_km + conf.serendipitous_range_extent_km
+        data_start_km = start_km - conf.serendipitous_range_buffer_km
+        display_ranges = range_gates + range_offset
+        ridx = np.where((display_ranges >= data_start_km * 1e3) &
+                        (display_ranges < stop_km * 1e3))[0]
+        stored_ranges = display_ranges[ridx]
+        range_offset_applied = True
+        range_start_m = start_km * 1e3
+        range_stop_m = stop_km * 1e3
+    elif conf.manual_range_extent:
         range_offset = (t0 - np.floor(t0)) * c.c
         ridx = np.where(((range_gates + range_offset) > conf.min_range) &
                         ((range_gates + range_offset) < conf.max_range))[0]
+        stored_ranges = range_gates[ridx]
     else:
         ridx = np.where(n.abs(range_gates) < conf.max_range_extent)[0]
+        stored_ranges = range_gates[ridx]
     
     fidx = n.arange(len(freqs), dtype=int)
     if conf.manual_freq_extent:
         fidx = n.where((freqs > conf.min_freq) & (freqs < conf.max_freq))[0]
+    if conf.max_ionogram_frequency_steps > 0 and len(fidx) > conf.max_ionogram_frequency_steps:
+        fidx = fidx[np.linspace(0, len(fidx) - 1, conf.max_ionogram_frequency_steps, dtype=int)]
 
     SNR = n.array(S,dtype=n.float32)#n.copy(S)
     noise_floor=n.zeros(SNR.shape[0])
@@ -304,7 +326,10 @@ def chirp_downconvert(conf,
         ho["noise_floor"]=noise_floor
         ho["freqs"] = freqs[fidx]  # frequency bins
         ho["rate"] = rate    # chirp-rate
-        ho["ranges"] = range_gates[ridx]
+        ho["ranges"] = stored_ranges
+        ho["range_offset_applied"] = range_offset_applied
+        ho["range_gate_start_m"] = range_start_m
+        ho["range_gate_stop_m"] = range_stop_m
         ho["t0"] = t0
         ho["id"] = cid
         ho["txname"]=txname

@@ -72,7 +72,7 @@ def auto_propagation_bands(
     """Return plot bands estimated from great-circle distance.
 
     If ``propagation_factor`` is ``"auto"``, the factor is calibrated from the
-    old TGO manual bands for Nicosia and Australia/JORN.
+    old TGO manual bands for Cyprus and Australia/JORN.
     """
     if receiver_name not in station_info:
         return []

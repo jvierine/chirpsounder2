@@ -41,7 +41,7 @@ function detect_plot_type(string $filename, array $plotTypeOrder): string
 
 function detect_receiver_station(string $filename): ?string
 {
-    if (preg_match('/^latest-(?:digisonde|lfm|rti)-[^-]+-([A-Z0-9]+)\.png$/i', $filename, $m)) {
+    if (preg_match('/^latest-(?:digisonde|lfm|rti)-.+-([A-Z0-9]+)\.png$/i', $filename, $m)) {
         return strtoupper($m[1]);
     }
 
@@ -97,7 +97,7 @@ function label_from_filename(string $filename, array $stationLabels): string
         return 'Digisonde ' . station_label($m[1], $stationLabels) . ' -> ' . $m[2];
     }
 
-    if (preg_match('/^latest-lfm-([^-]+)-([^.]+)\.png$/i', $filename, $m)) {
+    if (preg_match('/^latest-lfm-(.+)-([^-]+)\.png$/i', $filename, $m)) {
         return 'LFM ' . station_label($m[1], $stationLabels) . ' -> ' . $m[2];
     }
 
@@ -129,7 +129,7 @@ function label_from_filename(string $filename, array $stationLabels): string
 function station_sort_key(string $filename, string $plotType, array $stationLabels): string
 {
     if ($plotType === 'ionogram') {
-        if (preg_match('/^latest-(?:digisonde|lfm)-([^-]+)-([^.]+)\.png$/i', $filename, $m)) {
+        if (preg_match('/^latest-(?:digisonde|lfm)-(.+)-([^-]+)\.png$/i', $filename, $m)) {
             return strtolower(station_label($m[1], $stationLabels) . ' ' . $m[2]);
         }
     }
