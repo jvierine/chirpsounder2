@@ -442,7 +442,7 @@ def plot_propagation_range(
     ax[0].set_ylim([y_min, y_max])
     ax[0].set_ylabel("One-way virtual propagation range (km)", fontsize=16)
     # ax[0].set_ylim([0, 42000])
-    ax[0].legend(loc="upper right")
+    ax[0].legend(loc="upper left")
 
     # --- BOTTOM PANEL: frequency vs time (colored by chirp rate) ---
     sc2=ax[1].scatter(
