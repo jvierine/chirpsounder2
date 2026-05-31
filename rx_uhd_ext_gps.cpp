@@ -123,8 +123,9 @@ bool all_mboards_support_gpsdo(multi_usrp::sptr usrp)
     return true;
 }
 
-void wait_for_gps_lock(multi_usrp::sptr usrp)
+bool wait_for_gps_lock(multi_usrp::sptr usrp, int timeout_sec)
 {
+    auto start_time = std::chrono::steady_clock::now();
     bool all_gps_locked = false;
     while (!all_gps_locked) {
         all_gps_locked = true;
@@ -142,10 +143,22 @@ void wait_for_gps_lock(multi_usrp::sptr usrp)
         }
 
         if (!all_gps_locked) {
+            if (timeout_sec >= 0) {
+                auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
+                    std::chrono::steady_clock::now() - start_time).count();
+                if (elapsed >= timeout_sec) {
+                    std::cout << "GPSDO did not lock within "
+                              << timeout_sec
+                              << " seconds; continuing without GPS lock."
+                              << std::endl;
+                    return false;
+                }
+            }
             std::cout << "Waiting for GPSDO lock." << std::endl;
             std::this_thread::sleep_for(std::chrono::seconds(10));
         }
     }
+    return true;
 }
 
 void streaming_by_channel(size_t chan,double rate,std::string subdev,std::string outdir, multi_usrp::sptr usrp, uhd::time_spec_t time_last_pps, std::chrono::steady_clock::time_point end_time)
@@ -320,6 +333,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     std::string subdev;
     double rate;
     std::string channel_list;
+    int gps_lock_timeout_sec;
 
     po::options_description desc("Allowed options");
     // clang-format off
@@ -330,6 +344,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         ("subdev", po::value<std::string>(&subdev)->default_value("A:A"), "subdevice")
         ("rate", po::value<double>(&rate)->default_value(25e6), "rate of incoming samples")
         ("channels", po::value<std::string>(&channel_list)->default_value("0"), "which channel(s) to use (specify \"0\", \"1\", \"0,1\", etc)")
+        ("gps-lock-timeout", po::value<int>(&gps_lock_timeout_sec)->default_value(300), "seconds to wait for internal GPSDO lock before continuing; use -1 to wait indefinitely")
     ;
     
     // clang-format on
@@ -354,7 +369,10 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             usrp->set_clock_source("gpsdo", mb);
             usrp->set_time_source("gpsdo", mb);
         }
-        wait_for_gps_lock(usrp);
+        bool gps_locked = wait_for_gps_lock(usrp, gps_lock_timeout_sec);
+        if (!gps_locked) {
+            std::cout << "WARNING: GPSDO is not locked; using GPSDO reference/PPS if present, but setting USRP time from PC time." << std::endl;
+        }
     } else {
         std::cout << "Internal GPSDO not available on all mboards; using external 10 MHz and PPS." << std::endl;
         for (size_t mb = 0; mb < usrp->get_num_mboards(); mb++) {

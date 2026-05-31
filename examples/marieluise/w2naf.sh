@@ -47,7 +47,7 @@ python3 station_monitor.py --config "$CONF_FILE" > logs/station_monitor.log 2>&1
 echo "Starting rx_uhd_ext_gps for W2NAF USRP N200 at 192.168.10.2. Restarting every 24 hours."
 while true;
 do
-    ./rx_uhd_ext_gps --outdir="$RINGBUFFER_DIR" --usrp_args="$UHD_ARGS" > logs/w2naf.log 2>&1
+    ./rx_uhd_ext_gps --outdir="$RINGBUFFER_DIR" --usrp_args="$UHD_ARGS" --gps-lock-timeout=30 > logs/w2naf.log 2>&1
     sleep 5
     echo "Restarting recording."
     echo "Rotating logs"
