@@ -271,6 +271,22 @@ def apply_detection_range_filter(dfs, station_info, station_name,
     return dfs[keep, :]
 
 
+def apply_configured_detection_filter(dfs, conf):
+    if not getattr(conf, "detection_range_filter", False):
+        return dfs
+    return apply_detection_range_filter(
+        dfs,
+        conf.station_info,
+        conf.station_name,
+        conf.propagation_range_transmitters,
+        conf.propagation_range_factor,
+        conf.propagation_band_fraction,
+        conf.propagation_range_band_overrides,
+        min_range_km=conf.detection_range_filter_min_km,
+        max_range_km=conf.detection_range_filter_max_km,
+    )
+
+
 def plot_chirp_time(dfs, start_t, n_hours=24, min_detections=5,
                     pfname="/tmp/chirp-times.png", station_name="TGO",
                     title_span=None, **_ignored):
@@ -644,6 +660,7 @@ if __name__ == "__main__":
                 suffix, output_span, station_name)
         else:
             pfname = args.output
+        dfs = apply_configured_detection_filter(dfs, conf)
         plotter = plot_chirp_time if args.plot_mode == "chirp-time" else plot_propagation_range
         plotter(
             dfs,
@@ -659,7 +676,7 @@ if __name__ == "__main__":
             propagation_range_factor=conf.propagation_range_factor,
             propagation_band_fraction=conf.propagation_band_fraction,
             propagation_range_band_overrides=conf.propagation_range_band_overrides,
-            detection_range_filter=conf.detection_range_filter,
+            detection_range_filter=False,
             detection_range_filter_min_km=conf.detection_range_filter_min_km,
             detection_range_filter_max_km=conf.detection_range_filter_max_km)
         sys.exit(0)
@@ -678,6 +695,7 @@ if __name__ == "__main__":
                 station_name=station_name,
                 date_dirs=recent_dirs)
             dfs = read_detection_files(files)
+            dfs = apply_configured_detection_filter(dfs, conf)
 
             import time
             plot_end = newest_detection_time(dfs, time.time())
@@ -704,7 +722,7 @@ if __name__ == "__main__":
                 propagation_range_factor=conf.propagation_range_factor,
                 propagation_band_fraction=conf.propagation_band_fraction,
                 propagation_range_band_overrides=conf.propagation_range_band_overrides,
-                detection_range_filter=conf.detection_range_filter,
+                detection_range_filter=False,
                 detection_range_filter_min_km=conf.detection_range_filter_min_km,
                 detection_range_filter_max_km=conf.detection_range_filter_max_km)
         except Exception:
