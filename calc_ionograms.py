@@ -261,33 +261,6 @@ def chirp_downconvert(conf,
     freqs = rate * np.arange(S.shape[0]) * fft_step / sr_dec
     range_gates = ds * np.fft.fftshift(np.fft.fftfreq(fftlen, d=1.0 / sr_dec))
     
-    range_offset = (t0 - np.floor(t0)) * c.c
-    range_offset_applied = False
-    range_start_m = np.nan
-    range_stop_m = np.nan
-    stored_ranges = None
-
-    if conf.serendipitous and conf.serendipitous_range_quantization_km > 0:
-        delay_km = range_offset / 1e3
-        start_km = np.floor(delay_km / conf.serendipitous_range_quantization_km) * conf.serendipitous_range_quantization_km
-        stop_km = start_km + conf.serendipitous_range_extent_km
-        data_start_km = start_km - conf.serendipitous_range_buffer_km
-        display_ranges = range_gates + range_offset
-        ridx = np.where((display_ranges >= data_start_km * 1e3) &
-                        (display_ranges < stop_km * 1e3))[0]
-        stored_ranges = display_ranges[ridx]
-        range_offset_applied = True
-        range_start_m = start_km * 1e3
-        range_stop_m = stop_km * 1e3
-    elif conf.manual_range_extent:
-        range_offset = (t0 - np.floor(t0)) * c.c
-        ridx = np.where(((range_gates + range_offset) > conf.min_range) &
-                        ((range_gates + range_offset) < conf.max_range))[0]
-        stored_ranges = range_gates[ridx]
-    else:
-        ridx = np.where(n.abs(range_gates) < conf.max_range_extent)[0]
-        stored_ranges = range_gates[ridx]
-    
     fidx = n.arange(len(freqs), dtype=int)
     if conf.manual_freq_extent:
         fidx = n.where((freqs > conf.min_freq) & (freqs < conf.max_freq))[0]
@@ -300,6 +273,59 @@ def chirp_downconvert(conf,
     for i in range(S.shape[0]):
         noise_floor[i]=n.median(SNR[i,:])
         SNR[i,:]=(SNR[i,:]-noise_floor[i])/noise_floor[i]
+
+    range_offset = (t0 - np.floor(t0)) * c.c
+    range_offset_applied = False
+    range_start_m = np.nan
+    range_stop_m = np.nan
+    stored_ranges = None
+
+    if conf.serendipitous and conf.serendipitous_range_quantization_km > 0:
+        display_ranges = range_gates + range_offset
+        q_km = float(conf.serendipitous_range_quantization_km)
+        extent_km = float(conf.serendipitous_range_extent_km)
+        buffer_km = float(conf.serendipitous_range_buffer_km)
+        ranges_km = display_ranges / 1e3
+        finite_ranges = ranges_km[np.isfinite(ranges_km)]
+        if len(finite_ranges) == 0:
+            start_km = 0.0
+        else:
+            min_bin = max(0.0, np.floor(np.nanmin(finite_ranges) / q_km) * q_km)
+            max_bin = np.ceil(np.nanmax(finite_ranges) / q_km) * q_km
+            bin_starts = np.arange(min_bin, max_bin + q_km, q_km)
+            best_score = -np.inf
+            start_km = np.floor((range_offset / 1e3) / q_km) * q_km
+            snr_for_score = SNR[fidx, :] if len(fidx) > 0 else SNR
+            for candidate_km in bin_starts:
+                candidate_idx = np.where((ranges_km >= candidate_km) &
+                                         (ranges_km < candidate_km + q_km))[0]
+                if len(candidate_idx) == 0:
+                    continue
+                score_data = snr_for_score[:, candidate_idx]
+                score = np.nansum(np.maximum(score_data - conf.storage_snr_threshold, 0.0))
+                if score > best_score:
+                    best_score = score
+                    start_km = candidate_km
+            if not np.isfinite(best_score) or best_score <= 0.0:
+                start_km = np.floor((range_offset / 1e3) / q_km) * q_km
+        stop_km = start_km + extent_km
+        data_start_km = start_km - buffer_km
+        ridx = np.where((display_ranges >= data_start_km * 1e3) &
+                        (display_ranges < stop_km * 1e3))[0]
+        stored_ranges = display_ranges[ridx]
+        range_offset_applied = True
+        range_start_m = start_km * 1e3
+        range_stop_m = stop_km * 1e3
+        print("serendipitous range window %.0f-%.0f km from %.0f km SNR bin" %
+              (data_start_km, stop_km, start_km))
+    elif conf.manual_range_extent:
+        ridx = np.where(((range_gates + range_offset) > conf.min_range) &
+                        ((range_gates + range_offset) < conf.max_range))[0]
+        stored_ranges = range_gates[ridx]
+    else:
+        ridx = np.where(n.abs(range_gates) < conf.max_range_extent)[0]
+        stored_ranges = range_gates[ridx]
+
     SNR=SNR[:,ridx]
     SNR=SNR[fidx,:]
     # significantly save in storage space by threshold+deflate

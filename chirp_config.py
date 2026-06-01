@@ -68,6 +68,9 @@ class chirp_config:
             "propagation_range_factor": '"auto"',
             "propagation_band_fraction": "0.15",
             "propagation_range_band_overrides": '{"JORN":{"paths":["short","long"]}}',
+            "detection_range_filter": "false",
+            "detection_range_filter_min_km": "0",
+            "detection_range_filter_max_km": '"auto_jorn"',
         }
         cf["lfm"] = {
             "range_resolution": "2e3",
@@ -190,6 +193,9 @@ class chirp_config:
         self.propagation_range_factor = json.loads(cf["detection"]["propagation_range_factor"])
         self.propagation_band_fraction = json.loads(cf["detection"]["propagation_band_fraction"])
         self.propagation_range_band_overrides = json.loads(cf["detection"]["propagation_range_band_overrides"])
+        self.detection_range_filter = json.loads(cf["detection"]["detection_range_filter"])
+        self.detection_range_filter_min_km = json.loads(cf["detection"]["detection_range_filter_min_km"])
+        self.detection_range_filter_max_km = json.loads(cf["detection"]["detection_range_filter_max_km"])
 #        print(cf["stations"]["station_info"])
         self.station_info = shared_station_info
         self.station_info.update(json.loads(cf["stations"]["station_info"]))

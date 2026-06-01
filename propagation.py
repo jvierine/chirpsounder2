@@ -130,3 +130,28 @@ def auto_propagation_bands(
                 band["center_km"] = float(override["center_km"])
             bands.append(band)
     return bands
+
+
+def detection_range_limits_km(conf) -> tuple[float, float]:
+    """Return configured timing-detection range limits in kilometers."""
+    min_km = float(getattr(conf, "detection_range_filter_min_km", 0.0))
+    max_km = getattr(conf, "detection_range_filter_max_km", "auto_jorn")
+    if isinstance(max_km, str) and max_km == "auto_jorn":
+        bands = auto_propagation_bands(
+            conf.station_info,
+            conf.station_name,
+            conf.propagation_range_transmitters,
+            conf.propagation_range_factor,
+            conf.propagation_band_fraction,
+            conf.propagation_range_band_overrides,
+        )
+        jorn_max = [
+            float(band["max_km"])
+            for band in bands
+            if band.get("name") == "JORN"
+        ]
+        if jorn_max:
+            max_km = max(jorn_max)
+        else:
+            max_km = 30000.0
+    return min_km, float(max_km)

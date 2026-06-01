@@ -242,6 +242,35 @@ def frequency_mhz(freq):
     return freq / scale
 
 
+def apply_detection_range_filter(dfs, station_info, station_name,
+                                 propagation_range_transmitters,
+                                 propagation_range_factor,
+                                 propagation_band_fraction,
+                                 propagation_range_band_overrides,
+                                 min_range_km=0.0,
+                                 max_range_km="auto_jorn"):
+    if dfs.shape[0] == 0:
+        return dfs
+    if max_range_km == "auto_jorn":
+        bands = propagation.auto_propagation_bands(
+            station_info,
+            station_name,
+            propagation_range_transmitters,
+            propagation_range_factor,
+            propagation_band_fraction,
+            propagation_range_band_overrides,
+        )
+        jorn_max = [band["max_km"] for band in bands if band.get("name") == "JORN"]
+        max_range_km = max(jorn_max) if jorn_max else 30000.0
+    ranges_km = (dfs[:, 0] - n.floor(dfs[:, 0])) * sc.c / 1e3
+    keep = n.where((ranges_km >= float(min_range_km)) &
+                   (ranges_km <= float(max_range_km)))[0]
+    if len(keep) != dfs.shape[0]:
+        print("range filter keeping %d/%d detections between %.0f and %.0f km" %
+              (len(keep), dfs.shape[0], float(min_range_km), float(max_range_km)))
+    return dfs[keep, :]
+
+
 def plot_chirp_time(dfs, start_t, n_hours=24, min_detections=5,
                     pfname="/tmp/chirp-times.png", station_name="TGO",
                     title_span=None, **_ignored):
@@ -360,10 +389,25 @@ def plot_propagation_range(
     propagation_range_factor="auto",
     propagation_band_fraction=0.15,
     propagation_range_band_overrides=None,
+    detection_range_filter=False,
+    detection_range_filter_min_km=0.0,
+    detection_range_filter_max_km="auto_jorn",
 ):
 
     gidx=n.where( (dfs[:,0]>start_t) & (dfs[:,0]<(start_t+n_hours*3600)))[0]
     dfs=dfs[gidx,:]
+    if detection_range_filter:
+        dfs = apply_detection_range_filter(
+            dfs,
+            station_info,
+            station_name,
+            propagation_range_transmitters,
+            propagation_range_factor,
+            propagation_band_fraction,
+            propagation_range_band_overrides,
+            min_range_km=detection_range_filter_min_km,
+            max_range_km=detection_range_filter_max_km,
+        )
     day_start, day_end, time_span_str = format_time_span(start_t, n_hours, title_span)
     title = "ROTHR & JORN -> %s %s, >= %d detections per chirp-rate time cluster" % (
         station_name, time_span_str, min_detections)
@@ -614,7 +658,10 @@ if __name__ == "__main__":
             propagation_range_transmitters=conf.propagation_range_transmitters,
             propagation_range_factor=conf.propagation_range_factor,
             propagation_band_fraction=conf.propagation_band_fraction,
-            propagation_range_band_overrides=conf.propagation_range_band_overrides)
+            propagation_range_band_overrides=conf.propagation_range_band_overrides,
+            detection_range_filter=conf.detection_range_filter,
+            detection_range_filter_min_km=conf.detection_range_filter_min_km,
+            detection_range_filter_max_km=conf.detection_range_filter_max_km)
         sys.exit(0)
 
     while True:
@@ -656,7 +703,10 @@ if __name__ == "__main__":
                 propagation_range_transmitters=conf.propagation_range_transmitters,
                 propagation_range_factor=conf.propagation_range_factor,
                 propagation_band_fraction=conf.propagation_band_fraction,
-                propagation_range_band_overrides=conf.propagation_range_band_overrides)
+                propagation_range_band_overrides=conf.propagation_range_band_overrides,
+                detection_range_filter=conf.detection_range_filter,
+                detection_range_filter_min_km=conf.detection_range_filter_min_km,
+                detection_range_filter_max_km=conf.detection_range_filter_max_km)
         except Exception:
             traceback.print_exc(file=sys.stdout)
         time.sleep(15*60)

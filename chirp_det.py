@@ -17,6 +17,7 @@ import os
 import scipy.fftpack
 import pickle
 import chirpsounder_version as csversion
+import propagation
 fftw = False
 try:
     import pyfftw
@@ -121,6 +122,11 @@ class chirp_matched_filter_bank:
     def __init__(self, conf):
         self.conf = conf
         self.have_fftw = fftw
+        self.detection_range_limits_km = None
+        if getattr(self.conf, "detection_range_filter", False):
+            self.detection_range_limits_km = propagation.detection_range_limits_km(self.conf)
+            print("detection range filter enabled %.0f-%.0f km" %
+                  (self.detection_range_limits_km[0], self.detection_range_limits_km[1]))
 
         # create chirp signal vectors
         # centered around zero frequency
@@ -251,6 +257,13 @@ class chirp_matched_filter_bank:
             if snr_max > self.conf.threshold_snr:
                 # the virtual start time
                 chirp_time = t0 - f0 / detected_chirp_rate
+                if self.detection_range_limits_km is not None:
+                    range_km = (chirp_time - n.floor(chirp_time)) * c.c / 1e3
+                    min_range_km, max_range_km = self.detection_range_limits_km
+                    if range_km < min_range_km or range_km > max_range_km:
+                        debug1("skipping chirp outside range filter %.0f km not in %.0f-%.0f km" %
+                               (range_km, min_range_km, max_range_km))
+                        continue
                 debug1("found chirp snr %1.2f chirp-rate %1.2f f0 %1.2f chirp_time %1.4f %s" %
                        (snr_max, detected_chirp_rate / 1e3, f0 / 1e6, chirp_time, unix2datestr(chirp_time)))
                 snrs.append(snr_max)

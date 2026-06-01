@@ -159,6 +159,9 @@ def plot_detection_quicklook(conf, data_dir, web_dir, date_dir, hours=48, max_fi
         propagation_range_factor=conf.propagation_range_factor,
         propagation_band_fraction=conf.propagation_band_fraction,
         propagation_range_band_overrides=conf.propagation_range_band_overrides,
+        detection_range_filter=conf.detection_range_filter,
+        detection_range_filter_min_km=conf.detection_range_filter_min_km,
+        detection_range_filter_max_km=conf.detection_range_filter_max_km,
     )
     return copy_if_exists(tmp_output, output)
 

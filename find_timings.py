@@ -14,6 +14,7 @@ import os.path
 import time
 import pdb
 import chirpsounder_version as csversion
+import propagation
 
 def kill(conf):
     exists = os.path.isfile(conf.kill_path)
@@ -93,6 +94,18 @@ def scan_for_chirps(conf, ch, dt=0.1):
     chirp_rates = n.array(chirp_rates)
     f0 = n.array(f0)
     snrs = n.array(snrs)
+
+    if conf.detection_range_filter and len(chirp_times) > 0:
+        min_range_km, max_range_km = propagation.detection_range_limits_km(conf)
+        ranges_km = (chirp_times - n.floor(chirp_times)) * 299792458.0 / 1e3
+        keep = n.where((ranges_km >= min_range_km) & (ranges_km <= max_range_km))[0]
+        if len(keep) != len(chirp_times):
+            print("range filter keeping %d/%d detections between %.0f and %.0f km" %
+                  (len(keep), len(chirp_times), min_range_km, max_range_km))
+        chirp_times = chirp_times[keep]
+        chirp_rates = chirp_rates[keep]
+        f0 = f0[keep]
+        snrs = snrs[keep]
 
     n_ionograms = 0
     crs = n.unique(chirp_rates)
