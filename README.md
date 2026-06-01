@@ -2,6 +2,8 @@
 
 Chirp Sounder 2 detects HF linear-FM chirp sounders in Digital RF recordings and turns them into oblique ionograms. It runs either offline on stored data or continuously on a live Digital RF ringbuffer from a USRP/GPSDO receiver.
 
+Live dashboard: http://4.235.86.214/iono/
+
 The current pipeline is:
 
 1. Record complex HF voltage as Digital RF with `rx_uhd_ext_gps` by default. Use `rx_uhd` only for simpler setups that do not need the external GPS/PPS handling.
