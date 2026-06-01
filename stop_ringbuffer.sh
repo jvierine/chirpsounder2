@@ -15,7 +15,6 @@ STOP_PATTERNS=(
     "python.*plot_ionograms.py"
     "python.*station_monitor.py"
     "python.*find_timings"
-    "python.*thor.py"
     "python.*drf"
     "rx_uhd"
 )

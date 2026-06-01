@@ -34,7 +34,7 @@ DEFAULT_UPLOAD_URL = "http://4.235.86.214/upload.php"
 
 
 DEFAULT_REQUIRED_PROCESSES = [
-    "recorder=rx_uhd_ext_gps|rx_uhd|thor.py",
+    "recorder=rx_uhd_ext_gps|rx_uhd",
     "detect_chirps=detect_chirps.py",
     "detections2metadata=detections2metadata.py",
     "plot_ionograms=plot_ionograms.py",

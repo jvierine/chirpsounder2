@@ -55,9 +55,6 @@ cd chirpsounder2/
 make
 
 #Use pip3 to install missing packages (e.g. pyfftw, scipy etc.). shouldn't be needed
-#Thor can be tested using the suggested line "thor.py -m 192.168.10.2 -d "A:A" -c cha -f 12.5e6 -r 25e6 /dev/shm/hf25"
-
 # create data output directory. ionograms will go here
 sudo mkdir -p /data0
 sudo chown -R $USER:$USER /data0
-

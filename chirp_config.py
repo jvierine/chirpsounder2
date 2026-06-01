@@ -45,7 +45,7 @@ class chirp_config:
                         "parameter_file_retention_sec": "86400",
                         "parameter_file_lock_timeout_sec": "3600",
                         "required_processes": '''
-["recorder=rx_uhd_ext_gps|rx_uhd|thor.py",
+["recorder=rx_uhd_ext_gps|rx_uhd",
  "detect_chirps=detect_chirps.py",
  "detections2metadata=detections2metadata.py",
  "plot_ionograms=plot_ionograms.py",

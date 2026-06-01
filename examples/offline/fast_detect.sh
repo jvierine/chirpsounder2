@@ -1,5 +1,5 @@
 #
-# Off-line processing of a recording of HF obtained using thor.py
+# Off-line processing of a Digital RF recording of HF
 #
 CONF_FILE=fast_detect.ini
 

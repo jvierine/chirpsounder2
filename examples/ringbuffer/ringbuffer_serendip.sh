@@ -18,7 +18,7 @@ RINGBUFFER_SIZE=3800MB
 #
 sudo ntpdate $NTP_SERVER
 rm -Rf $RINGBUFFER_DIR
-thor.py -m 192.168.10.4 -d A:A -c cha -f $CENTER_FREQ -r $SAMPLE_RATE $RINGBUFFER_DIR &
+./rx_uhd_ext_gps --outdir=$RINGBUFFER_DIR --rate=$SAMPLE_RATE &
 sleep 10
 
 drf ringbuffer -z $RINGBUFFER_SIZE $RINGBUFFER_DIR -p 2 &

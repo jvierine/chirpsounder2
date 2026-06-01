@@ -1,13 +1,16 @@
 # Chirp Sounder 2
 
-This software can be used to detect chirp sounders (over-the-horizon radar transmissions) over the air, and to calculate ionograms from them. I also recently added an experimental capability to receive Digisonde ionograms with known transmit timing. A live dashboard is available at <a href="http://4.235.86.214/iono/">http://4.235.86.214/iono/</a>.
+Chirp Sounder 2 detects HF linear-FM chirp sounders in Digital RF recordings and turns them into oblique ionograms. It runs either offline on stored data or continuously on a live Digital RF ringbuffer from a USRP/GPSDO receiver.
 
-The software relies on <a href="https://github.com/MITHaystack/digital_rf">Digital RF</a> recordings of HF. The program can be run in realtime on complex voltage recorded into a ringbuffer, but it can also be run offline on a recording on a disk. 
+The current pipeline is:
 
-This is a new implementation of the <a href="https://github.com/jvierine/chirpsounder">GNU Chirp Sounder</a>. This new version allows you to now automatically find chirps without knowledge of what the timing and chirp-rate is. You can still figure out the true distance if you have a GPSDO, as most sounders start at a full second. 
+1. Record complex HF voltage as Digital RF with `rx_uhd_ext_gps` by default. Use `rx_uhd` only for simpler setups that do not need the external GPS/PPS handling.
+2. Detect unknown LFM sweeps with `detect_chirps.py`.
+3. Consolidate detections with `detections2metadata.py` and optionally derive repeat timings with `find_timings.py`.
+4. Downconvert configured or detected sweeps into ionograms with `calc_ionograms.py`.
+5. Plot ionograms, range-time-frequency views, detection summaries, maps, and station health products.
 
-Jens Floberg's <a href="https://munin.uit.no/handle/10037/25828">masters thesis</a> discusses the use of chirpsounder2 to make oblique ionograms using this software. 
-
+It also includes Digisonde reception for known transmit schedules (`receive_digisonde.py`) and multi-station direction-of-arrival tools for synchronized receivers.
 
 ## Examples
 
@@ -34,7 +37,7 @@ US ROTHR (hard to tell which one, as I'm so far away)
 
 <img src="examples/example00.png" width="100%"/>
 
-Sodankylä geophysical observatory vertical sounding ionosonde
+Sodankyla geophysical observatory vertical sounding ionosonde
 
 <img src="./examples/example01.png" width="100%"/>
 
@@ -42,16 +45,16 @@ US ROTHR (hard to tell which one, as I'm so far away)
 
 <img src="./examples/example02.png" width="100%"/>
 
-Sodankylä geophysical observatory vertical sounding ionosonde
+Sodankyla geophysical observatory vertical sounding ionosonde
 
 <img src="./examples/example03.png" width="100%"/>
 
-Australian JORN. Very far away! I see many of these at the right time of day. 
+Australian JORN. Very far away! I see many of these at the right time of day.
 
 <img src="./examples/example04.png" width="100%"/>
 
 Three-station direction-of-arrival analysis of an Australian JORN chirp-time
-band observed from Dombås, Tromsø, and Kjell Henriksen Observatory:
+band observed from Dombas, Tromso, and Kjell Henriksen Observatory:
 
 <img src="./examples/australia_chirp_band_aoa.png" width="100%"/>
 
@@ -59,8 +62,9 @@ US ROTHR (hard to tell which one, as I'm so far away)
 
 <img src="./examples/example05.png" width="100%"/>
 
-## Installation
-The easiest way to set up the software on Ubuntu is to use the included virtual environment installer script:
+## Install
+
+On Ubuntu:
 
 ```bash
 git clone https://github.com/jvierine/chirpsounder2.git
@@ -69,163 +73,62 @@ cd chirpsounder2
 source .venv/bin/activate
 ```
 
-This installs the required Ubuntu system packages, creates a Python virtual environment, installs the Python dependencies from `requirements.txt`, and builds the local C/C++ components with `make`.
-
-The setup script also applies system-wide Ubuntu tuning for USRP capture by installing persistent `sysctl` settings such as `net.core.wmem_max`, `net.core.rmem_max`, `net.core.wmem_default`, and `net.core.rmem_default`, along with login limits for real-time priority and locked memory.
-
-If you want to build the binaries manually after activating the virtual environment, run:
+The setup script installs Python dependencies, Digital RF, UHD build dependencies, realtime/ringbuffer tuning, and builds the local C/C++ helpers. To rebuild later:
 
 ```bash
 make
 ```
 
-This compiles:
+## Configure
 
-- `libdownconvert.so`
-- `rx_uhd` from `rx_uhd.cpp`
-- `rx_uhd_ext_gps` from `rx_uhd_ext_gps.cpp`
+Configuration is INI-style. Start from one of the examples:
 
-As part of setup, the script also clones and installs the Digital RF C library from `https://github.com/MITHaystack/digital_rf` using its upstream CMake build. This installs the system-wide C header `digital_rf.h`, the `libdigital_rf` library, and `digital_rf.pc` for `pkg-config`, which are required by `rx_uhd.cpp` and `rx_uhd_ext_gps.cpp`.
-
-The `rx_uhd.cpp` and `rx_uhd_ext_gps.cpp` programs also require UHD development headers and related build dependencies. Those are included in `setup_ubuntu_venv.sh`.
-
-Most of the Python scripts rely on packages such as `numpy`, `scipy`, `matplotlib`, `digital_rf`, `mpi4py`, `h5py`, `pyfftw`, `cartopy`, `pyproj`, `pandas`, `psutil`, `pyserial`, `requests`, and `imageio`. These are installed into the virtual environment by the setup script.
-
-For older manual dependency notes and a legacy install path, see `dependencies.txt`.
-
-
-Here is an example of a startup script for kicking off all of the programs. There are scripts in the same directory that also show how to install chirpsounder2 as a service with Ubuntu:
-```
-https://github.com/jvierine/chirpsounder2/blob/master/examples/marieluise/dombas.sh
+```bash
+cp examples/marieluise/dombas.ini my_station.ini
 ```
 
-## Usage:
-1) Make a data capture with the rx_uhd that requires a USRP N2x0, a GPSDO, and a broadband HF antenna in a quiet location. I recommend using a 12.5 MHz center frequency and a 25 MHz sampling rate.  I recommend using this simple C++ program instead of thor.py, which comes with Digital RF, because it is more lightweight, handles dropped packets consistently, and has no dependency to Gnuradio. 
+Important sections:
 
-```
-./rx_uhd
-```
-Alternatively, you can make a data capture with THOR (comes with <a href="https://github.com/MITHaystack/digital_rf">DigitalRF</a>), Here is an example command to kick off a recording: 
-```
-thor.py -m 192.168.10.3 -d "A:A" -c cha -f 12.5e6 -r 25e6 /dev/shm/hf25 
-```
+- `[config]`: station name, realtime/offline mode, Digital RF path, channel, sample rate, center frequency, output directory, ringbuffer cleanup.
+- `[detection]`: SNR threshold, block size, search step, chirp rates, and unknown-sounder detection filters.
+- `[lfm]`: known LFM sounder timings, downconversion filter, decimation, range/frequency limits, and ionogram storage settings.
+- `[digisonde]`: Digisonde receiver settings for known schedules.
+- `[transfer]`, `[rtf]`, `[stations]`: dashboard upload, range-time-frequency links, and station metadata.
 
-Tip: You can use a RAM disk ring buffer to avoid dropped packets on slower computers and hard disks. This is not necessary, as the chirp analysis will be okay with dropped packets. Here's an example of how you can use rsync to shovel a digital rf recording on the fly from a ram disk to a hard disk. 
+If a `server.ini` lives next to the station config, shared station/link settings are read before the local config.
 
-```
-# copy digital rf from ram disk to permanent storage:
-while true; do rsync -av --remove-source-files --exclude=tmp*
---progress /dev/shm/hf25/cha /data_out/hf25/ ; sleep 1 ; done
-```
+## Run
 
-2) configure by copying `examples/marieluise/dombas.ini` to e.g., `configuration.ini`. Edit the file to make sure you have the right center frequency, sample-rate, data directory, and channel name. I've only tested 25 MHz sample-rate and 12.5 MHz center-frequency so far.
-```
-[config]
+Use `examples/marieluise/dombas.sh` as the live-station template. Edit the paths at the top, point `CONF_FILE` at your config, and start it:
 
-# list of channel names for the digital rf recording
-# (must use list notation even for one channel)
-channel=["cha"]
-
-# the sample rate of the digital rf recording
-sample_rate=25000000.0
-
-# the center frequency of the digital rf recording
-center_freq=12.5e6
-
-# the location of the digital_rf recording
-data_dir="/data_out/hf25"
-
-# auto-kill system. If this file path exists, it will
-# break the while loops in the analysis scripts.
-# (if used, remember to delete before restarting))
-kill_path="~/kill.txt"
-
-# detection
-threshold_snr=13.0
-
-# how many chirps can we at most detect simultaneously
-max_simultaneous_detections=5
-
-# how sparsely do we search for chirps (1 .. N) 1 is slowest, but the most sensitive
-# every Nth block is analyzed 
-step=10            
-
-# how many samples per block are coherently integrated on chirp detection
-n_samples_per_block=5000000
-
-minimum_frequency_spacing=0.2e6
-# what chirp rates do we look for
-chirp_rates=[50e3,100e3,125e3,500.0084e3]
-
-# this is where all the data files are produced in
-output_dir="./chirp2"
-
-# what is the range resolution of the ionograms
-range_resolution=2e3
-
-# what is the frequency step of the ionogram
-frequency_resolution=50e3
-
-# what is the range extent around the strongest echo that is stored
-max_range_extent=2000e3
-
-# how many threads are used when chirp downconverting
-n_downconversion_threads=4
+```bash
+examples/marieluise/dombas.sh
 ```
 
-3) Detect chirps on the recording. can be parallelized with MPI to speed things up if you have lots of CPUs and a very fast disk. If you don't have a fast disk, using too many processes may actually reduce performance due to trashing. 
-```
-mpirun -np 4 python detect_chirps.py configuration.ini
-```
-
-4) Run find_timings.py to cluster together multiple detections of the same chirp to create a database of chirp timings
-```
-python find_timings.py configuration.ini
-```
-
-5) Run calc_ionograms.py to generate ionograms based on the timings that were found. Can be paralellized with MPI. Keep in mind that adding a lot of processes may be detrimental to performance, due to the 100 MB/s read requirement. If you have a slow disk, don't use too many processes here! Each MPI process is additionally multi-threaded, with the number of threads configured in the configuration file
-```
-python calc_ionograms.py configuration.ini
-```
-
-6) run plot_ionograms.py to create plots
-```
-python plot_ionograms.py configuration.ini
-```
-
-7) If chirp detections from three synchronized receiver stations are available,
-`plot_chirp_band_aoa.py` can make direction-of-arrival summary plots by
-grouping detections into bands of fractional chirp time. The station locations
-are read from `examples/marieluise/server.ini`.
-
-```
-python plot_chirp_band_aoa.py /data0/2026-05-20 \
-    --station-config examples/marieluise/server.ini \
-    --start 2026-05-20 \
-    --b 0.85 \
-    --output-dir /tmp/chirp_band_aoa
-```
+The launcher starts the recorder (`rx_uhd_ext_gps`), chirp detection, ionogram calculation, plotting, Digisonde receivers, station monitoring, housekeeping, and upload/sync jobs. Logs go under `logs/`.
 
 ## Programs
 
-The software consists of several parts:
- - detect_chirps.py  # this is used to find chirps using a chirp-rate matched filterbank
- - find_timings.py # this is used to cluster detections and determine what chirp timings and chirp rates exist
- - calc_ionograms.py # this is used to calculate ionograms based on parameters
- - plot_ionograms.py # plot calculated ionograms
- - plot_chirp_band_aoa.py # estimate three-station chirp direction of arrival by chirp-time band
+The live station is a set of small processes sharing the same config and Digital RF ringbuffer:
 
-## Output files
+- `rx_uhd_ext_gps`: records USRP voltage to Digital RF with GPSDO or external 10 MHz/PPS timing.
+- `detect_chirps.py`: searches the live HF band for unknown LFM sweeps and writes detection files.
+- `detections2metadata.py`: merges raw detections into compact files for plots, dashboards, and multi-station analysis.
+- `calc_ionograms.py`: downconverts configured or detected sweeps and writes LFM ionograms.
+- `receive_digisonde.py`: decodes Digisonde soundings with known schedules.
+- `plot_ionograms.py`, `plot_rtf.py`, `plot_detectionfiles.py`: make the web/display plots.
+- `station_monitor.py`, `iono_housekeeping.py`, `sync_iono_data.py`: monitor health, clean up old files, and publish products.
 
-The program creates several different kinds of output files. 
+## Main Outputs
 
-- chirp-%017d.h5 - Files created by detect_chirps.py, indicating that a chirp was detected in a block of data being inspected. The starting frequency, time, chirp-rate, chirp-time, and signal-to-noise ratio are recorded. Chirp-time means the virtual time at which the chirp started from a frequency of 0 hertz.
-- par-%11.3f.h5 - Files created by find_timings.py, which analyzes chirp-*.h5 files and determines what are the sounder parameters. By default, three independent detections of the same chirp at different times with consistent parameters to classify the chirp as real. This is to avoid false positives.
-- lfm_ionogram-%03d-%11.2f.h5 - Files created by calc_ionograms.py. These contain the ionogram itself. Optionally the chirp downconverted raw voltage can also be stored in order to allow the chirp to be reanalyzed with different spectral analysis settings. 
+- `chirp-*.h5`: raw detections from `detect_chirps.py`; one file per analyzed block, with chirp time, start frequency, rate, timestamp, and SNR.
+- `cdetections-*.h5`: time-binned detection summaries from `detections2metadata.py`; used by dashboards, detection plots, and AoA tools.
+- `par-*.h5`: inferred repeating chirp schedules from `find_timings.py`; used for serendipitous ionogram calculation.
+- `lfm_ionogram-*.h5`: oblique LFM ionograms from `calc_ionograms.py`; these are the main range-frequency products.
+- Digisonde HDF5/PNG products: known-schedule Digisonde ionograms from `receive_digisonde.py`.
 
+## Related
 
-## Links
+Jens Floberg's [master's thesis](https://munin.uit.no/handle/10037/25828) and Marieluise Schmitt Gran's [thesis](http://juha.no/share/marieluise_thesis.pdf) discuss oblique ionograms made with this software.
 
-You can also use your sound card and HAM radio to detect chirps using the <a href="https://www.andrewsenior.me.uk/chirpview">Chirpview</a> program.
-
-University of Twente operates a WebSDR, which is capable of <a href="http://websdr.ewi.utwente.nl:8901/chirps/">tracking known chirp sounders</a>
+You can also detect chirps with a sound card and HF receiver using [Chirpview](https://www.andrewsenior.me.uk/chirpview). University of Twente operates a WebSDR that tracks [known chirp sounders](http://websdr.ewi.utwente.nl:8901/chirps/).
