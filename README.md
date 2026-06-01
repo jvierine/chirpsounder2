@@ -1,6 +1,6 @@
 # Chirp Sounder 2
 
-This software can be used to detect chirp sounders (over-the-horizon radar transmissions) over the air, and to calculate ionograms from them. I also recently added an experimental capability to receive Digisonde ionograms with known transmit timing. 
+This software can be used to detect chirp sounders (over-the-horizon radar transmissions) over the air, and to calculate ionograms from them. I also recently added an experimental capability to receive Digisonde ionograms with known transmit timing. A live dashboard is available at <a href="http://4.235.86.214/iono/">http://4.235.86.214/iono/</a>.
 
 The software relies on <a href="https://github.com/MITHaystack/digital_rf">Digital RF</a> recordings of HF. The program can be run in realtime on complex voltage recorded into a ringbuffer, but it can also be run offline on a recording on a disk. 
 
@@ -11,9 +11,9 @@ Jens Floberg's <a href="https://munin.uit.no/handle/10037/25828">masters thesis<
 
 ## Examples
 
-Observing auroral radio propagation with all-sky cameras and chirpsounder (Credit: <a href="https://www.frontiersin.org/journals/astronomy-and-space-sciences/articles/10.3389/fspas.2024.1289840/full">Kvammen et.al., 2024</a>):
+Live TGO oblique sounding dashboard:
 
-![Screenshot from 2024-11-28 14-09-59](https://github.com/user-attachments/assets/be9d5f39-c99d-4f9e-8a5e-860ff13cff93)
+![Live TGO Oblique Sounding Dashboard](examples/live-dashboard.png)
 
 Cordova AK (Credits: Mike McCarrick, Paul Bernhardt, UAF)
 
