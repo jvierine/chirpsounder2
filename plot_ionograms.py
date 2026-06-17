@@ -331,7 +331,7 @@ def plot_ionogram(conf, fn, normalize_by_frequency=True):
                     if n.isfinite(range_gate_start_m):
                         range_start_km = int(n.round(range_gate_start_m / 1e3))
                         latest_txname = "unknown-%dkm" % range_start_km
-                        publish_latest = conf.serendipitous_range_start_allowed(range_start_km)
+                        publish_latest = conf.serendipitous_range_start_publishable(range_start_km)
                 except Exception:
                     pass
             num_detections = None

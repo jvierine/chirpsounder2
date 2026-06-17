@@ -25,7 +25,7 @@ posted_mtimes = {}
 def should_upload(fname):
     base = os.path.basename(fname)
     match = re.match(r"^latest-lfm-unknown-(\d+)km-%s\.png$" % re.escape(conf.station_name), base)
-    if match and not conf.serendipitous_range_start_allowed(float(match.group(1))):
+    if match and not conf.serendipitous_range_start_publishable(float(match.group(1))):
         return False
     return True
 
