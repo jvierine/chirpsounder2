@@ -324,11 +324,14 @@ def plot_ionogram(conf, fn, normalize_by_frequency=True):
                 else:
                     txname="unknown"
             latest_txname = txname
+            publish_latest = True
             if txname == "unknown" and "range_gate_start_m" in ho.keys():
                 try:
                     range_gate_start_m = float(ho["range_gate_start_m"][()])
                     if n.isfinite(range_gate_start_m):
-                        latest_txname = "unknown-%dkm" % int(n.round(range_gate_start_m / 1e3))
+                        range_start_km = int(n.round(range_gate_start_m / 1e3))
+                        latest_txname = "unknown-%dkm" % range_start_km
+                        publish_latest = conf.serendipitous_range_start_allowed(range_start_km)
                 except Exception:
                     pass
             num_detections = None
@@ -357,14 +360,18 @@ def plot_ionogram(conf, fn, normalize_by_frequency=True):
                 ax.set_xlim([0, conf.maximum_analysis_frequency / 1e6])
             fig.tight_layout()
             fig.savefig(img_fname)
-            latest_fname = "/tmp/latest-lfm-%s-%s.png"%(latest_txname,station_name)
-            shutil.copy2(img_fname, latest_fname)
-            if conf.copy_to_server:
-                import ionowebsync
-                response = ionowebsync.post_to_server(latest_fname)
-                if response is None or not response.ok:
-                    code = "no response" if response is None else "HTTP %d" % response.status_code
-                    log("failed to post %s: %s" % (latest_fname, code))
+            if publish_latest:
+                latest_fname = "/tmp/latest-lfm-%s-%s.png"%(latest_txname,station_name)
+                shutil.copy2(img_fname, latest_fname)
+                if conf.copy_to_server:
+                    import ionowebsync
+                    response = ionowebsync.post_to_server(latest_fname)
+                    if response is None or not response.ok:
+                        code = "no response" if response is None else "HTTP %d" % response.status_code
+                        log("failed to post %s: %s" % (latest_fname, code))
+            else:
+                log("not publishing latest-lfm-%s-%s.png; serendipitous range start is not allowed" %
+                    (latest_txname, station_name))
             return True
     finally:
         if fig is not None:

@@ -117,6 +117,8 @@ def raw_start_available(conf, bounds, par):
     if conf.serendipitous and conf.serendipitous_range_quantization_km > 0:
         delay_km = (t0 - np.floor(t0)) * 299792458.0 / 1e3
         range_start_km = np.floor(delay_km / conf.serendipitous_range_quantization_km) * conf.serendipitous_range_quantization_km
+        if not conf.serendipitous_range_start_allowed(range_start_km):
+            return False, "range_start_not_allowed %.0f km" % range_start_km
         range_start_m = (range_start_km - conf.serendipitous_range_buffer_km) * 1e3
     required_t0 = t0 + min_freq / chirp_rate + range_start_m / 299792458.0
     i0 = int(required_t0 * conf.sample_rate)
@@ -187,6 +189,9 @@ def submit_ready_jobs(conf, conf_path, executor, futures):
             if reason.startswith("start_lost"):
                 log("abandoning %s: %s" % (path, reason))
                 mark_done(path, "abandoned", reason, remove_par=True)
+            elif reason.startswith("range_start_not_allowed"):
+                log("skipping %s: %s" % (path, reason))
+                mark_done(path, "skipped", reason, remove_par=True)
             continue
 
         if try_claim(path):

@@ -81,6 +81,7 @@ class chirp_config:
             "serendipitous_range_quantization_km": "0",
             "serendipitous_range_extent_km": "2000",
             "serendipitous_range_buffer_km": "0",
+            "serendipitous_allowed_range_starts_km": "[]",
             "max_ionogram_frequency_steps": "0",
             "min_range": "200e3",
             "storage_snr_threshold": "2",                        
@@ -253,6 +254,9 @@ class chirp_config:
         self.serendipitous_range_quantization_km = json.loads(cf["lfm"]["serendipitous_range_quantization_km"])
         self.serendipitous_range_extent_km = json.loads(cf["lfm"]["serendipitous_range_extent_km"])
         self.serendipitous_range_buffer_km = json.loads(cf["lfm"]["serendipitous_range_buffer_km"])
+        self.serendipitous_allowed_range_starts_km = [
+            float(x) for x in json.loads(cf["lfm"]["serendipitous_allowed_range_starts_km"])
+        ]
         self.max_ionogram_frequency_steps = int(json.loads(cf["lfm"]["max_ionogram_frequency_steps"]))
 
         self.max_range = json.loads(cf["lfm"]["max_range"])
@@ -311,6 +315,12 @@ class chirp_config:
                 d=1.0 / float(self.sample_rate))) + self.center_freq
         else:
             self.fvec = None
+
+    def serendipitous_range_start_allowed(self, start_km):
+        if not self.serendipitous_allowed_range_starts_km:
+            return True
+        return any(abs(float(start_km) - allowed_km) < 0.5
+                   for allowed_km in self.serendipitous_allowed_range_starts_km)
 
     def __str__(self):
         out = "Configuration\n"

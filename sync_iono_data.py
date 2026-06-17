@@ -1,5 +1,6 @@
 import glob
 import os
+import re
 import time
 import chirp_config as cc
 import ionowebsync
@@ -20,11 +21,21 @@ if conf.copy_to_server != True:
 
 posted_mtimes = {}
 
+
+def should_upload(fname):
+    base = os.path.basename(fname)
+    match = re.match(r"^latest-lfm-unknown-(\d+)km-%s\.png$" % re.escape(conf.station_name), base)
+    if match and not conf.serendipitous_range_start_allowed(float(match.group(1))):
+        return False
+    return True
+
 while True:
     files = []
     for pattern in ("/tmp/latest*.png", "/tmp/yesterday*.png"):
         files.extend(glob.glob(pattern))
     for fname in sorted(set(files)):
+        if not should_upload(fname):
+            continue
         try:
             mtime = os.path.getmtime(fname)
         except FileNotFoundError:

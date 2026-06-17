@@ -316,6 +316,10 @@ def chirp_downconvert(conf,
         range_offset_applied = True
         range_start_m = start_km * 1e3
         range_stop_m = stop_km * 1e3
+        if not conf.serendipitous_range_start_allowed(start_km):
+            print("skipping serendipitous range window %.0f-%.0f km; %.0f km start is not allowed" %
+                  (data_start_km, stop_km, start_km))
+            return
         print("serendipitous range window %.0f-%.0f km from %.0f km SNR bin" %
               (data_start_km, stop_km, start_km))
     elif conf.manual_range_extent:
