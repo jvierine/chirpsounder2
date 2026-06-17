@@ -1,12 +1,13 @@
-import requests
 import os
 
+import requests
 
-DEFAULT_UPLOAD_URL = "http://4.235.86.214/upload.php"
+
+DEFAULT_UPLOAD_URL = "https://juha.no/upload.php"
 
 
 def post_to_server(fname, timeout=60, url=None):
-    # edit /etc/apache2/conf-available/upload-limit.conf to enable ip!
+    # edit /etc/apache2/conf-available/upload-limit.conf to enable station hosts
     if url is None:
         url = os.environ.get("IONOWEBSYNC_URL", DEFAULT_UPLOAD_URL)
     try:

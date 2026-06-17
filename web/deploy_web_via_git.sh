@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-WEB_SERVER="${WEB_SERVER:-j@4.235.86.214}"
+WEB_SERVER="${WEB_SERVER:-j@juha.no}"
 SERVER_REPO_DIR="${SERVER_REPO_DIR:-/home/j/src/chirpsounder2}"
 BRANCH="${BRANCH:-$(git -C "${REPO_DIR}" branch --show-current)}"
 
