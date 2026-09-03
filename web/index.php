@@ -13,6 +13,7 @@ $refreshSeconds = 60;
 $plotTypeOrder = [
     'ionogram' => '/^latest-(digisonde|lfm)-/i',
     'rti' => '/^latest-rti-/i',
+    'spectrum' => '/^latest-rf-spectrum-/i',
     'summary' => '/^(?:latest-rothr_jorn-|(?:latest-)?rothr_jorn_|latest_)/i',
     'map' => '/^map(_all|_scand|_us)?\.png$/i',
     'aoa' => '/(^chirp_band_aoa_.*|.*_chirp_band_aoa)\.png$/i',
@@ -42,6 +43,10 @@ function detect_plot_type(string $filename, array $plotTypeOrder): string
 function detect_receiver_station(string $filename): ?string
 {
     if (preg_match('/^latest-(?:digisonde|lfm|rti)-.+-([A-Z0-9]+)\.png$/i', $filename, $m)) {
+        return strtoupper($m[1]);
+    }
+
+    if (preg_match('/^latest-rf-spectrum-([A-Z0-9]+)\.png$/i', $filename, $m)) {
         return strtoupper($m[1]);
     }
 
@@ -103,6 +108,10 @@ function label_from_filename(string $filename, array $stationLabels): string
 
     if (preg_match('/^latest-rti-([^-]+)-([^.]+)\.png$/i', $filename, $m)) {
         return 'Latest RTI ' . station_label($m[1], $stationLabels) . ' -> ' . $m[2];
+    }
+
+    if (preg_match('/^latest-rf-spectrum-([A-Z0-9]+)\.png$/i', $filename, $m)) {
+        return station_label(strtoupper($m[1]), $stationLabels) . ' Full 25 MHz Spectrum';
     }
 
     if (preg_match('/^latest-rothr_jorn(?:-([^.]+))?\.png$/i', $filename, $m)) {

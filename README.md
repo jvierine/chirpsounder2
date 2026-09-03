@@ -119,6 +119,7 @@ The live station is a set of small processes sharing the same config and Digital
 - `calc_ionograms.py`: downconverts configured or detected sweeps and writes LFM ionograms.
 - `receive_digisonde.py`: decodes Digisonde soundings with known schedules.
 - `plot_ionograms.py`, `plot_rtf.py`, `plot_detectionfiles.py`: make the web/display plots.
+- `plot_rf_spec.py`: publishes a full-band 25 MHz STFT quick-look for receiver monitoring.
 - `station_monitor.py`, `iono_housekeeping.py`, `sync_iono_data.py`: monitor health, clean up old files, and publish products.
 
 ## Main Outputs
@@ -127,6 +128,7 @@ The live station is a set of small processes sharing the same config and Digital
 - `cdetections-*.h5`: time-binned detection summaries from `detections2metadata.py`; used by dashboards, detection plots, and AoA tools.
 - `par-*.h5`: inferred repeating chirp schedules from `find_timings.py`; used for serendipitous ionogram calculation.
 - `lfm_ionogram-*.h5`: oblique LFM ionograms from `calc_ionograms.py`; these are the main range-frequency products.
+- `rf_spectrum-*.h5`: UTC-minute-aligned full-band power spectra with 120 half-second time bins and 8192 frequency bins.
 - Digisonde HDF5/PNG products: known-schedule Digisonde ionograms from `receive_digisonde.py`.
 
 ## Related
