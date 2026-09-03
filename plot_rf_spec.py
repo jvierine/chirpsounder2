@@ -377,22 +377,28 @@ def draw_plot(
         datetime.fromtimestamp(data["minute_start_unix"], timezone.utc),
         datetime.fromtimestamp(data["minute_end_unix"], timezone.utc),
     )
+    overlay_half_width_hz = conf.rf_spectrum_overlay_half_width_hz
     if "overlay_time_unix" in data:
         overlay_times = [
             datetime.fromtimestamp(value, timezone.utc)
             for value in data["overlay_time_unix"]
         ]
-        spec_ax.step(
-            overlay_times,
-            data["overlay_frequency_hz"] / 1e6,
-            where="post",
-            color="cyan",
-            linestyle="--",
-            linewidth=0.7,
-            alpha=0.75,
-            label=data["overlay_label"],
-            zorder=5,
-        )
+        for offset_hz in (-overlay_half_width_hz, overlay_half_width_hz):
+            spec_ax.step(
+                overlay_times,
+                (data["overlay_frequency_hz"] + offset_hz) / 1e6,
+                where="post",
+                color="cyan",
+                linestyle="--",
+                linewidth=0.7,
+                alpha=0.4,
+                label=(
+                    f"{data['overlay_label']} ±{overlay_half_width_hz / 1e3:g} kHz"
+                    if offset_hz < 0
+                    else None
+                ),
+                zorder=5,
+            )
     for overlay in data.get("lfm_overlays", []):
         # Plot each segment separately so datetime conversion never sees the
         # NaN separators retained in the stored overlay arrays.
@@ -401,16 +407,21 @@ def draw_plot(
             segment_frequencies = overlay["frequency_hz"][segment_index : segment_index + 2]
             if segment_times.size != 2 or not n.all(n.isfinite(segment_times)):
                 continue
-            spec_ax.plot(
-                [datetime.fromtimestamp(value, timezone.utc) for value in segment_times],
-                segment_frequencies / 1e6,
-                color="lime",
-                linestyle=":",
-                linewidth=0.8,
-                alpha=0.8,
-                label=f"{overlay['transmitter']} FMCW" if segment_index == 0 else None,
-                zorder=5,
-            )
+            for offset_hz in (-overlay_half_width_hz, overlay_half_width_hz):
+                spec_ax.plot(
+                    [datetime.fromtimestamp(value, timezone.utc) for value in segment_times],
+                    (segment_frequencies + offset_hz) / 1e6,
+                    color="lime",
+                    linestyle=":",
+                    linewidth=0.8,
+                    alpha=0.4,
+                    label=(
+                        f"{overlay['transmitter']} FMCW ±{overlay_half_width_hz / 1e3:g} kHz"
+                        if segment_index == 0 and offset_hz < 0
+                        else None
+                    ),
+                    zorder=5,
+                )
     if "overlay_time_unix" in data or data.get("lfm_overlays"):
         spec_ax.legend(loc="upper left", framealpha=0.55)
 
@@ -443,6 +454,7 @@ def save_power_hdf5(conf: cc.chirp_config, args: argparse.Namespace, data: dict)
             handle.attrs["samples_per_time_bin"] = data["samples_per_time_bin"]
             handle.attrs["sample_rate_hz"] = conf.sample_rate
             handle.attrs["center_frequency_hz"] = conf.center_freq
+            handle.attrs["overlay_half_width_hz"] = conf.rf_spectrum_overlay_half_width_hz
             handle.attrs["power_units"] = "ADC units squared"
             handle.attrs["power_dimensions"] = "time,frequency"
             handle.create_dataset("time_unix", data=data["tvec"], dtype="f8")
