@@ -112,6 +112,7 @@ class chirp_config:
             "lfm_overlay_transmitters": "[]",
             "overlay_half_width_hz": "200e3",
             "overlay_alpha": "0.65",
+            "overlay_linewidth": "3.0",
         }
 
         cf["stations"]={
@@ -222,6 +223,7 @@ class chirp_config:
             cf["rf_spectrum"]["overlay_half_width_hz"]
         )
         self.rf_spectrum_overlay_alpha = float(cf["rf_spectrum"]["overlay_alpha"])
+        self.rf_spectrum_overlay_linewidth = float(cf["rf_spectrum"]["overlay_linewidth"])
 
         self.manual_range_extent = json.loads(
             cf["lfm"]["manual_range_extent"])

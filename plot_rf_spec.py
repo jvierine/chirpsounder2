@@ -390,7 +390,7 @@ def draw_plot(
                 where="post",
                 color="cyan",
                 linestyle="--",
-                linewidth=0.7,
+                linewidth=conf.rf_spectrum_overlay_linewidth,
                 alpha=conf.rf_spectrum_overlay_alpha,
                 label=(
                     f"{data['overlay_label']} ±{overlay_half_width_hz / 1e3:g} kHz"
@@ -413,7 +413,7 @@ def draw_plot(
                     (segment_frequencies + offset_hz) / 1e6,
                     color="lime",
                     linestyle=":",
-                    linewidth=0.8,
+                    linewidth=conf.rf_spectrum_overlay_linewidth,
                     alpha=conf.rf_spectrum_overlay_alpha,
                     label=(
                         f"{overlay['transmitter']} FMCW ±{overlay_half_width_hz / 1e3:g} kHz"
@@ -456,6 +456,7 @@ def save_power_hdf5(conf: cc.chirp_config, args: argparse.Namespace, data: dict)
             handle.attrs["center_frequency_hz"] = conf.center_freq
             handle.attrs["overlay_half_width_hz"] = conf.rf_spectrum_overlay_half_width_hz
             handle.attrs["overlay_alpha"] = conf.rf_spectrum_overlay_alpha
+            handle.attrs["overlay_linewidth"] = conf.rf_spectrum_overlay_linewidth
             handle.attrs["power_units"] = "ADC units squared"
             handle.attrs["power_dimensions"] = "time,frequency"
             handle.create_dataset("time_unix", data=data["tvec"], dtype="f8")
