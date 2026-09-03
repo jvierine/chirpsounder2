@@ -3,7 +3,9 @@
 # Publish a quick-look short-time Fourier transform of a Digital RF channel.
 #
 import argparse
+import configparser
 from datetime import datetime, timezone
+import json
 import os
 from pathlib import Path
 import tempfile
@@ -117,6 +119,59 @@ def load_config(args: argparse.Namespace) -> cc.chirp_config:
         conf.channel = [DEFAULT_CHANNEL]
 
     return conf
+
+
+def load_frequency_overlay(conf: cc.chirp_config) -> dict | None:
+    configured_path = getattr(conf, "rf_spectrum_frequency_overlay_config", None)
+    if not configured_path:
+        return None
+
+    path = Path(configured_path).expanduser()
+    if not path.is_absolute():
+        path = Path(conf.fname).resolve().parent / path
+    parser = configparser.ConfigParser(interpolation=None)
+    if not parser.read(path):
+        raise FileNotFoundError(f"RF spectrum frequency overlay config not found: {path}")
+
+    section = parser["config"]
+    frequency_rows = json.loads(section["freqs"])
+    frequencies_hz = n.asarray([float(row[0]) * 1e6 for row in frequency_rows])
+    frequency_duration = float(json.loads(section["frequency_duration"]))
+    if frequencies_hz.size == 0 or frequency_duration <= 0:
+        raise ValueError(f"invalid frequency schedule in {path}")
+
+    # This reproduces sweep.determine_sweep_length() in src/ionosonde.
+    n_minutes = n.ceil(frequencies_hz.size * frequency_duration / 60.0)
+    n_sweeps_per_day = n.floor(24.0 * 60.0 / n_minutes)
+    sweep_period = 24.0 * 60.0 * 60.0 / n_sweeps_per_day
+    return {
+        "path": str(path),
+        "label": json.loads(section.get("instrument_name", '"Ionosonde"')),
+        "frequencies_hz": frequencies_hz,
+        "frequency_duration": frequency_duration,
+        "sweep_period": float(sweep_period),
+    }
+
+
+def add_frequency_overlay(data: dict, overlay: dict | None) -> None:
+    if overlay is None:
+        return
+    duration = overlay["frequency_duration"]
+    times = n.arange(
+        data["minute_start_unix"],
+        data["minute_end_unix"] + 0.5 * duration,
+        duration,
+    )
+    phase = n.mod(times, overlay["sweep_period"])
+    indices = n.floor(phase / duration).astype(int)
+    frequencies = n.full(times.shape, n.nan, dtype=float)
+    valid = indices < overlay["frequencies_hz"].size
+    frequencies[valid] = overlay["frequencies_hz"][indices[valid]]
+    data["overlay_time_unix"] = times
+    data["overlay_frequency_hz"] = frequencies
+    data["overlay_label"] = overlay["label"]
+    data["overlay_config"] = overlay["path"]
+    data["overlay_sweep_period"] = overlay["sweep_period"]
 
 
 def collect_plot_data(reader: drf.DigitalRFReader, conf: cc.chirp_config, args: argparse.Namespace) -> dict:
@@ -262,6 +317,23 @@ def draw_plot(
         datetime.fromtimestamp(data["minute_start_unix"], timezone.utc),
         datetime.fromtimestamp(data["minute_end_unix"], timezone.utc),
     )
+    if "overlay_time_unix" in data:
+        overlay_times = [
+            datetime.fromtimestamp(value, timezone.utc)
+            for value in data["overlay_time_unix"]
+        ]
+        spec_ax.step(
+            overlay_times,
+            data["overlay_frequency_hz"] / 1e6,
+            where="post",
+            color="cyan",
+            linestyle="--",
+            linewidth=0.7,
+            alpha=0.75,
+            label=data["overlay_label"],
+            zorder=5,
+        )
+        spec_ax.legend(loc="upper left", framealpha=0.55)
 
 
 def save_power_hdf5(conf: cc.chirp_config, args: argparse.Namespace, data: dict) -> Path:
@@ -307,6 +379,14 @@ def save_power_hdf5(conf: cc.chirp_config, args: argparse.Namespace, data: dict)
             )
             handle["minute_start_unix"] = data["minute_start_unix"]
             handle["minute_end_unix"] = data["minute_end_unix"]
+            if "overlay_time_unix" in data:
+                handle.create_dataset("overlay_time_unix", data=data["overlay_time_unix"], dtype="f8")
+                handle.create_dataset(
+                    "overlay_frequency_hz", data=data["overlay_frequency_hz"], dtype="f8"
+                )
+                handle.attrs["overlay_label"] = data["overlay_label"]
+                handle.attrs["overlay_config"] = data["overlay_config"]
+                handle.attrs["overlay_sweep_period_s"] = data["overlay_sweep_period"]
         os.replace(temp_name, output_path)
     finally:
         if os.path.exists(temp_name):
@@ -343,6 +423,7 @@ def main() -> None:
         raise ValueError("image-pixels must be positive")
     output = args.output or f"/tmp/latest-rf-spectrum-{conf.station_name}.png"
     reader = drf.DigitalRFReader(conf.data_dir)
+    frequency_overlay = load_frequency_overlay(conf)
 
     output_dpi = args.image_pixels / FIGURE_SIZE_INCHES
     fig = plt.figure(figsize=(FIGURE_SIZE_INCHES, FIGURE_SIZE_INCHES), dpi=output_dpi)
@@ -364,6 +445,7 @@ def main() -> None:
             print(f"{exc}; waiting {wait_seconds:.1f} seconds for the next full UTC minute")
             time.sleep(max(0.1, wait_seconds))
             continue
+        add_frequency_overlay(data, frequency_overlay)
         if not args.no_store:
             save_power_hdf5(conf, args, data)
         draw_plot(fig, spec_ax, cbar_ax, conf, args, data)

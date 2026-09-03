@@ -96,6 +96,7 @@ Important sections:
 - `[lfm]`: known LFM sounder timings, downconversion filter, decimation, range/frequency limits, and ionogram storage settings.
 - `[digisonde]`: Digisonde receiver settings for known schedules.
 - `[transfer]`, `[rtf]`, `[stations]`: dashboard upload, range-time-frequency links, and station metadata.
+- `[rf_spectrum]`: optional transmitter frequency-schedule overlay for the full-band STFT quick-look.
 
 If a `server.ini` lives next to the station config, shared station/link settings are read before the local config.
 

@@ -107,6 +107,9 @@ class chirp_config:
         cf["rtf"] = {
             "links": "[]",
         }
+        cf["rf_spectrum"] = {
+            "frequency_overlay_config": "null",
+        }
 
         cf["stations"]={
             "station_info":'''
@@ -206,6 +209,9 @@ class chirp_config:
             if link not in shared_station_links
         ]
         self.rtf_links = json.loads(cf["rtf"]["links"])
+        self.rf_spectrum_frequency_overlay_config = json.loads(
+            cf["rf_spectrum"]["frequency_overlay_config"]
+        )
 
         self.manual_range_extent = json.loads(
             cf["lfm"]["manual_range_extent"])
