@@ -140,13 +140,18 @@ def load_frequency_overlay(conf: cc.chirp_config) -> dict | None:
     if frequencies_hz.size == 0 or frequency_duration <= 0:
         raise ValueError(f"invalid frequency schedule in {path}")
 
+    label = json.loads(section.get("instrument_name", '"Ionosonde"'))
+    code_types = json.loads(section.get("code_type", "[]"))
+    if code_types:
+        label = f"{label} ({'/'.join(str(value).upper() for value in code_types)})"
+
     # This reproduces sweep.determine_sweep_length() in src/ionosonde.
     n_minutes = n.ceil(frequencies_hz.size * frequency_duration / 60.0)
     n_sweeps_per_day = n.floor(24.0 * 60.0 / n_minutes)
     sweep_period = 24.0 * 60.0 * 60.0 / n_sweeps_per_day
     return {
         "path": str(path),
-        "label": json.loads(section.get("instrument_name", '"Ionosonde"')),
+        "label": label,
         "frequencies_hz": frequencies_hz,
         "frequency_duration": frequency_duration,
         "sweep_period": float(sweep_period),
@@ -172,6 +177,61 @@ def add_frequency_overlay(data: dict, overlay: dict | None) -> None:
     data["overlay_label"] = overlay["label"]
     data["overlay_config"] = overlay["path"]
     data["overlay_sweep_period"] = overlay["sweep_period"]
+
+
+def add_lfm_overlays(data: dict, conf: cc.chirp_config) -> None:
+    selected = set(getattr(conf, "rf_spectrum_lfm_overlay_transmitters", []))
+    if not selected:
+        return
+
+    schedules = []
+    for group in conf.sounder_timings:
+        schedules.extend(group if isinstance(group, list) else [group])
+
+    overlays = []
+    minute_start = data["minute_start_unix"]
+    minute_end = data["minute_end_unix"]
+    for schedule in schedules:
+        transmitter = str(schedule.get("transmit_name", "unknown"))
+        if transmitter not in selected:
+            continue
+        rate = float(schedule["chirp-rate"])
+        repetition = float(schedule["rep"])
+        chirp_epoch = float(schedule["chirpt"])
+        min_frequency = float(conf.minimum_analysis_frequency)
+        max_frequency = float(conf.maximum_analysis_frequency)
+        if rate <= 0 or repetition <= 0 or max_frequency <= min_frequency:
+            raise ValueError(f"invalid LFM overlay schedule for {transmitter}")
+        sweep_duration = (max_frequency - min_frequency) / rate
+
+        first_start = repetition * n.floor((minute_start - chirp_epoch) / repetition) + chirp_epoch
+        times = []
+        frequencies = []
+        sweep_start = first_start - repetition
+        while sweep_start < minute_end:
+            segment_start = max(minute_start, sweep_start)
+            segment_end = min(minute_end, sweep_start + sweep_duration)
+            if segment_end >= segment_start:
+                times.extend([segment_start, segment_end, n.nan])
+                frequencies.extend(
+                    [
+                        min_frequency + rate * (segment_start - sweep_start),
+                        min_frequency + rate * (segment_end - sweep_start),
+                        n.nan,
+                    ]
+                )
+            sweep_start += repetition
+        overlays.append(
+            {
+                "transmitter": transmitter,
+                "time_unix": n.asarray(times),
+                "frequency_hz": n.asarray(frequencies),
+                "chirp_rate_hz_per_s": rate,
+                "repetition_s": repetition,
+                "chirp_epoch_s": chirp_epoch,
+            }
+        )
+    data["lfm_overlays"] = overlays
 
 
 def collect_plot_data(reader: drf.DigitalRFReader, conf: cc.chirp_config, args: argparse.Namespace) -> dict:
@@ -333,6 +393,25 @@ def draw_plot(
             label=data["overlay_label"],
             zorder=5,
         )
+    for overlay in data.get("lfm_overlays", []):
+        # Plot each segment separately so datetime conversion never sees the
+        # NaN separators retained in the stored overlay arrays.
+        for segment_index in range(0, overlay["time_unix"].size, 3):
+            segment_times = overlay["time_unix"][segment_index : segment_index + 2]
+            segment_frequencies = overlay["frequency_hz"][segment_index : segment_index + 2]
+            if segment_times.size != 2 or not n.all(n.isfinite(segment_times)):
+                continue
+            spec_ax.plot(
+                [datetime.fromtimestamp(value, timezone.utc) for value in segment_times],
+                segment_frequencies / 1e6,
+                color="lime",
+                linestyle=":",
+                linewidth=0.8,
+                alpha=0.8,
+                label=f"{overlay['transmitter']} FMCW" if segment_index == 0 else None,
+                zorder=5,
+            )
+    if "overlay_time_unix" in data or data.get("lfm_overlays"):
         spec_ax.legend(loc="upper left", framealpha=0.55)
 
 
@@ -387,6 +466,19 @@ def save_power_hdf5(conf: cc.chirp_config, args: argparse.Namespace, data: dict)
                 handle.attrs["overlay_label"] = data["overlay_label"]
                 handle.attrs["overlay_config"] = data["overlay_config"]
                 handle.attrs["overlay_sweep_period_s"] = data["overlay_sweep_period"]
+            if data.get("lfm_overlays"):
+                overlay_group = handle.create_group("lfm_overlays")
+                for overlay in data["lfm_overlays"]:
+                    transmitter_group = overlay_group.create_group(overlay["transmitter"])
+                    transmitter_group.create_dataset("time_unix", data=overlay["time_unix"])
+                    transmitter_group.create_dataset(
+                        "frequency_hz", data=overlay["frequency_hz"]
+                    )
+                    transmitter_group.attrs["chirp_rate_hz_per_s"] = overlay[
+                        "chirp_rate_hz_per_s"
+                    ]
+                    transmitter_group.attrs["repetition_s"] = overlay["repetition_s"]
+                    transmitter_group.attrs["chirp_epoch_s"] = overlay["chirp_epoch_s"]
         os.replace(temp_name, output_path)
     finally:
         if os.path.exists(temp_name):
@@ -446,6 +538,7 @@ def main() -> None:
             time.sleep(max(0.1, wait_seconds))
             continue
         add_frequency_overlay(data, frequency_overlay)
+        add_lfm_overlays(data, conf)
         if not args.no_store:
             save_power_hdf5(conf, args, data)
         draw_plot(fig, spec_ax, cbar_ax, conf, args, data)

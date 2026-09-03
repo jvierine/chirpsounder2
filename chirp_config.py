@@ -109,6 +109,7 @@ class chirp_config:
         }
         cf["rf_spectrum"] = {
             "frequency_overlay_config": "null",
+            "lfm_overlay_transmitters": "[]",
         }
 
         cf["stations"]={
@@ -211,6 +212,9 @@ class chirp_config:
         self.rtf_links = json.loads(cf["rtf"]["links"])
         self.rf_spectrum_frequency_overlay_config = json.loads(
             cf["rf_spectrum"]["frequency_overlay_config"]
+        )
+        self.rf_spectrum_lfm_overlay_transmitters = json.loads(
+            cf["rf_spectrum"]["lfm_overlay_transmitters"]
         )
 
         self.manual_range_extent = json.loads(
