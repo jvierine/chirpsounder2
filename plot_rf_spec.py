@@ -121,11 +121,8 @@ def load_config(args: argparse.Namespace) -> cc.chirp_config:
     return conf
 
 
-def load_frequency_overlay(conf: cc.chirp_config) -> dict | None:
-    configured_path = getattr(conf, "rf_spectrum_frequency_overlay_config", None)
-    if not configured_path:
-        return None
-
+def load_frequency_overlay(conf: cc.chirp_config, specification: dict) -> dict:
+    configured_path = specification["config"]
     path = Path(configured_path).expanduser()
     if not path.is_absolute():
         path = Path(conf.fname).resolve().parent / path
@@ -140,9 +137,11 @@ def load_frequency_overlay(conf: cc.chirp_config) -> dict | None:
     if frequencies_hz.size == 0 or frequency_duration <= 0:
         raise ValueError(f"invalid frequency schedule in {path}")
 
-    label = json.loads(section.get("instrument_name", '"Ionosonde"'))
+    label = specification.get(
+        "label", json.loads(section.get("instrument_name", '"Ionosonde"'))
+    )
     code_types = json.loads(section.get("code_type", "[]"))
-    if code_types:
+    if code_types and "label" not in specification:
         label = f"{label} ({'/'.join(str(value).upper() for value in code_types)})"
 
     # This reproduces sweep.determine_sweep_length() in src/ionosonde.
@@ -155,28 +154,36 @@ def load_frequency_overlay(conf: cc.chirp_config) -> dict | None:
         "frequencies_hz": frequencies_hz,
         "frequency_duration": frequency_duration,
         "sweep_period": float(sweep_period),
+        "time_offset_s": float(specification.get("time_offset_s", 0.0)),
+        "color": str(specification.get("color", "cyan")),
+        "linestyle": str(specification.get("linestyle", "--")),
     }
 
 
-def add_frequency_overlay(data: dict, overlay: dict | None) -> None:
-    if overlay is None:
-        return
-    duration = overlay["frequency_duration"]
-    times = n.arange(
-        data["minute_start_unix"],
-        data["minute_end_unix"] + 0.5 * duration,
-        duration,
-    )
-    phase = n.mod(times, overlay["sweep_period"])
-    indices = n.floor(phase / duration).astype(int)
-    frequencies = n.full(times.shape, n.nan, dtype=float)
-    valid = indices < overlay["frequencies_hz"].size
-    frequencies[valid] = overlay["frequencies_hz"][indices[valid]]
-    data["overlay_time_unix"] = times
-    data["overlay_frequency_hz"] = frequencies
-    data["overlay_label"] = overlay["label"]
-    data["overlay_config"] = overlay["path"]
-    data["overlay_sweep_period"] = overlay["sweep_period"]
+def load_frequency_overlays(conf: cc.chirp_config) -> list[dict]:
+    specifications = list(getattr(conf, "rf_spectrum_frequency_overlays", []))
+    legacy_path = getattr(conf, "rf_spectrum_frequency_overlay_config", None)
+    if not specifications and legacy_path:
+        specifications = [{"config": legacy_path}]
+    return [load_frequency_overlay(conf, specification) for specification in specifications]
+
+
+def add_frequency_overlays(data: dict, overlays: list[dict]) -> None:
+    plotted = []
+    for overlay in overlays:
+        duration = overlay["frequency_duration"]
+        times = n.arange(
+            data["minute_start_unix"],
+            data["minute_end_unix"] + 0.5 * duration,
+            duration,
+        )
+        phase = n.mod(times - overlay["time_offset_s"], overlay["sweep_period"])
+        indices = n.floor(phase / duration).astype(int)
+        frequencies = n.full(times.shape, n.nan, dtype=float)
+        valid = indices < overlay["frequencies_hz"].size
+        frequencies[valid] = overlay["frequencies_hz"][indices[valid]]
+        plotted.append({**overlay, "time_unix": times, "frequency_hz": frequencies})
+    data["frequency_overlays"] = plotted
 
 
 def add_lfm_overlays(data: dict, conf: cc.chirp_config) -> None:
@@ -378,22 +385,22 @@ def draw_plot(
         datetime.fromtimestamp(data["minute_end_unix"], timezone.utc),
     )
     overlay_half_width_hz = conf.rf_spectrum_overlay_half_width_hz
-    if "overlay_time_unix" in data:
+    for frequency_overlay in data.get("frequency_overlays", []):
         overlay_times = [
             datetime.fromtimestamp(value, timezone.utc)
-            for value in data["overlay_time_unix"]
+            for value in frequency_overlay["time_unix"]
         ]
         for offset_hz in (-overlay_half_width_hz, overlay_half_width_hz):
             spec_ax.step(
                 overlay_times,
-                (data["overlay_frequency_hz"] + offset_hz) / 1e6,
+                (frequency_overlay["frequency_hz"] + offset_hz) / 1e6,
                 where="post",
-                color="cyan",
-                linestyle="--",
+                color=frequency_overlay["color"],
+                linestyle=frequency_overlay["linestyle"],
                 linewidth=conf.rf_spectrum_overlay_linewidth,
                 alpha=conf.rf_spectrum_overlay_alpha,
                 label=(
-                    f"{data['overlay_label']} ±{overlay_half_width_hz / 1e3:g} kHz"
+                    f"{frequency_overlay['label']} ±{overlay_half_width_hz / 1e3:g} kHz"
                     if offset_hz < 0
                     else None
                 ),
@@ -422,8 +429,8 @@ def draw_plot(
                     ),
                     zorder=5,
                 )
-    if "overlay_time_unix" in data or data.get("lfm_overlays"):
-        spec_ax.legend(loc="upper left", framealpha=0.55)
+    if data.get("frequency_overlays") or data.get("lfm_overlays"):
+        spec_ax.legend(loc="upper left", ncol=2, framealpha=0.5)
 
 
 def save_power_hdf5(conf: cc.chirp_config, args: argparse.Namespace, data: dict) -> Path:
@@ -472,14 +479,18 @@ def save_power_hdf5(conf: cc.chirp_config, args: argparse.Namespace, data: dict)
             )
             handle["minute_start_unix"] = data["minute_start_unix"]
             handle["minute_end_unix"] = data["minute_end_unix"]
-            if "overlay_time_unix" in data:
-                handle.create_dataset("overlay_time_unix", data=data["overlay_time_unix"], dtype="f8")
-                handle.create_dataset(
-                    "overlay_frequency_hz", data=data["overlay_frequency_hz"], dtype="f8"
-                )
-                handle.attrs["overlay_label"] = data["overlay_label"]
-                handle.attrs["overlay_config"] = data["overlay_config"]
-                handle.attrs["overlay_sweep_period_s"] = data["overlay_sweep_period"]
+            if data.get("frequency_overlays"):
+                frequency_group = handle.create_group("frequency_overlays")
+                for index, overlay in enumerate(data["frequency_overlays"]):
+                    schedule_group = frequency_group.create_group(f"schedule_{index:03d}")
+                    schedule_group.create_dataset("time_unix", data=overlay["time_unix"])
+                    schedule_group.create_dataset("frequency_hz", data=overlay["frequency_hz"])
+                    schedule_group.attrs["label"] = overlay["label"]
+                    schedule_group.attrs["config"] = overlay["path"]
+                    schedule_group.attrs["sweep_period_s"] = overlay["sweep_period"]
+                    schedule_group.attrs["time_offset_s"] = overlay["time_offset_s"]
+                    schedule_group.attrs["color"] = overlay["color"]
+                    schedule_group.attrs["linestyle"] = overlay["linestyle"]
             if data.get("lfm_overlays"):
                 overlay_group = handle.create_group("lfm_overlays")
                 for overlay in data["lfm_overlays"]:
@@ -529,7 +540,7 @@ def main() -> None:
         raise ValueError("image-pixels must be positive")
     output = args.output or f"/tmp/latest-rf-spectrum-{conf.station_name}.png"
     reader = drf.DigitalRFReader(conf.data_dir)
-    frequency_overlay = load_frequency_overlay(conf)
+    frequency_overlays = load_frequency_overlays(conf)
 
     output_dpi = args.image_pixels / FIGURE_SIZE_INCHES
     fig = plt.figure(figsize=(FIGURE_SIZE_INCHES, FIGURE_SIZE_INCHES), dpi=output_dpi)
@@ -551,7 +562,7 @@ def main() -> None:
             print(f"{exc}; waiting {wait_seconds:.1f} seconds for the next full UTC minute")
             time.sleep(max(0.1, wait_seconds))
             continue
-        add_frequency_overlay(data, frequency_overlay)
+        add_frequency_overlays(data, frequency_overlays)
         add_lfm_overlays(data, conf)
         if not args.no_store:
             save_power_hdf5(conf, args, data)

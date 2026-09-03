@@ -109,6 +109,7 @@ class chirp_config:
         }
         cf["rf_spectrum"] = {
             "frequency_overlay_config": "null",
+            "frequency_overlays": "[]",
             "lfm_overlay_transmitters": "[]",
             "overlay_half_width_hz": "200e3",
             "overlay_alpha": "0.65",
@@ -215,6 +216,9 @@ class chirp_config:
         self.rtf_links = json.loads(cf["rtf"]["links"])
         self.rf_spectrum_frequency_overlay_config = json.loads(
             cf["rf_spectrum"]["frequency_overlay_config"]
+        )
+        self.rf_spectrum_frequency_overlays = json.loads(
+            cf["rf_spectrum"]["frequency_overlays"]
         )
         self.rf_spectrum_lfm_overlay_transmitters = json.loads(
             cf["rf_spectrum"]["lfm_overlay_transmitters"]
