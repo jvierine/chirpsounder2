@@ -26,6 +26,7 @@ import scipy.signal as ss
 
 import chirp_config as cc
 import chirpsounder_version as csversion
+import ionowebsync
 
 
 DEFAULT_CONFIG = Path(__file__).resolve().parent / "examples" / "marieluise" / "dombas.ini"
@@ -579,7 +580,11 @@ def main() -> None:
         add_frequency_overlays(data, frequency_overlays)
         add_lfm_overlays(data, conf)
         if not args.no_store:
-            save_power_hdf5(conf, args, data)
+            product = save_power_hdf5(conf, args, data)
+            if conf.copy_to_server:
+                response = ionowebsync.post_to_server(str(product), timeout=30)
+                if response is None or not response.ok:
+                    print(f"spectrum publication failed; retained {product}", flush=True)
         draw_plot(fig, spec_ax, cbar_ax, conf, args, data)
         save_plot(fig, output, output_dpi)
         if args.refresh_sec <= 0:

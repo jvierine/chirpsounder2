@@ -15,7 +15,7 @@ class StartupRetryTests(unittest.TestCase):
         source = Path(__file__).with_name("plot_rf_spec.py").read_text()
         main = next(node for node in ast.parse(source).body if isinstance(node, ast.FunctionDef) and node.name == "main")
         args = SimpleNamespace(image_pixels=128, output=None, refresh_sec=refresh, no_store=False)
-        conf = SimpleNamespace(station_name="KHO", data_dir="/missing")
+        conf = SimpleNamespace(station_name="KHO", data_dir="/missing", copy_to_server=False)
         drf = SimpleNamespace(DigitalRFReader=Mock(side_effect=[ValueError("No channels found"), object(), object()]))
         clock = SimpleNamespace(time=lambda: 0, sleep=Mock())
         env = dict(parse_args=lambda: args, set_publication_style=lambda: None,
