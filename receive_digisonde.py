@@ -104,6 +104,8 @@ def read_config(args):#fname="examples/marieluise/ramfjordmoen_digisonde.ini"):
     p["ipp"] = json.loads(digisonde["ipp_us"])
     p["n_ipp"] = json.loads(digisonde["n_ipp"])
     p["offset_us"] = json.loads(digisonde["offset_us"])
+    # Direct-path calibration at Prestvannet: 14.119 km, +4.688 ms epoch.
+    p["transmit_delay_us"] = digisonde.getfloat("transmit_delay_us", fallback=4688.0 if p["transmitter"] == "Ramfjordmoen" else 0.0)
     p["wait_for_data"] = json.loads(digisonde["wait_for_data"])
     p["copy_to_server"] = cfg.getboolean("transfer", "copy_to_server")
     print(p)
@@ -338,6 +340,8 @@ def calculate_ionogram(d,
     sr=p["sr"]
     dec=p["dec"]
     offset_us=p["offset_us"]
+    transmit_delay_us=p["transmit_delay_us"]
+    transmit_delay_samples=int(round((sr/1e6)*transmit_delay_us))
     cf=p["cf"]
     wait_for_data=p["wait_for_data"]
     transmitter_name=p["transmitter"]
@@ -358,7 +362,7 @@ def calculate_ionogram(d,
     # ionogram matrix for two polarizations 
     S=n.zeros([2,n_freq,ipp_dec],dtype=n.float32)
     # one-way propagation range (Assuming speed of light in vacuum)
-    rvec=n.arange(ipp_dec)*3.0e3
+    rvec=n.arange(ipp_dec)*(sc.c*dec/sr)
     # frequencies 
     fvec=n.arange(n_freq)*dfreq+freq0
     srint=int(sr/1e6)
@@ -403,7 +407,7 @@ def calculate_ionogram(d,
         pha0=n.array([n.exp(1j*0)],dtype=n.complex64)
         # for each ipp, convolve complementary code with echo
         for pi in range(n_ipp):
-            start_idx=i0+(i*n_ipp+pi)*ipp*srint+srint*offset_us
+            start_idx=i0+(i*n_ipp+pi)*ipp*srint+(srint*offset_us+transmit_delay_samples)
             data_length=srint*ipp
             
             if wait_for_data:
@@ -423,12 +427,12 @@ def calculate_ionogram(d,
                 # the slowest is to fir the whole thing at full rate, that has the best frequency response
                 # compromise: average and decimate 25-> 4 MHz, and then fir decimate to 100 kHz
                 # 25->1 MHz using simple boxcar filter. Then fir to improve freq response
-#                z=decimate_5_then_fir50(d.read_vector_c81d(i0+(i*n_ipp+pi)*ipp*srint+srint*offset_us,srint*ipp,"cha")*cvec[0:(srint*ipp)]*pha0[0])
-#                z=decimate_25_then_fir10(d.read_vector_c81d(i0+(i*n_ipp+pi)*ipp*srint+srint*offset_us,srint*ipp,"cha")*cvec[0:(srint*ipp)]*pha0[0])
+#                z=decimate_5_then_fir50(d.read_vector_c81d(i0+(i*n_ipp+pi)*ipp*srint+(srint*offset_us+transmit_delay_samples),srint*ipp,"cha")*cvec[0:(srint*ipp)]*pha0[0])
+#                z=decimate_25_then_fir10(d.read_vector_c81d(i0+(i*n_ipp+pi)*ipp*srint+(srint*offset_us+transmit_delay_samples),srint*ipp,"cha")*cvec[0:(srint*ipp)]*pha0[0])
                 # shift in frequency from the current ionosonde frequency to 0,
                 # reduce samepl-rate to 100 kHz
                 raw = d.read_vector_c81d(
-                    i0+(i*n_ipp+pi)*ipp*srint+srint*offset_us,
+                    i0+(i*n_ipp+pi)*ipp*srint+(srint*offset_us+transmit_delay_samples),
                     srint*ipp,
                     channel,
                 )
@@ -540,6 +544,7 @@ def calculate_ionogram(d,
     ho["transmitter"]=transmitter_name
     ho["receiver"]=receiver_name
     ho["offset_us"]=offset_us
+    ho["transmit_delay_us"]=transmit_delay_us
     ho.create_dataset("SNR",
                       data=SNR,
                       compression="gzip",

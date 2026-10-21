@@ -5,6 +5,7 @@ import os
 import re
 import shutil
 import subprocess
+import tempfile
 import time
 import matplotlib.pyplot as plt
 import numpy as n
@@ -154,6 +155,33 @@ def update_pc_status(conf, t_hist, temp_histories, disk_hist, gpsdo_histories):
     save_pc_status_plot(conf, t_hist, temp_histories, disk_hist, gpsdo_histories)
 
 
+def recover_ringbuffer_properties(data_dir, channels):
+    """Restore missing channel metadata from the writer's duplicate HDF5 attributes."""
+    from digital_rf.digital_rf_hdf5 import recreate_properties_file
+
+    for channel in channels:
+        channel_dir = os.path.join(data_dir, str(channel))
+        properties = os.path.join(channel_dir, "drf_properties.h5")
+        if not os.path.isdir(channel_dir) or os.path.exists(properties):
+            continue
+        try:
+            # Build separately and publish atomically so readers cannot see a
+            # half-written file. Existing metadata always takes precedence.
+            with tempfile.TemporaryDirectory(prefix=".properties-", dir=channel_dir) as staging:
+                for entry in os.scandir(channel_dir):
+                    if re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}", entry.name) and entry.is_dir():
+                        os.symlink(entry.path, os.path.join(staging, entry.name))
+                recreate_properties_file(staging)
+                try:
+                    os.link(os.path.join(staging, "drf_properties.h5"), properties)
+                    print(f"recovered Digital RF properties for {channel}", flush=True)
+                except FileExistsError:
+                    pass
+        except (OSError, KeyError, ValueError) as exc:
+            # An empty channel is normal while the recorder starts.
+            print(f"waiting for recoverable Digital RF metadata for {channel}: {exc}", flush=True)
+
+
 def cleanup_ringbuffer_files(data_dir, max_age_s):
     now = time.time()
     patterns = ("rf*.h5", "tmp*rf*.h5")
@@ -201,6 +229,7 @@ def housekeeping(conf):
     next_pc_status_time = 0.0
     while True:
         if conf.ringbuffer_cleanup:
+            recover_ringbuffer_properties(conf.data_dir, conf.channel)
             max_age_s = getattr(conf, "ringbuffer_max_age_sec", conf.ringbuffer_max_age_min * 60)
             print("cleaning files older than %d seconds" % (max_age_s))
             cleanup_ringbuffer_files(conf.data_dir, max_age_s)

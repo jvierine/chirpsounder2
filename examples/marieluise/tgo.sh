@@ -39,31 +39,11 @@ python3 sync_iono_data.py --config $CONF_FILE > logs/sync.log 2>&1 &
 echo "iono_housekeeping.py"
 python3 iono_housekeeping.py --config $CONF_FILE > logs/housekeeping.log 2>&1 &
 
-echo "detections2metadata.py"
-python3 detections2metadata.py --config $CONF_FILE > logs/detections2metadata.log 2>&1 &
-
-echo "receive_digisonde.py"
-python3 receive_digisonde.py --config $CONF_FILE > logs/digisonde.log 2>&1 &
-# not enough cpu power to do these
-python3 receive_digisonde.py --config $CONF_FILE --sounder Juliusruh > logs/digisonde_julius_day.log 2>&1 &
-python3 receive_digisonde.py --config $CONF_FILE --sounder JuliusruhN > logs/digisonde_julius_night.log 2>&1 &
-#python3 receive_digisonde.py --config $CONF_FILE --sounder Chilton > logs/digisonde_chilton.log 2>&1 &
-#python3 receive_digisonde.py --config $CONF_FILE --sounder Dourbes > logs/digisonde_dourbes.log 2>&1 &
-
-echo "plot_rtf.py"
-python3 plot_rtf.py --config $CONF_FILE > logs/plot_rtf.log 2>&1 &
-
-echo "plot_detectionfiles.py"
-python3 plot_detectionfiles.py --config $CONF_FILE > logs/plot_detectionfiles.log 2>&1 &
-
-echo "detect_chirps.py"
-$MPIRUN -np 2 python3 detect_chirps.py --config $CONF_FILE > logs/detect.log 2>&1 &
-
-echo "calc_ionograms.py"
-python3 calc_ionograms.py --config $CONF_FILE > logs/ionograms.log 2>&1 &
-
-echo "plot_ionograms.py"
-python3 plot_ionograms.py --config $CONF_FILE > logs/plot_ionograms.log > logs/plot_ionograms.log 2>&1 &
+# Experimental Rust DSP and HDF5 products. C++ UHD acquisition stays below.
+# Each worker is supervised independently and follows the receiver service.
+systemctl --user start iono-rust-detect.service iono-rust-digisonde.service \
+    iono-rust-juliusruh-day.service iono-rust-juliusruh-night.service \
+    iono-rust-lfm.service iono-rust-spectrum.service
 
 echo "station_monitor.py"
 python3 station_monitor.py --config $CONF_FILE > logs/station_monitor.log 2>&1 &

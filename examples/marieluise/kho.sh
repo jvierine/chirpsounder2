@@ -19,9 +19,18 @@ MPIRUN=mpirun
 RINGBUFFER_DIR=/dev/shm/hf25
 SAMPLE_RATE=25e6
 CENTER_FREQ=12.5e6
+UHD_ARGS="addr0=192.168.10.2,recv_buff_size=500000000"
 CONF_FILE=$INSTALL_PATH/examples/marieluise/kho.ini
+DATA_MOUNT=/media/j/DATADRIVE1
+OUTPUT_DIR=/data0
 
 cd $INSTALL_PATH
+
+if ! mountpoint -q "$DATA_MOUNT" || [ ! -w "$OUTPUT_DIR" ]; then
+    echo "KHO data disk is not mounted and writable at $OUTPUT_DIR" >&2
+    exit 1
+fi
+
 # kill possibly existing runtime
 # stop all processes
 ./stop_ringbuffer.sh || true
@@ -55,6 +64,9 @@ python3 plot_rtf.py --config $CONF_FILE > logs/plot_rtf.log 2>&1 &
 echo "plot_detectionfiles.py"
 python3 plot_detectionfiles.py --config $CONF_FILE > logs/plot_detectionfiles.log 2>&1 &
 
+echo "plot_rf_spec.py"
+bash supervise_worker.sh rf-spectrum-KHO python3 -u plot_rf_spec.py "$CONF_FILE" --refresh-sec 60 > logs/plot_rf_spec.log 2>&1 &
+
 echo "detect_chirps.py"
 python3 detect_chirps.py --config $CONF_FILE > logs/detect.log 2>&1 &
 
@@ -71,7 +83,7 @@ echo "Starting rx_uhd with internal GPSDO if available, otherwise external 1 PPS
 while true;
 do
     # TBD: change cpp program so that ini file defined USRP setup!
-    ./rx_uhd_ext_gps --outdir=$RINGBUFFER_DIR > logs/kho.log 2>&1 
+    ./rx_uhd_ext_gps --outdir=$RINGBUFFER_DIR --usrp_args="$UHD_ARGS" > logs/kho.log 2>&1
     sleep 5
     echo "Restarting recording (every 24 hours)."
     echo "Rotating logs"

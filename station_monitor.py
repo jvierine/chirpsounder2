@@ -222,12 +222,13 @@ def ringbuffer_status(conf, max_age_s: float, starting: bool = False) -> dict:
 
 
 def output_status(conf, max_age_s: float) -> dict:
-    now = time.time()
     newest_path, newest_mtime = newest_matching_file(
         conf.output_dir,
         ("chirp-*.h5", "cdetections-*.h5", "par-*.h5", "lfm_ionogram-*.h5", "*.png"),
     )
-    age_s = None if newest_mtime is None else now - newest_mtime
+    # The archive scan can take tens of seconds while writers add new files.
+    # Measure age after the scan to avoid reporting negative output ages.
+    age_s = None if newest_mtime is None else time.time() - newest_mtime
     return {
         "path": conf.output_dir,
         "ok": age_s is not None and age_s <= max_age_s,
@@ -266,8 +267,8 @@ def build_status(
         "schema": "chirpsounder2.station_status.v1",
         "station": conf.station_name,
         **csversion.software_metadata(),
-        "generated_unix": now,
-        "generated_utc": utc_now_iso(now),
+        "generated_unix": (generated := time.time()),
+        "generated_utc": utc_now_iso(generated),
         "starting": starting,
         "started_unix": started_unix,
         "startup_grace_s": startup_grace_s,
