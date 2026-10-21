@@ -46,7 +46,13 @@ systemctl --user start iono-rust-detect.service iono-rust-digisonde.service \
     iono-rust-lfm.service iono-rust-spectrum.service
 
 echo "station_monitor.py"
-python3 station_monitor.py --config $CONF_FILE > logs/station_monitor.log 2>&1 &
+python3 -u station_monitor.py --config "$CONF_FILE" --period-s 60 \
+    --process "recorder=rx_uhd_ext_gps|rx_uhd" \
+    --process "detect_chirps=iono-receiver detect " \
+    --process "receive_digisonde=iono-receiver digisonde " \
+    --process "calc_ionograms=iono-receiver lfm " \
+    --process "spectrum=iono-receiver spectrum " \
+    --process "sync_iono_data=sync_iono_data.py" > logs/station_monitor.log 2>&1 &
 
 echo "Starting rx_uhd with external 1 PPS and 10 MHz. Restarting in 24 hours."
 while true;
