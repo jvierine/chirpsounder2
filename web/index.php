@@ -10,9 +10,33 @@ $maxAgeHours = 48;
 $stationStaleHours = 2;
 $refreshSeconds = 60;
 
+// This endpoint touches only the small local web directory, never the archive.
+if (isset($_GET['image_manifest'])) {
+    $versions = [];
+    foreach (glob($imageGlob) ?: [] as $path) {
+        $stat = @stat($path);
+        if ($stat !== false) {
+            $versions[basename($path)] = $stat['mtime'] . '-' . $stat['size'];
+        }
+    }
+    ksort($versions);
+    $body = json_encode($versions, JSON_UNESCAPED_SLASHES);
+    $etag = '"' . hash('sha256', $body) . '"';
+    header('Content-Type: application/json');
+    header('Cache-Control: private, no-cache');
+    header('ETag: ' . $etag);
+    if (($_SERVER['HTTP_IF_NONE_MATCH'] ?? '') === $etag) {
+        http_response_code(304);
+    } else {
+        echo $body;
+    }
+    exit;
+}
+
 $plotTypeOrder = [
     'ionogram' => '/^latest-(digisonde|lfm)-/i',
     'rti' => '/^latest-rti-/i',
+    'spectrum' => '/^latest-rf-spectrum-/i',
     'summary' => '/^(?:latest-rothr_jorn-|(?:latest-)?rothr_jorn_|latest_)/i',
     'map' => '/^map(_all|_scand|_us)?\.png$/i',
     'aoa' => '/(^chirp_band_aoa_.*|.*_chirp_band_aoa)\.png$/i',
@@ -42,6 +66,10 @@ function detect_plot_type(string $filename, array $plotTypeOrder): string
 function detect_receiver_station(string $filename): ?string
 {
     if (preg_match('/^latest-(?:digisonde|lfm|rti)-.+-([A-Z0-9]+)\.png$/i', $filename, $m)) {
+        return strtoupper($m[1]);
+    }
+
+    if (preg_match('/^latest-rf-spectrum-([A-Z0-9]+)\.png$/i', $filename, $m)) {
         return strtoupper($m[1]);
     }
 
@@ -103,6 +131,10 @@ function label_from_filename(string $filename, array $stationLabels): string
 
     if (preg_match('/^latest-rti-([^-]+)-([^.]+)\.png$/i', $filename, $m)) {
         return 'Latest RTI ' . station_label($m[1], $stationLabels) . ' -> ' . $m[2];
+    }
+
+    if (preg_match('/^latest-rf-spectrum-([A-Z0-9]+)\.png$/i', $filename, $m)) {
+        return station_label(strtoupper($m[1]), $stationLabels) . ' Full 25 MHz Spectrum';
     }
 
     if (preg_match('/^latest-rothr_jorn(?:-([^.]+))?\.png$/i', $filename, $m)) {
@@ -338,6 +370,7 @@ foreach ($imagePaths as $path) {
         'sortKey' => station_sort_key($filename, $plotType, $stationLabels),
         'title' => label_from_filename($filename, $stationLabels),
         'mtime' => $mtime,
+        'version' => $mtime . '-' . filesize($path),
         'url' => rtrim($imageBaseUrl, '/') . '/' . rawurlencode($filename),
     ];
 }
@@ -814,7 +847,7 @@ setInterval(updateUtcTime, 1000);
                     <?php echo htmlspecialchars($card['plotType'], ENT_QUOTES, 'UTF-8'); ?>
                     | updated <?php echo gmdate('Y-m-d H:i:s', (int)$card['mtime']); ?> UTC
                 </div>
-                <img class="dashboard-image" src="<?php echo htmlspecialchars($lazyImagePlaceholder, ENT_QUOTES, 'UTF-8'); ?>" data-lazy-src="<?php echo htmlspecialchars($card['url'], ENT_QUOTES, 'UTF-8'); ?>" data-refresh-src="<?php echo htmlspecialchars($card['url'], ENT_QUOTES, 'UTF-8'); ?>" loading="lazy" alt="<?php echo htmlspecialchars($card['title'], ENT_QUOTES, 'UTF-8'); ?>">
+                <img class="dashboard-image" src="<?php echo htmlspecialchars($lazyImagePlaceholder, ENT_QUOTES, 'UTF-8'); ?>" data-lazy-src="<?php echo htmlspecialchars($card['url'] . '?v=' . $card['version'], ENT_QUOTES, 'UTF-8'); ?>" data-refresh-src="<?php echo htmlspecialchars($card['url'], ENT_QUOTES, 'UTF-8'); ?>" data-version="<?php echo htmlspecialchars($card['version'], ENT_QUOTES, 'UTF-8'); ?>" loading="lazy" alt="<?php echo htmlspecialchars($card['title'], ENT_QUOTES, 'UTF-8'); ?>">
             </div>
         <?php endforeach; ?>
         </div>
@@ -868,7 +901,6 @@ function loadPanelImages(panel) {
         const imageUrl = img.dataset.lazySrc;
         if (!imageUrl) return;
         img.src = imageUrl;
-        img.dataset.refreshSrc = imageUrl;
         delete img.dataset.lazySrc;
     });
 }
@@ -884,6 +916,7 @@ function activateTab(tab) {
     button.classList.add('active');
     panel.classList.add('active');
     loadPanelImages(panel);
+    queueMicrotask(refreshDashboardImages);
     localStorage.setItem(activeTabStorageKey, tab);
     return true;
 }
@@ -922,11 +955,6 @@ function activateAdjacentTab(step) {
 const overlay = document.getElementById('overlay');
 const overlayImg = document.getElementById('overlayImg');
 let currentOverlayImage = null;
-
-function refreshedImageUrl(baseUrl, stamp) {
-    const separator = baseUrl.includes('?') ? '&' : '?';
-    return `${baseUrl}${separator}refresh=${stamp}`;
-}
 
 function openOverlayFromImage(img) {
     currentOverlayImage = img;
@@ -978,22 +1006,47 @@ document.querySelectorAll('img.dashboard-image').forEach(img => {
     });
 });
 
-function refreshDashboardImages() {
-    const stamp = Date.now();
-    document.querySelectorAll('img.dashboard-image:not([data-lazy-src])').forEach(img => {
-        const baseUrl = img.dataset.refreshSrc || img.src.split('?')[0];
-        img.dataset.refreshSrc = baseUrl;
-        img.src = refreshedImageUrl(baseUrl, stamp);
-    });
+let imageManifest = {};
+let imageManifestChecked = 0;
+let imageRefreshPending = false;
 
-    if (overlay.classList.contains('active') && currentOverlayImage) {
-        overlayImg.src = currentOverlayImage.src;
+async function refreshDashboardImages() {
+    if (document.hidden || imageRefreshPending) return;
+    imageRefreshPending = true;
+    try {
+        if (Date.now() - imageManifestChecked >= imageRefreshSeconds * 1000) {
+            const response = await fetch('?image_manifest=1', {
+                cache: 'no-cache', signal: AbortSignal.timeout(10000),
+            });
+            if (!response.ok) return;
+            imageManifest = await response.json();
+            imageManifestChecked = Date.now();
+        }
+        // Hidden receiver tabs keep their cached images until selected again.
+        activePanelImages().forEach(img => {
+            const baseUrl = img.dataset.refreshSrc;
+            const filename = decodeURIComponent(baseUrl.split('/').pop());
+            const version = imageManifest[filename];
+            if (!version || img.dataset.version === version) return;
+            img.dataset.version = version;
+            const url = `${baseUrl}?v=${encodeURIComponent(version)}`;
+            if (img.dataset.lazySrc) img.dataset.lazySrc = url;
+            else img.src = url;
+            if (overlay.classList.contains('active') && currentOverlayImage === img) {
+                overlayImg.src = url;
+            }
+        });
+    } catch (_) {
+        // Keep the last good plots through transient network failures.
+    } finally {
+        imageRefreshPending = false;
     }
 }
 
 if (imageRefreshSeconds > 0) {
     window.setInterval(refreshDashboardImages, imageRefreshSeconds * 1000);
 }
+document.addEventListener('visibilitychange', refreshDashboardImages);
 
 overlay.addEventListener('click', event => {
     if (event.target === overlay || event.target === overlayImg) {

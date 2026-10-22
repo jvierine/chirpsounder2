@@ -27,6 +27,7 @@ FILES_TO_DEPLOY=(
     "${SCRIPT_DIR}/upload.php:${UPLOAD_TARGET_DIR}"
     "${SCRIPT_DIR}/upload_h5.php:${UPLOAD_TARGET_DIR}"
     "${SCRIPT_DIR}/upload-limit.conf:${APACHE_CONF_DIR}"
+    "${SCRIPT_DIR}/iono-cache.conf:${APACHE_CONF_DIR}"
 )
 LEGACY_UPLOAD_FILES=(
     "${UPLOAD_TARGET_DIR}/upload_status.php"
@@ -60,6 +61,7 @@ $SUDO chmod 2775 "$IONO_TARGET_DIR" "$DATA_TARGET_DIR"
 if command -v a2enconf >/dev/null 2>&1; then
     echo "Enabling Apache config $APACHE_CONF_NAME"
     $SUDO a2enconf "$APACHE_CONF_NAME" >/dev/null
+    $SUDO a2enconf iono-cache >/dev/null
 fi
 
 echo "Restarting Apache service $APACHE_SERVICE"
