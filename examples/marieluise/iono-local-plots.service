@@ -1,0 +1,22 @@
+[Unit]
+Description=Receiver-local RTI products and legacy dashboard plots
+After=network-online.target
+PartOf=chirpsounder_tgo.service
+
+[Service]
+Type=simple
+WorkingDirectory=/home/hfrx2/src/git/chirpsounder2
+Environment=MPLBACKEND=Agg
+Environment=OPENBLAS_NUM_THREADS=1
+Environment=OMP_NUM_THREADS=1
+Environment=NUMEXPR_NUM_THREADS=1
+ExecStart=/home/hfrx2/.venvs/iono-plots/bin/python -u /home/hfrx2/src/git/chirpsounder2/receiver_plot_worker.py --config /home/hfrx2/src/git/chirpsounder2/examples/marieluise/tgo.ini
+Restart=on-failure
+RestartSec=10
+MemoryMax=2G
+CPUQuota=80%
+Nice=19
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=default.target

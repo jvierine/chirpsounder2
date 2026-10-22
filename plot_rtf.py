@@ -165,21 +165,8 @@ def plot_ionogram_files(
             cur_ranges, cur_freqs, SNR, tv[fi] = read_ionogram(h)
         cur_n_f = SNR.shape[0]
         SNR = regrid_snr_to_ranges(cur_ranges, SNR, ranges)
-        for ri in range(n_r):
-            col = SNR[:cur_n_f, ri]
-
-            if n.all(n.isnan(col)):
-                # case: all NaN → set outputs to NaN
-                S[fi, ri] = n.nan
-                M[fi, ri] = n.nan
-            else:
-                # normal case
-                M[fi, ri] = n.nanmax(col)
-                S[fi, ri] = cur_freqs[:cur_n_f][n.nanargmax(col)]
-                
-#            S[fi,ri]=freqs[n.nanargmax(SNR[:,ri])]
- #           M[fi,ri]=n.nanmax(SNR[:,ri])
-
+        from receiver_rti_product import peak_by_range
+        M[fi, :], S[fi, :] = peak_by_range(SNR[:cur_n_f, :], cur_freqs[:cur_n_f])
 
     # convert unix time to datetime
     t = n.array([datetime.utcfromtimestamp(x) for x in tv])
@@ -219,6 +206,9 @@ def plot_ionogram_files(
     M_new = M_new[:, range_idx]
     S_new = S_new[:, range_idx]
 
+    from receiver_rti_product import save_rti_product
+    save_rti_product(fl, t_new, range_km, M_new, S_new, tx, rx, x_start, x_end)
+
     fig, ax = plt.subplots(
         3,
         1,
@@ -239,7 +229,7 @@ def plot_ionogram_files(
     )
     
     cb1 = plt.colorbar(pcm1, ax=ax[0])
-    cb1.set_label("SNR (dB)", fontsize=16)
+    cb1.set_label("SNR (dB)", fontsize=18)
 
     
     # --- second plot ---
@@ -254,7 +244,7 @@ def plot_ionogram_files(
         shading="auto"
     )
     cb2 = plt.colorbar(pcm2, ax=ax[1])
-    cb2.set_label("Frequency (MHz)", fontsize=16)
+    cb2.set_label("Frequency (MHz)", fontsize=18)
 
     # --- third plot ---
     t_num = mdates.date2num(t_new)
@@ -271,14 +261,14 @@ def plot_ionogram_files(
         rasterized=True,
     )
     cb3 = plt.colorbar(sc3, ax=ax[2])
-    cb3.set_label("Virtual range (km)", fontsize=16)
-    cb1.ax.tick_params(labelsize=14)
-    cb2.ax.tick_params(labelsize=14)
-    cb3.ax.tick_params(labelsize=14)
+    cb3.set_label("Virtual range (km)", fontsize=18)
+    cb1.ax.tick_params(labelsize=16)
+    cb2.ax.tick_params(labelsize=16)
+    cb3.ax.tick_params(labelsize=16)
 
-    ax[0].tick_params(axis='both', labelsize=14)
-    ax[1].tick_params(axis='both', labelsize=14)
-    ax[2].tick_params(axis='both', labelsize=14)
+    ax[0].tick_params(axis='both', labelsize=16)
+    ax[1].tick_params(axis='both', labelsize=16)
+    ax[2].tick_params(axis='both', labelsize=16)
 
     fig.text(
         0.015,
@@ -286,9 +276,9 @@ def plot_ionogram_files(
         "Propagation virtual range (km)",
         va="center",
         rotation="vertical",
-        fontsize=16,
+        fontsize=18,
     )
-    ax[2].set_ylabel("Frequency (MHz)", fontsize=16)
+    ax[2].set_ylabel("Frequency (MHz)", fontsize=18)
 
     # --- time formatting ---
     if x_start is not None and x_end is not None and (x_end - x_start).total_seconds() > 24*3600:
@@ -299,8 +289,8 @@ def plot_ionogram_files(
 
     if title_span is None:
         title_span = datetime.utcfromtimestamp(tv[0]).strftime("%Y-%m-%d")
-    ax[0].set_title("%s-%s %s"%(tx,rx,title_span), fontsize=20)#Date: {start_date}
-    ax[2].set_xlabel(f"Time (UTC)", fontsize=16)
+    ax[0].set_title("%s-%s %s"%(tx,rx,title_span), fontsize=22)#Date: {start_date}
+    ax[2].set_xlabel(f"Time (UTC)", fontsize=18)
 
     if x_start is None or x_end is None:
         # full day
@@ -316,7 +306,8 @@ def plot_ionogram_files(
         ax[1].set_ylim(y_min, y_max)
 
     plt.tight_layout(rect=[0.04, 0.0, 1.0, 1.0])
-    plt.savefig(pfname)
+    plt.savefig(pfname + ".partial.png")
+    os.replace(pfname + ".partial.png", pfname)
     plt.close()
     print("saved %s"%(pfname))
 #    plt.show()
