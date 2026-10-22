@@ -55,8 +55,18 @@ done
 
 echo "Making upload target directories writable by group ${WEB_WRITE_GROUP}"
 $SUDO mkdir -p "$IONO_TARGET_DIR" "$DATA_TARGET_DIR"
-$SUDO chgrp "$WEB_WRITE_GROUP" "$IONO_TARGET_DIR" "$DATA_TARGET_DIR"
-$SUDO chmod 2775 "$IONO_TARGET_DIR" "$DATA_TARGET_DIR"
+$SUDO chgrp "$WEB_WRITE_GROUP" "$IONO_TARGET_DIR"
+$SUDO chmod 2775 "$IONO_TARGET_DIR"
+# The SMB mount supplies archive ownership/mode. chmod/chgrp is unsupported.
+case "$(stat -f -c %T "$DATA_TARGET_DIR")" in
+    cifs|smb2) ;;
+    *) $SUDO chgrp "$WEB_WRITE_GROUP" "$DATA_TARGET_DIR"
+       $SUDO chmod 2775 "$DATA_TARGET_DIR" ;;
+esac
+# Browser uploads retain their local copy for catalogue ingestion. Keep these
+# directories writable by both PHP and the existing thin-service account.
+$SUDO install -d -m 2775 -o "${IONO2_SERVICE_USER:-j}" -g "$WEB_WRITE_GROUP" \
+    /var/lib/iono2-browser/incoming /var/lib/iono2-browser/inbox
 
 if command -v a2enconf >/dev/null 2>&1; then
     echo "Enabling Apache config $APACHE_CONF_NAME"
@@ -64,11 +74,11 @@ if command -v a2enconf >/dev/null 2>&1; then
     $SUDO a2enconf iono-cache >/dev/null
 fi
 
-echo "Restarting Apache service $APACHE_SERVICE"
+echo "Reloading Apache service $APACHE_SERVICE"
 if command -v systemctl >/dev/null 2>&1; then
-    $SUDO systemctl restart "$APACHE_SERVICE"
+    $SUDO systemctl reload "$APACHE_SERVICE"
 else
-    $SUDO service "$APACHE_SERVICE" restart
+    $SUDO service "$APACHE_SERVICE" reload
 fi
 
 echo "Deployed locally to $IONO_TARGET_DIR, $UPLOAD_TARGET_DIR, and $APACHE_CONF_DIR"
