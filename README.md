@@ -134,31 +134,3 @@ The live station is a set of small processes sharing the same config and Digital
 Jens Floberg's [master's thesis](https://munin.uit.no/handle/10037/25828) and Marieluise Schmitt Gran's [thesis](http://juha.no/share/marieluise_thesis.pdf) discuss oblique ionograms made with this software.
 
 You can also detect chirps with a sound card and HF receiver using [Chirpview](https://www.andrewsenior.me.uk/chirpview). University of Twente operates a WebSDR that tracks [known chirp sounders](http://websdr.ewi.utwente.nl:8901/chirps/).
-
-## Receiver-local legacy plots with Rust acquisition products
-
-On experimental TGO, `receiver_plot_worker.py --config examples/marieluise/tgo.ini`
-reads the receiver's local products. It restores the original three-panel 48-hour
-RTF and two-panel OTH detection views, plus individual ionograms and the latest
-full-band spectrum. The original Python plotting code is retained during recovery;
-Rust signal processing continues independently.
-
-Each plot runs in a fresh child with a 2 GiB address-space limit, one numerical
-thread, and a five-minute timeout. The parent keeps no figure objects. The example
-`examples/marieluise/iono-local-plots.service` runs at low priority and starts from
-the TGO launcher without restarting acquisition. RTIs update every five minutes;
-the OTH overview every fifteen minutes. PNG replacements are atomic.
-
-The receiver also writes compressed HDF5 products before upload:
-
-- `rti-TX-RX-DAYSTART.h5`: the retained 48-hour RTF, with `time_unix`, `range_km`,
-  `snr_peak_linear`, and `peak_frequency_hz`. Arrays are time by range; NaNs preserve
-  acquisition gaps. Source filenames and UTC window limits remain in HDF5 metadata.
-- `detection_summary-RX-DAYSTART.h5`: retained detection rows, with frequencies in
-  MHz and the time window and clustering threshold recorded in attributes.
-
-The daily filenames are atomically replaced. The web host receives these reduced
-products and completed PNGs; it does not reconstruct RTIs from individual soundings
-or run an image renderer. HTTP upload failures fail that child and are retried by
-the worker. This worker currently discovers local retained files; no NAS listing
-or NAS HDF5 reconstruction is part of this path.

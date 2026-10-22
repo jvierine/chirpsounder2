@@ -45,9 +45,6 @@ systemctl --user start iono-rust-detect.service iono-rust-digisonde.service \
     iono-rust-juliusruh-day.service iono-rust-juliusruh-night.service \
     iono-rust-lfm.service iono-rust-spectrum.service
 
-# Render on this receiver; the web host only receives finished products.
-systemctl --user start iono-local-plots.service
-
 echo "station_monitor.py"
 python3 -u station_monitor.py --config "$CONF_FILE" --period-s 60 \
     --process "recorder=rx_uhd_ext_gps|rx_uhd" \

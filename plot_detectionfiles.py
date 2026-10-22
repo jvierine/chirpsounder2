@@ -122,11 +122,10 @@ def detection_filter_indices(times, min_detections=5, dt=0.1, dt2=0.02):
 def save_empty_plot(pfname, title, message):
     fig, ax = plt.subplots(1, 1, figsize=(10, 6), constrained_layout=True)
     ax.text(0.5, 0.5, message, ha="center", va="center",
-            transform=ax.transAxes, fontsize=18)
-    ax.set_title(title, fontsize=20)
+            transform=ax.transAxes, fontsize=16)
+    ax.set_title(title, fontsize=18)
     ax.set_axis_off()
-    fig.savefig(pfname + ".partial.png")
-    os.replace(pfname + ".partial.png", pfname)
+    fig.savefig(pfname)
     plt.close(fig)
     print("saved %s" % (pfname))
 
@@ -331,24 +330,23 @@ def plot_chirp_time(dfs, start_t, n_hours=24, min_detections=5,
         vmax=25,
     )
     cb1 = plt.colorbar(sc1, ax=ax)
-    cb1.set_label("Frequency (MHz)", fontsize=18)
-    cb1.ax.tick_params(labelsize=16)
+    cb1.set_label("Frequency (MHz)", fontsize=16)
+    cb1.ax.tick_params(labelsize=14)
 
     day_start, day_end, time_span_str = format_time_span(start_t, n_hours, title_span)
     ax.set_xlim(day_start, day_end)
     ax.set_ylim(0, 1000)
-    ax.set_ylabel(r"$t_0-\lfloor t_0\rfloor$ (ms)", fontsize=18)
-    ax.set_xlabel("Time (UTC)", fontsize=18)
+    ax.set_ylabel(r"$t_0-\lfloor t_0\rfloor$ (ms)", fontsize=16)
+    ax.set_xlabel("Time (UTC)", fontsize=16)
     ax.set_title(
         "Chirp detections -> %s %s, >= %d detections per chirp-rate time cluster"
         % (station_name, time_span_str, min_detections),
-        fontsize=20,
+        fontsize=18,
     )
-    ax.tick_params(axis='both', labelsize=16)
+    ax.tick_params(axis='both', labelsize=14)
     ax.grid(True, alpha=0.25)
     format_time_axis(ax, n_hours)
-    plt.savefig(pfname + ".partial.png")
-    os.replace(pfname + ".partial.png", pfname)
+    plt.savefig(pfname)
     plt.close()
     print("saved %s" % (pfname))
 
@@ -427,7 +425,7 @@ def plot_propagation_range(
             max_range_km=detection_range_filter_max_km,
         )
     day_start, day_end, time_span_str = format_time_span(start_t, n_hours, title_span)
-    title = "ROTHR & JORN → %s\n%s\n≥ %d detections per chirp-rate time cluster" % (
+    title = "ROTHR & JORN -> %s %s, >= %d detections per chirp-rate time cluster" % (
         station_name, time_span_str, min_detections)
     if dfs.shape[0] == 0:
         print("no detections in requested window for %s" % (pfname))
@@ -480,7 +478,7 @@ def plot_propagation_range(
     y_min = -5e3
     y_max = 30e3
     cb1 = plt.colorbar(sc1, ax=ax[0])
-    cb1.set_label("Frequency (MHz)", fontsize=18)
+    cb1.set_label("Frequency (MHz)", fontsize=16)
     
     # Grey bands show expected one-way virtual ranges from transmitter sites.
     # The "auto" path is calibrated from the old TGO Cyprus/JORN manual bands.
@@ -502,7 +500,7 @@ def plot_propagation_range(
         ax[0].axhspan(6.3e3, 10e3, color='grey', alpha=0.3, label='US', zorder=0)
     
     ax[0].set_ylim([y_min, y_max])
-    ax[0].set_ylabel("One-way virtual propagation range (km)", fontsize=18)
+    ax[0].set_ylabel("One-way virtual propagation range (km)", fontsize=16)
     # ax[0].set_ylim([0, 42000])
     ax[0].legend(loc="upper left")
 
@@ -520,15 +518,15 @@ def plot_propagation_range(
 
 
     cb2=plt.colorbar(sc2, ax=ax[1])
-    cb2.set_label("Virtual propagation distance (km)", fontsize=18)
-    cb1.ax.tick_params(labelsize=16)
-    cb2.ax.tick_params(labelsize=16)
+    cb2.set_label("Virtual propagation distance (km)", fontsize=16)
+    cb1.ax.tick_params(labelsize=14)
+    cb2.ax.tick_params(labelsize=14)
 
-    ax[0].tick_params(axis='both', labelsize=16)
-    ax[1].tick_params(axis='both', labelsize=16)
+    ax[0].tick_params(axis='both', labelsize=14)
+    ax[1].tick_params(axis='both', labelsize=14)
 
-    ax[1].set_ylabel("Frequency (MHz)", fontsize=18)
-    ax[1].set_xlabel(f"Time (UTC)", fontsize=18)
+    ax[1].set_ylabel("Frequency (MHz)", fontsize=16)
+    ax[1].set_xlabel(f"Time (UTC)", fontsize=16)
     ax[1].set_ylim(0, 25)
 
 
@@ -545,7 +543,7 @@ def plot_propagation_range(
     ax[1].set_xlim(day_start, day_end)
     
     # label
-    ax[0].set_title(title, fontsize=22)
+    ax[0].set_title(title, fontsize=20)
     
 #    times = pd.to_datetime(dfs[gidx,0], unit="s", utc=True)
     # --- shared x-axis formatting ---
@@ -561,8 +559,7 @@ def plot_propagation_range(
 
     fig.align_ylabels(ax)
 #    plt.show()
-    plt.savefig(pfname + ".partial.png")
-    os.replace(pfname + ".partial.png", pfname)
+    plt.savefig(pfname)
     plt.close()
     print("saved %s"%(pfname))
 #    plt.tight_layout()
