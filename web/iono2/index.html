@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Ionosonde observatory</title>
-    <link rel="stylesheet" href="style.css?v=20261101-network-tabs" />
+    <link rel="stylesheet" href="style.css?v=20261101-plot-arranger" />
   </head>
   <body>
     <header>
@@ -122,7 +122,7 @@
         <h2>Quick help</h2>
         <button data-close aria-label="Close help">×</button>
       </div>
-      <p>Choose a UTC day. Drag station tabs and plot headings to rearrange them; both orders are saved in this browser.</p>
+      <p>Choose a UTC day. Drag station tabs to rearrange them. To reorder plots, open ⚙ and use the compact Arrange plots list; both orders are saved in this browser.</p>
       <p>
         Drag inside a plot to pan; Ctrl/⌘ + scroll to zoom. Double-click to
         reset. Click a colorbar to adjust its limits.
@@ -165,6 +165,12 @@
         Click a colorbar to adjust its limits. Spectrum defaults use plasma and
         finite-data 5th–95th percentiles.
       </p>
+      <section class="arrange-plots" aria-labelledby="arrange-title">
+        <h3 id="arrange-title">Arrange plots</h3>
+        <p class="hint">All plot positions are shown here. Drag a compact row or use its arrow buttons; there is no need to scroll between full-size plots.</p>
+        <ol id="plot-order-settings" aria-label="Plot order"></ol>
+      </section>
+      <h3 class="visibility-title">Plot visibility and view</h3>
       <div id="plot-settings"></div>
     </dialog>
     <template id="card"
@@ -191,6 +197,6 @@
       <button id="attention-retry">Retry now</button>
       <button id="attention-health">Show receiver health</button>
     </dialog>
-  <script type="module" src="app.js?v=20261101-network-tabs-2"></script>
+  <script type="module" src="app.js?v=20261101-plot-arranger"></script>
   </body>
 </html>

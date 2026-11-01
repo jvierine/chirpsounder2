@@ -506,8 +506,78 @@ function apply() {
 }
 function settingsList() {
   if (!$("#settings").open) return;
+  const orderHost = $("#plot-order-settings");
   const host = $("#plot-settings");
-  if (host.contains(document.activeElement)) return;
+  if (host.contains(document.activeElement) || orderHost.contains(document.activeElement)) return;
+  orderHost.replaceChildren();
+  let draggedOrderRow = null;
+  const commitOrder = () => {
+    order = [...orderHost.children].map((row) => row.dataset.key);
+    localStorage.setItem("iono2-order", JSON.stringify(order));
+    for (const k of order) {
+      const group = groups.get(k);
+      if (group) root.append(group.el);
+    }
+    for (const [index, row] of [...orderHost.children].entries()) {
+      const [up, down] = row.querySelectorAll("button");
+      up.disabled = index === 0;
+      down.disabled = index === orderHost.children.length - 1;
+    }
+  };
+  const moveRow = (row, direction) => {
+    if (direction < 0 && row.previousElementSibling)
+      orderHost.insertBefore(row, row.previousElementSibling);
+    else if (direction > 0 && row.nextElementSibling)
+      orderHost.insertBefore(row.nextElementSibling, row);
+    commitOrder();
+    row.querySelector("button")?.focus();
+  };
+  for (const [index, groupElement] of [...root.children].entries()) {
+    const row = document.createElement("li"),
+      grip = document.createElement("span"),
+      label = document.createElement("span"),
+      controls = document.createElement("span");
+    row.className = "plot-order-row";
+    row.dataset.key = groupElement.dataset.key;
+    row.draggable = true;
+    grip.className = "plot-order-grip";
+    grip.textContent = "⠿";
+    grip.setAttribute("aria-hidden", "true");
+    label.className = "plot-order-label";
+    label.textContent = groupElement.querySelector(":scope > .card-head h2")?.textContent || groupElement.dataset.key;
+    controls.className = "plot-order-controls";
+    for (const [symbol, direction, name] of [["↑", -1, "Move up"], ["↓", 1, "Move down"]]) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = symbol;
+      button.title = name;
+      button.setAttribute("aria-label", `${name}: ${label.textContent}`);
+      button.disabled = direction < 0 ? index === 0 : index === root.children.length - 1;
+      button.onclick = () => moveRow(row, direction);
+      controls.append(button);
+    }
+    row.append(grip, label, controls);
+    row.ondragstart = (event) => {
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", row.dataset.key);
+      draggedOrderRow = row;
+      row.classList.add("dragging");
+    };
+    row.ondragend = () => {
+      draggedOrderRow = null;
+      row.classList.remove("dragging");
+      commitOrder();
+      settingsList();
+    };
+    row.ondragover = (event) => {
+      event.preventDefault();
+      const moved = draggedOrderRow;
+      if (!moved || moved === row) return;
+      const before = event.clientY < row.getBoundingClientRect().top + row.offsetHeight / 2;
+      orderHost.insertBefore(moved, before ? row : row.nextElementSibling);
+    };
+    orderHost.append(row);
+  }
   host.replaceChildren();
   for (const p of products) {
     const k = key(p),

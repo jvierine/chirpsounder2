@@ -290,6 +290,65 @@ dialog p {
 .plot-setting button {
   font-size: 12px;
 }
+.arrange-plots {
+  margin: 16px 0 22px;
+  padding: 14px;
+  border: 1px solid #c9d6db;
+  border-radius: 6px;
+  background: #f6f9fa;
+}
+.arrange-plots h3,
+.visibility-title {
+  margin: 0 0 5px;
+  font-size: 14px;
+}
+.arrange-plots .hint {
+  margin: 0 0 10px;
+}
+#plot-order-settings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.plot-order-row {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 5px 4px 9px;
+  border: 1px solid #c9d6db;
+  border-radius: 4px;
+  background: white;
+  cursor: grab;
+}
+.plot-order-row:hover {
+  border-color: #728c98;
+}
+.plot-order-grip {
+  color: #667f8a;
+  font-size: 18px;
+}
+.plot-order-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+}
+.plot-order-controls {
+  display: flex;
+  gap: 3px;
+}
+.plot-order-controls button {
+  width: 32px;
+  min-height: 28px;
+  padding: 2px;
+  font-weight: 700;
+}
 @media (max-width: 650px) {
   header {
     padding: 18px;

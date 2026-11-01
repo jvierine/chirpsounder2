@@ -22,4 +22,6 @@ the rustplotlib WASM build and logos. Back up the current static files before an
 update and use atomic renames for the final replacement.
 
 The station-tab order is stored in the browser under `iono2-tab-order`; the
-active receiver or propagation view is stored under `iono2-active-view`.
+active receiver or propagation view is stored under `iono2-active-view`. Plot
+order is edited from the compact arranger in the settings dialog and stored
+under `iono2-order`.
