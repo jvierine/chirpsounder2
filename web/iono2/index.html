@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Ionosonde observatory</title>
+    <link rel="stylesheet" href="style.css?v=20261101-network-tabs" />
+  </head>
+  <body>
+    <header>
+      <div>
+        <p class="eyebrow">Tromsø Geophysical Observatory</p>
+        <h1>Oblique soundings</h1>
+      </div>
+      <div class="logos">
+        <a href="https://uit.no/" aria-label="UiT"
+          ><img src="assets/uit-logo.png" alt="UiT" /></a
+        ><a href="https://www.unis.no/" aria-label="UNIS"
+          ><img src="assets/unis-logo-liggende.svg" alt="UNIS" /></a
+        ><a href="https://www.scranton.edu/" aria-label="University of Scranton"
+          ><img
+            src="assets/university-of-scranton-logo.png"
+            alt="University of Scranton"
+        /></a>
+      </div>
+    </header>
+    <nav aria-label="Observation selection">
+      <label
+        >Day
+        <select id="day" aria-label="Choose UTC day"></select></label
+      ><select id="station" hidden aria-hidden="true">
+          <option>TGO</option>
+          <option value="DOB">Dombås (DOB)</option>
+          <option value="DMB">Dombås (historical DMB)</option>
+          <option>KHO</option>
+          <option>W2NAF</option>
+        </select><span id="context">UTC</span>
+      <div class="nav-end">
+        <button id="attention-open" class="attention-button" aria-haspopup="dialog" hidden>Needs attention</button>
+        <button id="help-open" aria-label="Help" title="Help">?</button
+        ><button id="settings-open" aria-label="Settings" title="Settings">
+          ⚙
+        </button>
+      </div>
+    </nav>
+    <div id="station-tabs" class="station-tabs" role="tablist" aria-label="Receiver views">
+      <button class="station-tab" role="tab" draggable="true" data-view="TGO"><strong>TGO</strong><span>CPU …</span></button>
+      <button class="station-tab" role="tab" draggable="true" data-view="DOB"><strong>Dombås</strong><span>CPU …</span></button>
+      <button class="station-tab" role="tab" draggable="true" data-view="DMB"><strong>Dombås DMB</strong><span>historical archive</span></button>
+      <button class="station-tab" role="tab" draggable="true" data-view="KHO"><strong>KHO</strong><span>CPU …</span></button>
+      <button class="station-tab" role="tab" draggable="true" data-view="W2NAF"><strong>W2NAF</strong><span>CPU …</span></button>
+      <button class="station-tab propagation-tab" role="tab" draggable="true" data-view="propagation"><strong>Propagation</strong><span>all monitored links</span></button>
+      <span class="tab-hint">Drag tabs to reorder</span>
+    </div>
+    <div id="progress-wrap" role="status">
+      <span id="progress-label">Loading plots</span
+      ><progress id="progress" max="1"></progress>
+    </div>
+    <main id="plots" aria-label="Rearrangeable observation plots"></main>
+    <p id="empty" hidden>No archived plot data for this day and receiver.</p>
+    <section id="station-limits" class="card diagnostic" aria-label="Radio path frequency limits">
+      <h2>Detected echo-band limits · experimental</h2>
+      <p>
+        Server estimates from at least three adjacent frequency bins above 13 dB
+        SNR. Select a path for its full-day history.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Radio path</th>
+            <th>Detected lower–upper frequency</th>
+            <th>UTC</th>
+            <th>Range gate</th>
+            <th>Support / freshness</th>
+          </tr>
+        </thead>
+        <tbody id="path-rows"></tbody>
+      </table>
+      <canvas
+        id="path-map"
+        hidden
+        aria-label="Radio paths colored by upper usable frequency in MHz; gray means no current verified band. Click the colorbar to adjust limits."
+      ></canvas>
+      <p class="hint">Gray paths: no current verified band. Quality is listed beside each path.</p>
+      <div id="history-wrap" hidden>
+        <h3 id="history-title"></h3>
+        <canvas id="frequency-history" aria-label="Detected echo-band history: blue lower limit, red upper limit"></canvas>
+        <p>
+          Gaps: no supported band.
+        </p>
+      </div>
+      <p class="hint">
+        These are sampled echo limits; operational minimum/maximum usable
+        frequency needs validation against interference, ground paths, and the
+        observing schedule. Band envelopes can contain unsupported gaps.
+      </p>
+    </section>
+    <details id="station-health" class="card diagnostic" open>
+      <summary>Receiver health</summary>
+      <dl id="health-data"></dl>
+    </details>
+    <section id="propagation-view" class="network-view" hidden aria-label="Propagation map for every monitored radio link">
+      <article class="card network-card">
+        <div class="network-heading">
+          <div><h2>Propagation map</h2><p>Point-to-point detected minimum–maximum usable frequency for every link monitored by every receiver.</p></div>
+          <span id="network-status" role="status">Loading network paths…</span>
+        </div>
+        <canvas id="network-path-map" aria-label="All monitored radio paths colored by maximum usable frequency"></canvas>
+        <p class="hint">Labels show minimum–maximum frequency in MHz. Gray paths have no current supported echo band.</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Radio path</th><th>Minimum–maximum</th><th>UTC</th><th>Range gate</th><th>Freshness</th></tr></thead>
+          <tbody id="network-path-rows"></tbody>
+        </table></div>
+      </article>
+    </section>
+    <footer>
+      <div id="status" role="status"></div>
+      <span id="clock"></span>
+    </footer>
+    <dialog id="help">
+      <div class="dialog-head">
+        <h2>Quick help</h2>
+        <button data-close aria-label="Close help">×</button>
+      </div>
+      <p>Choose a UTC day. Drag station tabs and plot headings to rearrange them; both orders are saved in this browser.</p>
+      <p>
+        Drag inside a plot to pan; Ctrl/⌘ + scroll to zoom. Double-click to
+        reset. Click a colorbar to adjust its limits.
+      </p>
+      <p>
+        Choose a receiver tab or the all-station Propagation tab. Each receiver tab reports CPU use and remaining headroom. ⚙ selects products and layout.
+      </p>
+      <p>
+        RTI views share a time axis. Regular soundings fill their normal display
+        interval; longer outages stay white. Shaded sweep bands show expected
+        transmitter ranges.
+      </p>
+    </dialog>
+    <dialog id="settings">
+      <div class="dialog-head">
+        <h2>Settings</h2>
+        <button data-close aria-label="Close settings">×</button>
+      </div>
+      <div class="settings-controls">
+        <label
+          >Plots
+          <select id="product-kind">
+            <option value="">All products</option>
+            <option value="spectrum">Full-band spectrum</option>
+            <option value="rti">RTIs</option>
+            <option value="detections">Detected sweeps</option>
+            <option value="digisonde">Digisonde ionograms</option>
+            <option value="lfm">LFM ionograms</option>
+          </select></label
+        ><label
+          >Layout
+          <select id="columns">
+            <option value="1">One column</option>
+            <option value="2">Two columns</option>
+            <option value="auto">Responsive</option>
+          </select></label
+        ><button id="restore">Restore plots</button>
+      </div>
+      <p class="hint">
+        Click a colorbar to adjust its limits. Spectrum defaults use plasma and
+        finite-data 5th–95th percentiles.
+      </p>
+      <div id="plot-settings"></div>
+    </dialog>
+    <template id="card"
+      ><article class="card">
+        <div class="card-head" draggable="true" title="Drag to rearrange">
+          <span class="grip" aria-hidden="true">⠿</span>
+          <div class="heading">
+            <h2></h2>
+            <div class="subtitle"></div>
+          </div>
+        </div>
+        <div class="plot">
+          <canvas class="field"></canvas><canvas class="axes"></canvas>
+        </div>
+        <div class="plot-progress" hidden>
+          <span></span><progress max="1" value="0"></progress>
+        </div>
+        <p class="coverage"></p></article
+    ></template>
+    <dialog id="attention">
+      <div class="dialog-head"><h2>Needs attention</h2><button data-close aria-label="Close attention">×</button></div>
+      <p id="attention-context"></p>
+      <ul id="attention-list"></ul>
+      <button id="attention-retry">Retry now</button>
+      <button id="attention-health">Show receiver health</button>
+    </dialog>
+  <script type="module" src="app.js?v=20261101-network-tabs-2"></script>
+  </body>
+</html>
