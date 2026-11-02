@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Ionosonde observatory</title>
-    <link rel="stylesheet" href="style.css?v=20261101-plot-arranger" />
+    <link rel="stylesheet" href="style.css?v=20261102-responsive-norway-3" />
   </head>
   <body>
     <header>
@@ -103,7 +103,13 @@
       <article class="card network-card">
         <div class="network-heading">
           <div><h2>Propagation map</h2><p>Point-to-point detected minimum–maximum usable frequency for every link monitored by every receiver.</p></div>
-          <span id="network-status" role="status">Loading network paths…</span>
+          <div class="network-map-controls" aria-label="Map extent">
+            <div class="extent-buttons">
+              <button id="network-norway" type="button" aria-pressed="false">Norge</button>
+              <button id="network-world" type="button" aria-pressed="true">Hele verden</button>
+            </div>
+            <span id="network-status" role="status">Loading network paths…</span>
+          </div>
         </div>
         <canvas id="network-path-map" aria-label="All monitored radio paths colored by maximum usable frequency"></canvas>
         <p class="hint">Labels show minimum–maximum frequency in MHz. Gray paths have no current supported echo band.</p>
@@ -155,9 +161,9 @@
         ><label
           >Layout
           <select id="columns">
+            <option value="auto">Automatic (fit screen)</option>
             <option value="1">One column</option>
             <option value="2">Two columns</option>
-            <option value="auto">Responsive</option>
           </select></label
         ><button id="restore">Restore plots</button>
       </div>
@@ -197,6 +203,6 @@
       <button id="attention-retry">Retry now</button>
       <button id="attention-health">Show receiver health</button>
     </dialog>
-  <script type="module" src="app.js?v=20261101-plot-arranger"></script>
+  <script type="module" src="app.js?v=20261102-responsive-norway-2"></script>
   </body>
 </html>

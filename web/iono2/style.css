@@ -544,12 +544,12 @@ h1 { margin:0; font:650 1.25rem/1.2 system-ui,sans-serif; }
 .logos img { height:28px; max-width:95px; }
 .logos a:first-child img { max-width:54px; }
 nav { padding:8px 16px; gap:12px; }
-main { max-width:1440px; margin:auto; padding:10px; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+main { max-width:1920px; margin:auto; padding:10px; grid-template-columns:repeat(auto-fit,minmax(min(100%,400px),1fr)); gap:10px; }
 main[style*="repeat(1"] { grid-template-columns:minmax(0,1fr)!important; }
 .card { border-color:var(--line); border-radius:5px; box-shadow:none; }
 .card-head { padding:10px 10px 2px; }
 .card-head h2,.diagnostic h2 { font-size:.96rem; font-weight:650; }
-.plot { height:clamp(350px,38cqw,520px); }
+.plot { height:clamp(260px,30cqw,380px); }
 .diagnostic { max-width:1440px; margin:10px auto; padding:10px; }
 .diagnostic p,.hint { font-size:.78rem; color:var(--muted); }
 .diagnostic table { font-size:.8rem; }
@@ -577,13 +577,20 @@ footer { max-width:1440px; margin:auto; padding:10px; }
 .propagation-tab { min-width:190px; }
 .tab-hint { align-self:center; flex:0 0 auto; padding:0 5px; font-size:.7rem; color:var(--muted); }
 
-.network-view { max-width:1440px; margin:10px auto; padding:0 10px; }
+.network-view { max-width:1920px; margin:10px auto; padding:0 10px; }
 .network-card { padding:10px; }
 .network-heading { display:flex; justify-content:space-between; gap:20px; align-items:start; }
 .network-heading h2 { margin:0; font-size:1rem; }
 .network-heading p { margin:3px 0 8px; font-size:.78rem; color:var(--muted); }
 #network-status { font-size:.76rem; color:var(--muted); white-space:nowrap; }
-#network-path-map { display:block; width:100%; height:clamp(420px,55vw,720px); }
+.network-map-controls { display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
+.extent-buttons { display:flex; }
+.extent-buttons button { border-radius:0; padding:5px 9px; font-size:.76rem; }
+.extent-buttons button:first-child { border-radius:4px 0 0 4px; }
+.extent-buttons button:last-child { border-radius:0 4px 4px 0; margin-left:-1px; }
+.extent-buttons button[aria-pressed="true"] { background:#e8f2f8; border-color:#0056a0; color:#003f78; position:relative; }
+#network-path-map { display:block; width:100%; height:clamp(390px,50vw,680px); }
+#network-path-map.norway-extent { width:min(100%,560px); height:clamp(560px,calc(100vh - 220px),680px); margin-inline:auto; }
 .network-card table { width:100%; border-collapse:collapse; font-size:.8rem; }
 .network-card td,.network-card th { padding:5px 8px; border-bottom:1px solid var(--line); text-align:left; }
 .table-wrap { overflow:auto; }
@@ -593,7 +600,9 @@ footer { max-width:1440px; margin:auto; padding:10px; }
   .station-tabs { top:49px; }
   .tab-hint { display:none; }
   .network-heading { display:block; }
+  .network-map-controls { align-items:flex-start; margin:7px 0; }
   #network-status { white-space:normal; }
+  .plot { height:clamp(330px,92vw,470px); }
 }
 @media(max-width:550px) {
   header { padding:7px 10px; }

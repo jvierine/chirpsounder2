@@ -25,3 +25,8 @@ The station-tab order is stored in the browser under `iono2-tab-order`; the
 active receiver or propagation view is stored under `iono2-active-view`. Plot
 order is edited from the compact arranger in the settings dialog and stored
 under `iono2-order`.
+
+The default plot layout automatically fits as many compact columns as the
+browser width permits, while viewports at 850 px or narrower always use one
+column. The propagation view offers persistent Norway and world map extents;
+both maps are rendered by rustplotlib WASM.

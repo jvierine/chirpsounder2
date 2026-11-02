@@ -39,9 +39,6 @@ let limitData = null,
   mapView = null,
   historyView = null,
   selectedPath = null;
-// Two columns can expose three stacked panels apiece, plus adjoining rows.
-// Keep a fixed ceiling; offscreen plots still dispose both canvas buffers.
-const MAX_VIEWS = 8;
 const faults = new Map();
 let currentHealth = null, requestFailures = 0;
 const receiverViews = ["TGO", "DOB", "DMB", "KHO", "W2NAF"];
@@ -50,6 +47,8 @@ const tabHost = $("#station-tabs");
 let activeView = localStorage.getItem("iono2-active-view") || localStorage.getItem("iono2-station") || "TGO";
 if (![...receiverViews, "propagation"].includes(activeView)) activeView = "TGO";
 let networkMapView = null, unbindNetworkColor = null, networkColorLimits = null, networkGeneration = 0;
+let networkExtent = localStorage.getItem("iono2-network-extent") === "norway" ? "norway" : "world";
+let networkData = null;
 const healthByStation = new Map();
 
 function updateStationTab(name, health) {
@@ -206,13 +205,6 @@ function drain() {
   while (queue.length) {
     const c = queue.shift();
     if (!c.alive || !c.visible || c.busy) continue;
-    if (
-      !c.renderer &&
-      [...cards.values()].filter((v) => v.renderer).length >= MAX_VIEWS
-    ) {
-      queue.unshift(c);
-      return;
-    }
     busy = true;
     c.busy = true;
     render(c).finally(() => {
@@ -247,7 +239,7 @@ function initialize(c, p) {
     [...cards.values()].filter((v) => v.renderer).length,
   );
   c.viewport = new PlotViewport();
-  c.renderer.set_font_size(innerWidth < 650 ? 16 : 18);
+  c.renderer.set_font_size(innerWidth < 650 ? 16 : 15);
   c.renderer.set_markers(false);
   c.renderer.set_palette(p.quantity === "ionogram" ? "greys" : p.palette);
   c.renderer.set_x_labels_visible(c.bottom);
@@ -930,6 +922,7 @@ function renderNetworkTable(records) {
 
 async function drawNetworkMap(records, positions, gen) {
   const canvas = $("#network-path-map"), located = records.filter(r => positions[r.transmitter] && positions[r.receiver]);
+  canvas.classList.toggle("norway-extent", networkExtent === "norway");
   unbindNetworkColor?.(); networkMapView?.free(); networkMapView = null;
   if (!located.length) { canvas.width = 1; canvas.height = 1; return; }
   coastlines ??= await json("assets/coastlines.json");
@@ -939,7 +932,8 @@ async function drawNetworkMap(records, positions, gen) {
   const automaticLimits = () => [0, Math.max(25, ...current.map(row => Math.ceil(row.upper_mhz / 5) * 5))];
   networkMapView.set_color_scale(...(networkColorLimits || automaticLimits()), "viridis", "Maximum usable frequency (MHz)");
   const bounds = canvas.getBoundingClientRect();
-  networkMapView.begin_map(bounds.width, Math.max(420, Math.min(720, innerHeight - 220)), Math.min(1.5, devicePixelRatio || 1), -180, 180, -62, 85);
+  const extent = networkExtent === "norway" ? [-2, 36, 56, 83] : [-180, 180, -62, 85];
+  networkMapView.begin_map(bounds.width, Math.max(390, Math.min(680, innerHeight - 220)), Math.min(1.5, devicePixelRatio || 1), ...extent);
   networkMapView.series(new Float64Array(coastlines.map(v => v ?? NaN)), "#a5b0b7", true, 0);
   const labeled = new Set();
   for (const row of located) {
@@ -978,6 +972,7 @@ async function loadNetworkPropagation() {
       if (!previous || (row.time || 0) > (previous.time || 0)) paths.set(id, row);
     }
     const records = [...paths.values()].sort((a, b) => a.receiver.localeCompare(b.receiver) || a.transmitter.localeCompare(b.transmitter));
+    networkData = { records, positions, gen };
     renderNetworkTable(records);
     await drawNetworkMap(records, positions, gen);
     const supported = records.filter(r => r.lower_mhz != null && r.upper_mhz != null && ["current", "archived"].includes(r.freshness)).length;
@@ -1098,16 +1093,37 @@ $("#restore").onclick = () => {
   save();
 };
 const columns = $("#columns");
-columns.value = localStorage.getItem("iono2-columns") || "1";
+const layoutVersion = "responsive-v2";
+columns.value = localStorage.getItem("iono2-layout-version") === layoutVersion
+  ? localStorage.getItem("iono2-columns") || "auto"
+  : "auto";
 const layout = () => {
-  root.style.gridTemplateColumns =
-    columns.value === "auto"
-      ? "repeat(auto-fit,minmax(min(100%,570px),1fr))"
+  const phone = matchMedia("(max-width: 850px)").matches;
+  root.style.gridTemplateColumns = phone
+    ? "minmax(0,1fr)"
+    : columns.value === "auto"
+      ? "repeat(auto-fit,minmax(min(100%,400px),1fr))"
       : `repeat(${columns.value},minmax(0,1fr))`;
   localStorage.setItem("iono2-columns", columns.value);
+  localStorage.setItem("iono2-layout-version", layoutVersion);
 };
 columns.onchange = layout;
 layout();
+addEventListener("resize", layout);
+
+function setNetworkExtent(extent) {
+  networkExtent = extent;
+  localStorage.setItem("iono2-network-extent", extent);
+  $("#network-norway").setAttribute("aria-pressed", String(extent === "norway"));
+  $("#network-world").setAttribute("aria-pressed", String(extent === "world"));
+  if (networkData && activeView === "propagation")
+    drawNetworkMap(networkData.records, networkData.positions, networkData.gen).catch(e => {
+      $("#network-status").textContent = `Map unavailable: ${e.message || e}`;
+    });
+}
+$("#network-norway").onclick = () => setNetworkExtent("norway");
+$("#network-world").onclick = () => setNetworkExtent("world");
+setNetworkExtent(networkExtent);
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     clearTimeout(timer);
