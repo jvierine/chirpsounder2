@@ -20,6 +20,7 @@
 #include <atomic>
 #include <array>
 #include <complex>
+#include <cmath>
 #include <cstdlib>
 #include <iomanip>
 #include <thread>
@@ -123,6 +124,30 @@ bool all_mboards_support_gpsdo(multi_usrp::sptr usrp)
     return true;
 }
 
+uhd::time_spec_t wait_for_next_pps(multi_usrp::sptr usrp, int timeout_sec)
+{
+    auto start_time = std::chrono::steady_clock::now();
+    uhd::time_spec_t last_pps = usrp->get_time_last_pps();
+    std::cout << "last_pps: " << last_pps.get_real_secs() << "\n";
+    std::cout << "waiting for next pps\n";
+
+    while (true) {
+        uhd::time_spec_t next_pps = usrp->get_time_last_pps();
+        if (next_pps != last_pps) {
+            return next_pps;
+        }
+
+        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
+            std::chrono::steady_clock::now() - start_time).count();
+        if (elapsed >= timeout_sec) {
+            throw std::runtime_error(str(boost::format(
+                "Timed out after %d seconds waiting for an advancing PPS edge")
+                % timeout_sec));
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+}
+
 bool wait_for_gps_lock(multi_usrp::sptr usrp, int timeout_sec)
 {
     auto start_time = std::chrono::steady_clock::now();
@@ -176,7 +201,8 @@ void streaming_by_channel(size_t chan,double rate,std::string subdev,std::string
     int compression_level = 0;
     int checksum = 0;
     int is_complex = 1;
-    int is_continuous = 1;
+    // Record actual packet time indices; dropped packets remain explicit gaps.
+    int is_continuous = 0;
     int num_subchannels = 1;
     int marching_periods = 1;
     std::string uuid = random_uuid_v4();
@@ -255,7 +281,13 @@ void streaming_by_channel(size_t chan,double rate,std::string subdev,std::string
     int n_empty=0;
     while (!shutdown_requested.load() && std::chrono::steady_clock::now() < end_time)
     {
-      size_t num_rx_samps = rx_stream->recv(buffs, buff.size(), md, timeout, true);
+      size_t num_rx_samps = 0;
+      try {
+        num_rx_samps = rx_stream->recv(buffs, buff.size(), md, timeout, true);
+      } catch (const std::exception& ex) {
+        request_shutdown(std::string("USRP receive failed: ") + ex.what());
+        break;
+      }
 
       if (shutdown_requested.load()) {
         break;
@@ -264,7 +296,20 @@ void streaming_by_channel(size_t chan,double rate,std::string subdev,std::string
       if(num_rx_samps  == 363){
         n_empty=0;
         uint64_t tl=(uint64_t)md.time_spec.get_full_secs()*sample_rate_numerator;
-        tl=tl + (uint64_t)(md.time_spec.get_frac_secs()*((double)sample_rate_numerator));
+        tl += static_cast<uint64_t>(std::llround(
+            md.time_spec.get_frac_secs() * static_cast<double>(sample_rate_numerator)));
+
+        // UHD's absolute-epoch timestamp conversion can quantize a packet by
+        // several 25 MHz samples (an f64 ULP here is about six samples).
+        // Follow sample count only within that sub-packet tolerance and only
+        // when UHD reports a clean sequence. A lost 363-sample UDP packet stays
+        // a real gap; its samples are never copied, repeated or synthesized.
+        const uint64_t expected_tl = prev_tl ? prev_tl + vector_length : global_start_index;
+        const int64_t timestamp_error = static_cast<int64_t>(tl) - static_cast<int64_t>(expected_tl);
+        if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_NONE && !md.out_of_sequence &&
+            std::abs(timestamp_error) <= 16) {
+          tl = expected_tl;
+        }
 
         if(prev_tl!=0)
         {
@@ -273,29 +318,22 @@ void streaming_by_channel(size_t chan,double rate,std::string subdev,std::string
       
         short *a = (short *)buff.data();
       
-        if(samp_diff == 363)
-        {
-          if (!write_digital_rf_or_request_shutdown(
-                  data_object, vector_leading_edge_index + packet_i*363, a, vector_length, chan)) {
-            break;
-          }
-          packet_i+=1;
+        if (tl < global_start_index || (prev_tl && tl < prev_tl + vector_length)) {
+          std::cerr << "Packet timestamps: start=" << global_start_index
+                    << " previous=" << prev_tl << " current=" << tl
+                    << " samples=" << num_rx_samps << std::endl;
+          request_shutdown("Non-monotonic USRP packet timestamp; restarting acquisition.");
+          break;
         }
-        else
-        {
-          // Preserve the absolute Digital RF sample index across packet gaps.
-          int n_packets = samp_diff/363;
-          printf("samp_diff %ld number of packets %d\n",samp_diff,n_packets);
-          for(int pi = 0 ; pi < n_packets; pi++)
-          {
-            if (!write_digital_rf_or_request_shutdown(
-                    data_object, vector_leading_edge_index + packet_i*363, a, vector_length, chan)) {
-              break;
-            }
-            packet_i+=1;
-          }
-        
+        if (prev_tl && samp_diff != vector_length) {
+          printf("Packet gap: %lu missing samples; retaining actual timestamp.\n",
+                 samp_diff - vector_length);
         }
+        if (!write_digital_rf_or_request_shutdown(
+                data_object, tl - global_start_index, a, vector_length, chan)) {
+          break;
+        }
+        packet_i++;
         prev_tl=tl;
       }
       else
@@ -412,13 +450,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     auto run_duration = std::chrono::hours(24);
     auto end_time = start_time + run_duration;
 
-    uhd::time_spec_t last_pps = usrp->get_time_last_pps();
-    std::cout << "last_pps: " << last_pps.get_real_secs() << "\n";
-    std::cout << "waiting for next pps\n";
-    while (usrp->get_time_last_pps() == last_pps) {
-      std::this_thread::sleep_for(std::chrono::milliseconds(5));
-    }
-    
+    wait_for_next_pps(usrp, 10);
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     auto now = std::chrono::system_clock::now();
     auto secs = std::chrono::time_point_cast<std::chrono::seconds>(now);
@@ -440,6 +472,11 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     uhd::time_spec_t time_last_pps = usrp->get_time_last_pps();
     printf("USRP time now %1.4f USRP last pps %1.4f\n",usrp->get_time_now().get_real_secs(),time_last_pps.get_real_secs());
+    if (time_last_pps.get_real_secs() < static_cast<double>(pc_secs)) {
+        throw std::runtime_error(str(boost::format(
+            "USRP time did not apply at PPS; refusing to stream from invalid device time %.4f")
+            % time_last_pps.get_real_secs()));
+    }
 
     std::vector<std::thread> threads;
     for(size_t ch=0 ; ch < usrp->get_num_mboards(); ch++){
