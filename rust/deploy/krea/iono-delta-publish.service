@@ -1,0 +1,14 @@
+[Unit]
+Description=Krea University limited-bandwidth HDF5 publication
+StartLimitIntervalSec=0
+
+[Service]
+ExecStart=%h/bin/iono-delta-publish KREA /data0 iono-publish 120
+Restart=always
+RestartSec=120
+Nice=19
+IOSchedulingClass=idle
+MemoryMax=128M
+
+[Install]
+WantedBy=default.target

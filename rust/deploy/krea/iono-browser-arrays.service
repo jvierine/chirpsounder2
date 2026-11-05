@@ -1,0 +1,15 @@
+[Unit]
+Description=Krea receiver-local Rust browser arrays and telemetry
+StartLimitIntervalSec=0
+
+[Service]
+ExecStart=%h/bin/iono-plots %h/.config/iono/receiver.json --browser-only --no-upload
+Restart=always
+RestartSec=30
+MemoryMax=768M
+LimitAS=1610612736
+Nice=15
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=default.target

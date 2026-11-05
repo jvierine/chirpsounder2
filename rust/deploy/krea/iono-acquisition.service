@@ -1,0 +1,22 @@
+[Unit]
+Description=Krea GPS-disciplined USRP Digital RF acquisition
+Wants=iono-ringbuffer-clean.service
+After=iono-ringbuffer-clean.service
+StartLimitIntervalSec=0
+
+[Service]
+ExecStartPre=/usr/bin/mkdir -p /dev/shm/hf25
+ExecStartPre=%h/bin/iono-usrp-status addr=192.168.10.2 /data0/.station-usrp.json --wait
+ExecStart=%h/bin/rx_uhd_ext_gps --usrp_args=addr=192.168.10.2,recv_buff_size=50000000 --outdir=/dev/shm/hf25 --gps-lock-timeout=-1
+Restart=always
+RestartSec=10
+TimeoutStopSec=15
+TimeoutStartSec=infinity
+# RAM-ring pages belong to the writing cgroup; include them in its ceiling.
+MemoryMax=2700M
+LimitCORE=0
+LimitRTPRIO=50
+LimitMEMLOCK=256M
+
+[Install]
+WantedBy=default.target

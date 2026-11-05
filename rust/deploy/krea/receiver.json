@@ -1,0 +1,16 @@
+{
+  "station": "KREA",
+  "data_dir": "/dev/shm/hf25",
+  "output_dir": "/data0",
+  "channel": "ch0",
+  "sample_rate": 25000000.0,
+  "center_freq": 12500000.0,
+  "browser_interval_s": 120,
+  "browser_upload_timeout_s": 600,
+  "browser_upload_kib_s": 32,
+  "browser_previous_day": false,
+  "radar_sources": [
+    {"name": "Cyprus", "range_gate_km": [5240.62, 7090.26]},
+    {"name": "Australia", "range_gate_km": [6429.61, 8698.89]}
+  ]
+}

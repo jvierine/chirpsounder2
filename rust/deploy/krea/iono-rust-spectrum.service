@@ -1,0 +1,14 @@
+[Unit]
+Description=Krea Rust full-band spectrum
+StartLimitIntervalSec=0
+
+[Service]
+ExecStart=%h/bin/iono-receiver spectrum %h/.config/iono/receiver.json
+Restart=always
+RestartSec=10
+MemoryMax=512M
+LimitAS=1073741824
+Nice=5
+
+[Install]
+WantedBy=default.target

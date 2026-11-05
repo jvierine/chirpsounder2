@@ -1,0 +1,12 @@
+[Unit]
+Description=Krea bounded twenty-second voltage ring
+StartLimitIntervalSec=0
+
+[Service]
+ExecStart=%h/bin/iono-ringbuffer-clean
+Restart=always
+RestartSec=2
+MemoryMax=64M
+
+[Install]
+WantedBy=default.target
