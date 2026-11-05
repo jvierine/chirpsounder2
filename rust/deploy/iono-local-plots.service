@@ -1,0 +1,17 @@
+[Unit]
+Description=Receiver-local Rust RTI products and Rustplotlib figures
+After=chirpsounder_tgo.service network-online.target
+PartOf=chirpsounder_tgo.service
+
+[Service]
+WorkingDirectory=%h/src/chirpsounder2/rust
+ExecStart=%h/bin/iono-plots %h/src/chirpsounder2/rust/deploy/tgo-rust.json
+Restart=always
+RestartSec=15
+MemoryMax=2G
+LimitAS=2147483648
+Nice=19
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=default.target

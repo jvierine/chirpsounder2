@@ -1,0 +1,17 @@
+[Unit]
+Description=Receiver-local numeric arrays for IonoGUI2
+After=network-online.target
+
+[Service]
+WorkingDirectory=%h/src/chirpsounder2/rust
+ExecStart=%h/bin/iono-plots %h/.config/iono-browser.json --browser-only
+Restart=always
+RestartSec=30
+Nice=19
+IOSchedulingClass=idle
+CPUQuota=100%
+MemoryMax=512M
+LimitAS=1073741824
+
+[Install]
+WantedBy=default.target

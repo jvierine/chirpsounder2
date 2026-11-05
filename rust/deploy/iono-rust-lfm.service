@@ -1,0 +1,13 @@
+[Unit]
+Description=TGO experimental Rust LFM processor
+After=chirpsounder_tgo.service
+PartOf=chirpsounder_tgo.service
+[Service]
+WorkingDirectory=%h/src/chirpsounder2/rust
+ExecStart=%h/bin/iono-receiver lfm %h/src/chirpsounder2/rust/deploy/tgo-rust.json
+Restart=always
+RestartSec=5
+MemoryMax=1500M
+LimitAS=2147483648
+[Install]
+WantedBy=default.target

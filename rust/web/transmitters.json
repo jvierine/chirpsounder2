@@ -1,0 +1,338 @@
+{
+  "TGO": [
+    {
+      "name": "NIC",
+      "path": "short",
+      "label": "Cyprus",
+      "center_km": 4630.793216648866,
+      "min_km": 3936.1742341515364,
+      "max_km": 5325.412199146196,
+      "distance_km": 3933.485688207271
+    },
+    {
+      "name": "JORN",
+      "path": "short",
+      "label": "JORN short",
+      "center_km": 15430.60904847894,
+      "min_km": 13116.0176912071,
+      "max_km": 17745.20040575078,
+      "distance_km": 13107.058988143943
+    },
+    {
+      "name": "JORN",
+      "path": "long",
+      "label": "JORN long",
+      "center_km": 31695.966988904995,
+      "min_km": 26941.571940569243,
+      "max_km": 36450.362037240746,
+      "distance_km": 26923.169895927902
+    },
+    {
+      "name": "ROTHR1",
+      "path": "short",
+      "label": "ROTHR Chesapeake Bay",
+      "center_km": 7443.462148610489,
+      "min_km": 6326.942826318916,
+      "max_km": 8559.981470902061,
+      "distance_km": 6322.621301034868
+    },
+    {
+      "name": "ROTHR2",
+      "path": "short",
+      "label": "ROTHR Culebra",
+      "center_km": 9369.081547993104,
+      "min_km": 7963.719315794138,
+      "max_km": 10774.44378019207,
+      "distance_km": 7958.279814391486
+    },
+    {
+      "name": "ROTHR3",
+      "path": "short",
+      "label": "ROTHR Texas",
+      "center_km": 9572.468631913622,
+      "min_km": 8136.598337126578,
+      "max_km": 11008.338926700664,
+      "distance_km": 8131.04075324993
+    }
+  ],
+  "DOB": [
+    {
+      "name": "NIC",
+      "path": "short",
+      "label": "Cyprus",
+      "center_km": 4045.0575590017684,
+      "min_km": 3438.298925151503,
+      "max_km": 4651.816192852034,
+      "distance_km": 3435.9504456176996
+    },
+    {
+      "name": "JORN",
+      "path": "short",
+      "label": "JORN short",
+      "center_km": 16103.40271918813,
+      "min_km": 13687.892311309912,
+      "max_km": 18518.91312706635,
+      "distance_km": 13678.54299769472
+    },
+    {
+      "name": "JORN",
+      "path": "long",
+      "label": "JORN long",
+      "center_km": 31023.173318195808,
+      "min_km": 26369.69732046644,
+      "max_km": 35676.64931592518,
+      "distance_km": 26351.685886377127
+    },
+    {
+      "name": "ROTHR1",
+      "path": "short",
+      "label": "ROTHR Chesapeake Bay",
+      "center_km": 7245.312266240947,
+      "min_km": 6158.515426304804,
+      "max_km": 8332.10910617709,
+      "distance_km": 6154.308942880257
+    },
+    {
+      "name": "ROTHR2",
+      "path": "short",
+      "label": "ROTHR Culebra",
+      "center_km": 8827.17603675969,
+      "min_km": 7503.099631245737,
+      "max_km": 10151.252442273644,
+      "distance_km": 7497.974749346968
+    },
+    {
+      "name": "ROTHR3",
+      "path": "short",
+      "label": "ROTHR Texas",
+      "center_km": 9643.70806249807,
+      "min_km": 8197.15185312336,
+      "max_km": 11090.26427187278,
+      "distance_km": 8191.552909057817
+    }
+  ],
+  "KHO": [
+    {
+      "name": "NIC",
+      "path": "short",
+      "label": "Cyprus",
+      "center_km": 5707.543573314336,
+      "min_km": 4851.412037317185,
+      "max_km": 6563.675109311486,
+      "distance_km": 4848.098351646535
+    },
+    {
+      "name": "JORN",
+      "path": "short",
+      "label": "JORN short",
+      "center_km": 15341.863784245823,
+      "min_km": 13040.58421660895,
+      "max_km": 17643.143351882696,
+      "distance_km": 13031.677037271656
+    },
+    {
+      "name": "JORN",
+      "path": "long",
+      "label": "JORN long",
+      "center_km": 31784.712253138114,
+      "min_km": 27017.005415167398,
+      "max_km": 36552.41909110883,
+      "distance_km": 26998.55184680019
+    },
+    {
+      "name": "ROTHR1",
+      "path": "short",
+      "label": "ROTHR Chesapeake Bay",
+      "center_km": 7047.259905655743,
+      "min_km": 5990.170919807381,
+      "max_km": 8104.348891504104,
+      "distance_km": 5986.079421623135
+    },
+    {
+      "name": "ROTHR2",
+      "path": "short",
+      "label": "ROTHR Culebra",
+      "center_km": 9275.811766970635,
+      "min_km": 7884.44000192504,
+      "max_km": 10667.18353201623,
+      "distance_km": 7879.054651092228
+    },
+    {
+      "name": "ROTHR3",
+      "path": "short",
+      "label": "ROTHR Texas",
+      "center_km": 8890.035845821283,
+      "min_km": 7556.530468948091,
+      "max_km": 10223.541222694475,
+      "distance_km": 7551.369091901124
+    }
+  ],
+  "W2NAF": [
+    {
+      "name": "NIC",
+      "path": "short",
+      "label": "Cyprus",
+      "center_km": 10416.881978108828,
+      "min_km": 8854.349681392503,
+      "max_km": 11979.414274825152,
+      "distance_km": 8848.301848011939
+    },
+    {
+      "name": "JORN",
+      "path": "short",
+      "label": "JORN short",
+      "center_km": 20349.145051524923,
+      "min_km": 17296.773293796185,
+      "max_km": 23401.516809253662,
+      "distance_km": 17284.958987080685
+    },
+    {
+      "name": "JORN",
+      "path": "long",
+      "label": "JORN long",
+      "center_km": 26777.430985859013,
+      "min_km": 22760.816337980163,
+      "max_km": 30794.045633737864,
+      "distance_km": 22745.26989699116
+    },
+    {
+      "name": "ROTHR1",
+      "path": "short",
+      "label": "ROTHR Chesapeake Bay",
+      "center_km": 497.9783903295391,
+      "min_km": 397.9783903295391,
+      "max_km": 597.978390329539,
+      "distance_km": 422.99251548425656
+    },
+    {
+      "name": "ROTHR2",
+      "path": "short",
+      "label": "ROTHR Culebra",
+      "center_km": 3219.37356730898,
+      "min_km": 2736.467532212633,
+      "max_km": 3702.279602405327,
+      "distance_km": 2734.598428294033
+    },
+    {
+      "name": "ROTHR3",
+      "path": "short",
+      "label": "ROTHR Texas",
+      "center_km": 3065.32690680879,
+      "min_km": 2605.527870787472,
+      "max_km": 3525.1259428301087,
+      "distance_km": 2603.7482032796415
+    }
+  ],
+  "DMB": [
+    {
+      "name": "NIC",
+      "path": "short",
+      "label": "Cyprus",
+      "center_km": 4045.0575590017684,
+      "min_km": 3438.298925151503,
+      "max_km": 4651.816192852034,
+      "distance_km": 3435.9504456176996
+    },
+    {
+      "name": "JORN",
+      "path": "short",
+      "label": "JORN short",
+      "center_km": 16103.40271918813,
+      "min_km": 13687.892311309912,
+      "max_km": 18518.91312706635,
+      "distance_km": 13678.54299769472
+    },
+    {
+      "name": "JORN",
+      "path": "long",
+      "label": "JORN long",
+      "center_km": 31023.173318195808,
+      "min_km": 26369.69732046644,
+      "max_km": 35676.64931592518,
+      "distance_km": 26351.685886377127
+    },
+    {
+      "name": "ROTHR1",
+      "path": "short",
+      "label": "ROTHR Chesapeake Bay",
+      "center_km": 7245.312266240947,
+      "min_km": 6158.515426304804,
+      "max_km": 8332.10910617709,
+      "distance_km": 6154.308942880257
+    },
+    {
+      "name": "ROTHR2",
+      "path": "short",
+      "label": "ROTHR Culebra",
+      "center_km": 8827.17603675969,
+      "min_km": 7503.099631245737,
+      "max_km": 10151.252442273644,
+      "distance_km": 7497.974749346968
+    },
+    {
+      "name": "ROTHR3",
+      "path": "short",
+      "label": "ROTHR Texas",
+      "center_km": 9643.70806249807,
+      "min_km": 8197.15185312336,
+      "max_km": 11090.26427187278,
+      "distance_km": 8191.552909057817
+    }
+  ],
+  "KREA": [
+    {
+      "name": "NIC",
+      "path": "short",
+      "label": "Cyprus",
+      "center_km": 6165.440690194279,
+      "min_km": 5240.624586665137,
+      "max_km": 7090.256793723422,
+      "distance_km": 5237.045055084535
+    },
+    {
+      "name": "JORN",
+      "path": "short",
+      "label": "JORN short",
+      "center_km": 7564.252644314036,
+      "min_km": 6429.61474766693,
+      "max_km": 8698.890540961142,
+      "distance_km": 6425.223093836404
+    },
+    {
+      "name": "JORN",
+      "path": "long",
+      "label": "JORN long",
+      "center_km": 39562.323393069906,
+      "min_km": 33627.97488410942,
+      "max_km": 45496.67190203039,
+      "distance_km": 33605.005790235446
+    },
+    {
+      "name": "ROTHR1",
+      "path": "short",
+      "label": "ROTHR Chesapeake Bay",
+      "center_km": 16263.134943913983,
+      "min_km": 13823.664702326885,
+      "max_km": 18702.60518550108,
+      "distance_km": 13814.222651376023
+    },
+    {
+      "name": "ROTHR2",
+      "path": "short",
+      "label": "ROTHR Culebra",
+      "center_km": 17582.54712799937,
+      "min_km": 14945.165058799463,
+      "max_km": 20219.929197199275,
+      "distance_km": 14934.95698351748
+    },
+    {
+      "name": "ROTHR3",
+      "path": "short",
+      "label": "ROTHR Texas",
+      "center_km": 18183.647868486885,
+      "min_km": 15456.100688213854,
+      "max_km": 20911.195048759917,
+      "distance_km": 15445.54362586155
+    }
+  ]
+}

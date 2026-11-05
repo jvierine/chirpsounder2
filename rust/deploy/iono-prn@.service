@@ -1,0 +1,19 @@
+[Unit]
+Description=Rust complex64 coded ionosonde receiver (%i)
+After=default.target
+StartLimitIntervalSec=0
+
+[Service]
+ExecStart=%h/bin/iono-prn %h/.config/iono-prn/%i.json
+Restart=always
+RestartSec=15
+Slice=iono-prn.slice
+Nice=10
+IOSchedulingClass=idle
+MemoryMax=384M
+LimitAS=805306368
+LimitCORE=0
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,14 @@
+[Unit]
+Description=Limited-bandwidth resumable IonoGUI2 publication
+After=network-online.target
+
+[Service]
+ExecStart=%h/src/chirpsounder2/rust/deploy/iono-delta-publish.sh DOB /data0 j@juha.no
+Restart=always
+RestartSec=120
+Nice=19
+IOSchedulingClass=idle
+MemoryMax=128M
+
+[Install]
+WantedBy=default.target

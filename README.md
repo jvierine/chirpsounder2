@@ -4,6 +4,12 @@ Chirp Sounder 2 detects HF linear-FM chirp sounders in Digital RF recordings and
 
 Live dashboard: http://4.235.86.214/iono/
 
+Native Rust station processing, including SIMD PRN reception from a 25 MHz
+DigitalRF RAM-disk ring buffer, is in [rust/](rust/README.md). It includes
+AVX/FMA and SSE fallbacks, sparse HDF5 ionograms, chirp/Digisonde reception,
+RF spectra and receiver-local RTI/browser-array preparation. The separate
+IonoGUI2 project serves and renders the prepared data; receiver DSP belongs here.
+
 The current pipeline is:
 
 1. Record complex HF voltage as Digital RF with `rx_uhd_ext_gps` by default. Use `rx_uhd` only for simpler setups that do not need the external GPS/PPS handling.

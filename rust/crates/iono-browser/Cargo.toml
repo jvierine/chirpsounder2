@@ -1,0 +1,12 @@
+[package]
+name = "iono-browser"
+version = "0.1.0"
+edition = "2021"
+[dependencies]
+iono-core = { path = "../iono-core" }
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+hdf5.workspace = true
+flate2 = "1"
+sha2 = "0.10"

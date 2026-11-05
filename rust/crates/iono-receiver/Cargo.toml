@@ -1,0 +1,14 @@
+[package]
+name = "iono-receiver"
+version = "0.1.0"
+edition = "2021"
+[dependencies]
+iono-core = { path = "../iono-core" }
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+hdf5.workspace = true
+num-complex.workspace = true
+rustfft.workspace = true
+chrono.workspace = true
+rdigital_rf = { git = "https://github.com/jvierine/rdigital_rf", rev = "81dec24aa8967e2878e98b61a4f94730f55c5fca" }

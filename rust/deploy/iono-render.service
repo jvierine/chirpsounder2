@@ -1,0 +1,15 @@
+[Unit]
+Description=Native Rustplotlib plots for the original ionosonde dashboard
+After=iono2.service
+Requires=iono2.service
+[Service]
+Environment=IONO_STORE=/var/lib/iono2
+Environment=IONO_PNG=/var/www/html/iono
+ExecStart=/home/j/iono-render
+Restart=always
+RestartSec=10
+Nice=19
+MemoryMax=512M
+LimitAS=1073741824
+[Install]
+WantedBy=default.target

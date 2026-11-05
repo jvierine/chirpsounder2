@@ -1,0 +1,7 @@
+[Unit]
+Description=Bounded additional coded-ionosonde processing
+
+[Slice]
+CPUQuota=150%
+CPUWeight=20
+MemoryMax=768M
