@@ -3,7 +3,9 @@ use anyhow::{bail, ensure, Context, Result};
 use hdf5::File;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
+#[cfg(feature = "dsp")]
 pub mod prn;
+#[cfg(feature = "dsp")]
 pub mod simd;
 pub const C: f64 = 299_792_458.;
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -329,6 +331,7 @@ mod tests {
     }
 }
 
+#[cfg(feature = "dsp")]
 pub mod dsp;
 
 fn read_detections(h: &File, path: &Path) -> Result<Vec<Grid>> {
@@ -387,8 +390,10 @@ fn read_detections(h: &File, path: &Path) -> Result<Vec<Grid>> {
     Ok(result)
 }
 
+#[cfg(feature = "dsp")]
 pub mod chirp;
 
+#[cfg(feature = "dsp")]
 pub mod lfm;
 
 #[cfg(test)]

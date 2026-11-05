@@ -30,7 +30,11 @@ while read -r unit _; do
     [[ "$pid" =~ ^[1-9][0-9]*$ ]] || continue
     mapfile -d '' -t argv < "/proc/$pid/cmdline"
     name=$(basename -- "${argv[0]}")
-    case "$name" in iono-receiver|iono-prn|iono-plots) ;; *) continue;; esac
+    if [[ "$name" == bash && ${#argv[@]} -gt 1 && "${argv[1]}" == */iono-delta-publish.sh ]]; then
+        argv=("${argv[@]:1}")
+        name=iono-delta-publish.sh
+    fi
+    case "$name" in iono-receiver|iono-prn|iono-plots|iono-delta-publish.sh|iono-delta-publish) ;; *) continue;; esac
     [[ -e "$state/$unit.before.conf" ]] || systemctl --user cat "$unit" > "$state/$unit.before.conf"
     mkdir -p "$HOME/.config/systemd/user/$unit.d"
     for ((i=1;i<${#argv[@]};i++)); do
@@ -46,11 +50,16 @@ while read -r unit _; do
         fi
     done
     {
-        printf '[Service]\nWorkingDirectory=%s\nExecStart=\nExecStart=%%h/bin/%s' "$source_root" "$name"
+        printf '[Service]\nWorkingDirectory=%s\nExecStart=\nExecStart=' "$source_root"
+        case "$name" in
+            iono-delta-publish*) quote_arg "$source_root/deploy/iono-delta-publish.sh";;
+            *) printf '%%h/bin/%s' "$name";;
+        esac
         for ((i=1;i<${#argv[@]};i++)); do quote_arg "${argv[i]}"; done
         printf '\n'
     } > "$HOME/.config/systemd/user/$unit.d/zzzz-chirpsounder2.conf"
-    units+=("$unit")
+    # Keep an in-flight capped upload alive; its next start uses the new path.
+    [[ "$name" == iono-delta-publish* ]] || units+=("$unit")
 done < <(systemctl --user list-units --type=service --state=running --plain --no-legend 'iono*')
 for name in iono-receiver iono-prn iono-plots; do
     if [[ -e "$HOME/bin/$name" && ! -e "$state/$name.before" ]]; then

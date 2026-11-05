@@ -8,7 +8,7 @@ chrono.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 hdf5.workspace = true
-iono-core = { path = "../iono-core" }
+iono-core = { path = "../iono-core", default-features = false }
 iono-browser = { path = "../iono-browser" }
 rusqlite = { version = "0.37", features = ["bundled"] }
 rustplotlib = { git = "https://github.com/jvierine/rustplotlib", rev = "78490231e753bc4216e3eb2815aea3572f247e16" }

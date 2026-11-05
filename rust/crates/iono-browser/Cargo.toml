@@ -3,7 +3,7 @@ name = "iono-browser"
 version = "0.1.0"
 edition = "2021"
 [dependencies]
-iono-core = { path = "../iono-core" }
+iono-core = { path = "../iono-core", default-features = false }
 anyhow.workspace = true
 serde.workspace = true
 serde_json.workspace = true

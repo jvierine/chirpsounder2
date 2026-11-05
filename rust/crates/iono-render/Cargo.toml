@@ -6,6 +6,6 @@ edition = "2021"
 anyhow.workspace = true
 serde_json.workspace = true
 chrono.workspace = true
-iono-core = { path = "../iono-core" }
+iono-core = { path = "../iono-core", default-features = false }
 rusqlite = { version = "0.37", features = ["bundled"] }
 rustplotlib = { git = "https://github.com/jvierine/rustplotlib", rev = "549fa9dea6f04a506fabe86283fa3ac96ee77de2" }

@@ -25,7 +25,8 @@ library compatibility before running it; do not run a build for another glibc.
 
 `iono-core` contains DSP and HDF5 product readers. `iono-browser` defines the
 prepared HDF5 display-product contract shared with the GUI service. The GUI
-can consume these shared types without owning or running station DSP.
+consumes these shared types with `iono-core` default features disabled, so
+receiver DSP modules and RustFFT are not compiled into the web service.
 
 ## Build on a Linux receiver
 
@@ -35,7 +36,7 @@ headers. The SQLite dependency is bundled.
 ```sh
 sudo apt-get update
 sudo apt-get install -y build-essential pkg-config libhdf5-dev
-git clone -b codex/rust-prn-ringbuffer https://github.com/jvierine/chirpsounder2.git
+git clone https://github.com/jvierine/chirpsounder2.git
 cd chirpsounder2/rust
 export HDF5_DIR=/usr/lib/x86_64-linux-gnu/hdf5/serial
 cargo build --release --locked -p iono-receiver -p iono-plots
