@@ -5,6 +5,14 @@ DigitalRF voltage ring buffer. IonoGUI2 is a separate browser GUI and thin
 archive service; a station does not need the IonoGUI2 repository to build or
 run these programs.
 
+For an existing receiver, `scripts/install-station-build.sh BUILD_DIR SOURCE_ROOT`
+installs a reviewed native build under `~/bin` and updates only running Rust
+worker command lines to that public source release. It preserves JSON contents,
+resource limits, upload caps and acquisition, and saves the previous binaries
+and units under `~/.local/state/chirpsounder2-rollout`. Old GUI-owned config
+locations are copied to `~/.config/chirpsounder2/`. Review the script and native
+library compatibility before running it; do not run a build for another glibc.
+
 | Program | Station task |
 | --- | --- |
 | `iono-receiver detect` | Detect HF chirps in the wideband recording |
