@@ -1,8 +1,11 @@
 # Chirp Sounder 2
 
-Chirp Sounder 2 detects HF linear-FM chirp sounders in Digital RF recordings and turns them into oblique ionograms. It runs either offline on stored data or continuously on a live Digital RF ringbuffer from a USRP/GPSDO receiver.
+Chirp Sounder 2 supports three HF ionosonde families: **Digisonde**,
+**LFM (chirp) sounders**, and **PRN (pseudorandom coded) sounders**. It turns
+DigitalRF voltage recordings into ionograms, RTIs and RF spectrum products,
+either offline or continuously from a live USRP/GPSDO RAM-disk ring buffer.
 
-Live dashboard: http://4.235.86.214/iono/
+Live dashboard: https://juha.no/iono/
 
 Native Rust station processing, including SIMD PRN reception from a 25 MHz
 DigitalRF RAM-disk ring buffer, is in [rust/](rust/README.md). It includes

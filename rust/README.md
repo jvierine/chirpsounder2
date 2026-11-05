@@ -1,5 +1,7 @@
 # Rust station processing
 
+Supported sounder families: **Digisonde**, **LFM/chirp**, and **PRN/coded**.
+
 This workspace belongs to **chirpsounder2**. It runs beside the receiver's
 DigitalRF voltage ring buffer. IonoGUI2 is a separate browser GUI and thin
 archive service; a station does not need the IonoGUI2 repository to build or
