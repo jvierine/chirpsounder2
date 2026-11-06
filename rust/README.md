@@ -259,3 +259,12 @@ The KHO unit runs below acquisition and sounder reception priority, with a
 and starts with the user manager after reboot. Keep the station's existing
 user lingering enabled. No acquisition restart is needed to replace the RF
 worker.
+
+## Fixed timing and delay diagnostics
+
+Native station workers share one immutable receiver timing revision, separate
+from transmitter emission timing and propagation range gates. See
+[`deploy/receiver-timing/README.md`](deploy/receiver-timing/README.md) for the
+sign convention, nominal station profiles, HDF5 metadata and `iono-delay`
+diagnostics. Nominal profiles preserve existing timing and do not claim a
+measured hardware calibration.

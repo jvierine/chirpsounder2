@@ -12,6 +12,8 @@ pub mod prn;
 #[cfg(feature = "dsp")]
 pub mod pulsed;
 #[cfg(feature = "dsp")]
+pub mod receiver_timing;
+#[cfg(feature = "dsp")]
 pub mod simd;
 pub const C: f64 = 299_792_458.;
 pub mod lfm_geolocation;

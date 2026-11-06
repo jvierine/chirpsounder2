@@ -73,6 +73,7 @@ fn epoch_sample(t: f64) -> Result<u64> {
         .checked_mul(25_000_000)
         .and_then(|n| n.checked_add((t.fract() * 25e6).round() as u64))
         .context("epoch overflow")
+        .and_then(|i| iono_core::receiver_timing::corrected_sample_index(i, 25_000_000))
 }
 fn text(h: &File, n: &str, s: &str) -> Result<()> {
     h.new_dataset::<hdf5::types::VarLenUnicode>()
@@ -264,6 +265,10 @@ fn resume(
         return Ok(());
     }
     let h = File::open(&path)?;
+    ensure!(
+        iono_core::receiver_timing::metadata_compatible(&h),
+        "existing observation has another fixed receiver correction; preserving it"
+    );
     let previous: Config = serde_json::from_str(&iono_core::text(&h, "configuration_json", ""))?;
     ensure!(
         previous.station == c.station
@@ -327,6 +332,7 @@ fn save(
     let tmp = path.with_extension("partial.h5");
     {
         let h = File::create(&tmp)?;
+        iono_core::receiver_timing::write_metadata(&h)?;
         let mut indices = vec![];
         let mut values = vec![];
         let cutoff = 10f32.powf(c.snr_threshold_db / 10.);
@@ -415,6 +421,7 @@ fn main() -> Result<()> {
         args.get(1)
             .context("usage: iono-prn CONFIG [--once] [--start EPOCH]")?,
     )?)?;
+    iono_core::receiver_timing::initialize(&c.station)?;
     validate(&c)?;
     ensure!(
         c.writer_grace_s.is_finite() && (0.25..=6.).contains(&c.writer_grace_s),

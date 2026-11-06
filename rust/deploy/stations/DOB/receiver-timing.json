@@ -1,0 +1,10 @@
+{
+  "station": "DOB",
+  "revision": "gps-sample-time-zero-additional-correction-v1",
+  "delay_us": 0.0,
+  "uncertainty_us": null,
+  "status": "nominal",
+  "reference": "Existing UHD/GPS sample-time convention, preserved without an additional correction",
+  "valid_from_unix": 0.0,
+  "valid_until_unix": null
+}

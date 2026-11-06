@@ -45,6 +45,9 @@ struct Config {
     n_ipp: usize,
     #[serde(default = "ipp")]
     ipp_us: usize,
+    /// Physical transmitter PRI; ipp_us may be the effective per-carrier PRI.
+    #[serde(default)]
+    physical_ipp_us: Option<usize>,
     #[serde(default)]
     start_offset_s: f64,
     #[serde(default = "hours")]
@@ -135,6 +138,7 @@ fn epoch_sample(t: f64, sr: u64) -> Result<u64> {
         .checked_mul(sr)
         .and_then(|n| n.checked_add((t.fract() * sr as f64).round() as u64))
         .context("epoch sample overflow")
+        .and_then(|i| iono_core::receiver_timing::corrected_sample_index(i, sr))
 }
 fn wait(until: f64) {
     let d = until - now();
@@ -209,18 +213,54 @@ fn publish(c: &Config, tmp: &Path, path: &Path) -> Result<()> {
     println!("published {}", path.display());
     Ok(())
 }
+fn validate_digisonde(c: &Config) -> Result<()> {
+    ensure!(
+        [5000, 10000, 20000, 40000].contains(&c.ipp_us),
+        "unsupported effective Digisonde PRI"
+    );
+    let physical = c.physical_ipp_us.unwrap_or(c.ipp_us);
+    ensure!(
+        [5000, 10000, 20000, 40000].contains(&physical)
+            && c.ipp_us % physical == 0
+            && c.ipp_us / physical <= 4,
+        "invalid physical/effective PRI relationship"
+    );
+    ensure!(
+        (4..=128).contains(&c.n_ipp) && c.n_ipp % 4 == 0,
+        "Digisonde pulse count must be a multiple of four, up to 128"
+    );
+    ensure!(
+        c.freq_start_hz.is_finite()
+            && c.freq_stop_hz.is_finite()
+            && c.freq_step_hz.is_finite()
+            && c.freq_start_hz >= 0.5e6
+            && c.freq_stop_hz <= 24.5e6
+            && c.freq_stop_hz > c.freq_start_hz
+            && c.freq_step_hz >= 1000.,
+        "invalid Digisonde RF grid"
+    );
+    let nf = (c.freq_stop_hz - c.freq_start_hz) / c.freq_step_hz;
+    ensure!(
+        nf.round() >= 1. && nf.round() < 2000. && (nf - nf.round()).abs() < 1e-6,
+        "Digisonde frequency grid must have integer steps"
+    );
+    let n = (c.sample_rate * c.ipp_us as f64 * 1e-6).round() as usize;
+    ensure!(
+        n.checked_mul(c.n_ipp).is_some_and(|v| v <= 16_000_000),
+        "Digisonde dwell exceeds the 128 MB complex64 voltage budget"
+    );
+    Ok(())
+}
 fn digisonde(c: &Config, t: f64) -> Result<()> {
+    validate_digisonde(c)?;
     let mut r = reader(c)?;
     let dsp = Digisonde::new(c.ipp_us);
     let (nf, nr, nipp) = (
-        ((c.freq_stop_hz - c.freq_start_hz) / c.freq_step_hz) as usize,
-        c.ipp_us / 10,
+        ((c.freq_stop_hz - c.freq_start_hz) / c.freq_step_hz).round() as usize,
+        c.physical_ipp_us.unwrap_or(c.ipp_us) / 10,
         c.n_ipp,
     );
-    ensure!(
-        nf > 0 && nf < 2000 && nr > 0 && nipp >= 4 && nipp <= 64 && nipp % 4 == 0,
-        "invalid sounding configuration"
-    );
+    let effective_nr = c.ipp_us / 10;
     let ipp_samples = (c.sample_rate * c.ipp_us as f64 * 1e-6).round() as usize;
     let frequency_duration = nipp as f64 * c.ipp_us as f64 * 1e-6;
     let threshold = c
@@ -248,7 +288,7 @@ fn digisonde(c: &Config, t: f64) -> Result<()> {
             .context("sounding sample overflow")?;
         let mut decoded = Vec::with_capacity(nipp);
         // One contiguous frequency read avoids repeated HDF5 hyperslab setup.
-        // The validated maximum is 64 IPPs (128 MB of complex-f32 voltage).
+        // The voltage budget is 128 MB, including 128 physical 5 ms IPPs.
         let padding = if c.rfi_clip_ratio.is_some() { 1000 } else { 0 };
         let raw = read_live(
             &mut r,
@@ -265,13 +305,15 @@ fn digisonde(c: &Config, t: f64) -> Result<()> {
             let mut baseband =
                 channelizer.process(ipp_raw, (pi * ipp_samples) as i64 - padding as i64);
             if padding > 0 {
-                baseband = baseband[4..4 + nr].to_vec();
+                baseband = baseband[4..4 + effective_nr].to_vec();
             }
             decoded.push(dsp.decode_baseband_ipp(baseband, pi, c.rfi_clip_ratio));
         }
         let p = dsp.power(&decoded);
         for mode in 0..2 {
-            let floor = median(&p[mode]);
+            // Other interleaved carriers can produce peaks in later physical
+            // PRI slots. Keep the selected physical range interval explicit.
+            let floor = median(&p[mode][..nr]);
             noise[mode * nf + f] = floor;
             for k in 0..nr {
                 let snr = (p[mode][k] - floor) / floor;
@@ -298,6 +340,7 @@ fn digisonde(c: &Config, t: f64) -> Result<()> {
     let tmp = path.with_extension("h5.partial");
     {
         let h = File::create(&tmp)?;
+        iono_core::receiver_timing::write_metadata(&h)?;
         iono_core::write_sparse_snr(&h, &[2, nf, nr], &power)?;
         h.new_dataset::<f32>()
             .shape([2, nf])
@@ -317,6 +360,12 @@ fn digisonde(c: &Config, t: f64) -> Result<()> {
         dataset(&h, "sample_rate_hz", c.sample_rate)?;
         dataset(&h, "n_ipp", nipp as f64)?;
         dataset(&h, "ipp_us", c.ipp_us as f64)?;
+        dataset(&h, "effective_ipp_us", c.ipp_us as f64)?;
+        dataset(
+            &h,
+            "physical_ipp_us",
+            c.physical_ipp_us.unwrap_or(c.ipp_us) as f64,
+        )?;
         dataset(&h, "frequency_duration_s", frequency_duration)?;
         if let Some(ratio) = c.rfi_clip_ratio {
             dataset(&h, "rfi_clip_amplitude_ratio", ratio as f64)?;
@@ -370,6 +419,7 @@ fn spectrum(c: &Config, t: f64) -> Result<()> {
     let tmp = path.with_extension("h5.partial");
     {
         let h = File::create(&tmp)?;
+        iono_core::receiver_timing::write_metadata(&h)?;
         h.new_dataset::<f32>()
             .shape([nt, nfft])
             .deflate(3)
@@ -488,6 +538,7 @@ fn main() -> Result<()> {
     let task = args.get(1).map(String::as_str).unwrap_or("digisonde");
     let c: Config =
         serde_json::from_slice(&std::fs::read(args.get(2).context("configuration path")?)?)?;
+    iono_core::receiver_timing::initialize(&c.station)?;
     let once = args.iter().any(|s| s == "--once");
     ensure!(
         c.writer_grace_s.is_finite() && (0.15..=10.).contains(&c.writer_grace_s),
@@ -588,5 +639,19 @@ mod tests {
         let b: Config =
             serde_json::from_str(r#"{"station":"TGO","data_dir":"x","output_dir":"y"}"#).unwrap();
         assert_eq!(b.delay(), 4688.);
+    }
+    #[test]
+    fn long_5ms_dwells_fit_the_existing_voltage_budget_and_multiplexing_is_explicit() {
+        let mut c:Config=serde_json::from_str(r#"{"station":"DOB","data_dir":"x","output_dir":"y","transmitter":"RO041","n_ipp":128,"ipp_us":5000}"#).unwrap();
+        validate_digisonde(&c).unwrap();
+        c.ipp_us = 10000;
+        assert!(validate_digisonde(&c).is_err());
+        c.ipp_us = 20000;
+        c.n_ipp = 16;
+        c.physical_ipp_us = Some(10000);
+        validate_digisonde(&c).unwrap();
+        assert_eq!(c.physical_ipp_us.unwrap() / 10, 1000);
+        c.physical_ipp_us = Some(40000);
+        assert!(validate_digisonde(&c).is_err());
     }
 }

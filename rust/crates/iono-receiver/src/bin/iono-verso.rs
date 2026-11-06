@@ -86,6 +86,7 @@ fn epoch_sample(t: f64) -> Result<u64> {
         .checked_mul(25_000_000)
         .and_then(|s| s.checked_add((t.fract() * 25e6).round() as u64))
         .context("epoch overflow")
+        .and_then(|i| iono_core::receiver_timing::corrected_sample_index(i, 25_000_000))
 }
 fn reader(c: &Config) -> Result<Reader> {
     let mut r = Reader::open([&c.data_dir])?;
@@ -159,6 +160,10 @@ impl Observation {
         if path.exists() {
             let h = File::open(&path)?;
             ensure!(
+                iono_core::receiver_timing::metadata_compatible(&h),
+                "existing observation has another fixed receiver correction; preserving it"
+            );
+            ensure!(
                 signal_config(&serde_json::from_str::<Config>(&iono_core::text(
                     &h,
                     "configuration_json",
@@ -210,6 +215,7 @@ impl Observation {
         fs::create_dir_all(path.parent().unwrap())?;
         let tmp = path.with_extension("h5.partial");
         let h = File::create(&tmp)?;
+        iono_core::receiver_timing::write_metadata(&h)?;
         let mut indices = vec![];
         let mut values = vec![];
         let cutoff = 10f32.powf(c.snr_threshold_db / 10.);
@@ -542,6 +548,7 @@ fn main() -> Result<()> {
         a.get(1)
             .context("usage: iono-verso CONFIG [--once] [--ready-only] [--start UNIX_SECONDS]")?,
     )?)?;
+    iono_core::receiver_timing::initialize(&c.station)?;
     ensure!(
         !c.station.is_empty()
             && c.station

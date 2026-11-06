@@ -152,6 +152,11 @@ fn main() -> Result<()> {
         ix.len() == f.len() && ix.len() <= 10_000_000,
         "invalid candidate rows"
     );
+    let receiver_delay_us = iono_core::scalar(&h, "receiver_delay_us", 0.);
+    ensure!(
+        receiver_delay_us.is_finite(),
+        "invalid archived receiver timing"
+    );
     let reference = h.attr("first_planned_sample_index")?.read_scalar::<u64>()?;
     let stride = h.attr("stride_s")?.read_scalar::<f64>()?;
     ensure!(stride.is_finite() && stride > 0., "invalid stride");
@@ -201,6 +206,24 @@ fn main() -> Result<()> {
         println!("candidate {}: {:.3} kHz/s, {:.2}--{:.2} MHz, {:.2}--{:.2}s, {} windows, {:.1} kHz RMS; {m}/{n} code matches, max coherence {maximum:.3}",k+1,r.rate*1000.,r.minf,r.maxf,r.first,r.last,r.n,r.rms*1000.);
     }
     let out = File::create(&a[2])?;
+    out.new_dataset::<f64>()
+        .create("receiver_delay_us")?
+        .write_scalar(&receiver_delay_us)?;
+    for name in [
+        "receiver_timing_station",
+        "receiver_timing_revision",
+        "receiver_timing_status",
+        "receiver_timing_reference",
+    ] {
+        if h.link_exists(name) {
+            out.new_dataset::<hdf5::types::VarLenUnicode>()
+                .create(name)?
+                .write_scalar(
+                    &h.dataset(name)?
+                        .read_scalar::<hdf5::types::VarLenUnicode>()?,
+                )?;
+        }
+    }
     for name in [
         "processed_blocks",
         "planned_blocks",
@@ -250,14 +273,14 @@ fn main() -> Result<()> {
         "first_unix",
         result
             .iter()
-            .map(|x| reference as f64 / 25e6 + x.first)
+            .map(|x| reference as f64 / 25e6 - receiver_delay_us * 1e-6 + x.first)
             .collect::<Vec<_>>()
     );
     save!(
         "last_unix",
         result
             .iter()
-            .map(|x| reference as f64 / 25e6 + x.last)
+            .map(|x| reference as f64 / 25e6 - receiver_delay_us * 1e-6 + x.last)
             .collect::<Vec<_>>()
     );
     save!(

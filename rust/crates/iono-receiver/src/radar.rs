@@ -176,6 +176,7 @@ fn save(c: &Config, source: &str, rate: i64, epoch: i64, image: &Image) -> Resul
     let tmp = path.with_extension("partial.h5");
     let nr = ((image.gate[1] - image.gate[0]) / image.step).ceil() as usize + 1;
     let h = File::create(&tmp)?;
+    iono_core::receiver_timing::write_metadata(&h)?;
     let freqs: Vec<_> = (0..500).map(|i| (i as f64 + 0.5) * 50000.).collect();
     let ranges: Vec<_> = (0..nr)
         .map(|i| (image.gate[0] + i as f64 * image.step) * 1000.)

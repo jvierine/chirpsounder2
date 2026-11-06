@@ -176,6 +176,7 @@ fn save(
 ) -> Result<()> {
     let tmp = path.with_extension("partial.h5");
     let h = File::create(&tmp)?;
+    iono_core::receiver_timing::write_metadata(&h)?;
     macro_rules! vector {
         ($name:expr,$values:expr) => {
             let values = $values;
@@ -194,7 +195,9 @@ fn save(
     vector!("sample_index", rows.iter().map(|r| r.0).collect::<Vec<_>>());
     vector!(
         "time_unix",
-        rows.iter().map(|r| r.0 as f64 / 25e6).collect::<Vec<_>>()
+        rows.iter()
+            .map(|r| iono_core::receiver_timing::utc_from_recorded(r.0 as f64 / 25e6))
+            .collect::<Vec<_>>()
     );
     vector!(
         "frequency_hz",
@@ -375,6 +378,7 @@ fn main() -> Result<()> {
         .unwrap_or(if live_s > 0 { 0 } else { 900 })
         .min(900);
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
+    iono_core::receiver_timing::initialize(&c.station)?;
     let bounds = reader(&c)?
         .bounds(&c.channel)?
         .context("no readable voltage")?;

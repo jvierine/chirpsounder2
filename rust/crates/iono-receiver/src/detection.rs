@@ -24,7 +24,9 @@ pub fn run(c: &Config, once: bool) -> Result<()> {
             let mut d = Detector::new(n, c.sample_rate, c.center_freq, vec![100000., 125000.]);
             while let Ok((sequence, block, skipped, raw)) = rx.recv() {
                 let mut columns = vec![];
-                let t = block as f64 * n as f64 / c.sample_rate;
+                let t = iono_core::receiver_timing::utc_from_recorded(
+                    block as f64 * n as f64 / c.sample_rate,
+                );
                 let found = d.seek_with_spectra(&raw, 13., 5, 200000., |rate, fft| {
                     if !c.radar_sources.is_empty() {
                         columns.extend(radar::project(&c, t, rate, fft));
@@ -95,7 +97,7 @@ pub fn run(c: &Config, once: bool) -> Result<()> {
         expected += 1;
         skipped_total += skipped;
         let start = block * n as u64;
-        let t = start as f64 / c.sample_rate;
+        let t = iono_core::receiver_timing::utc_from_recorded(start as f64 / c.sample_rate);
         radar.update(c, columns, t)?;
         let current = (t / 900.).floor() as u64 * 900;
         if current != bucket {
@@ -106,6 +108,10 @@ pub fn run(c: &Config, once: bool) -> Result<()> {
             rows.clear();
             let path = output(c, &format!("cdetections-{}", c.station), bucket as f64)?;
             if let Ok(h) = File::open(path) {
+                ensure!(
+                    iono_core::receiver_timing::metadata_compatible(&h),
+                    "detector bucket has a different fixed receiver timing revision"
+                );
                 if let Ok(ds) = h.dataset("data") {
                     if ds.size() < 500_000 {
                         rows = ds.read_raw::<f64>().unwrap_or_default();
@@ -129,6 +135,7 @@ pub fn run(c: &Config, once: bool) -> Result<()> {
             let tmp = path.with_extension("h5.partial");
             {
                 let h = File::create(&tmp)?;
+                iono_core::receiver_timing::write_metadata(&h)?;
                 dataset(&h, "f0", det.frequency_hz)?;
                 dataset(&h, "chirp_rate", det.rate_hz_s)?;
                 dataset(&h, "chirp_time", epoch)?;
@@ -169,6 +176,7 @@ fn save_bucket(c: &Config, bucket: u64, rows: &[f64]) -> Result<()> {
     let tmp = path.with_extension("h5.partial");
     {
         let h = File::create(&tmp)?;
+        iono_core::receiver_timing::write_metadata(&h)?;
         if rows.is_empty() {
             h.new_dataset::<f64>().shape([0, 5]).create("data")?;
         } else {

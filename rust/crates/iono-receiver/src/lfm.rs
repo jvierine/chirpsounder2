@@ -57,6 +57,7 @@ pub fn run(c: &Config, t: f64) -> Result<()> {
     let tmp = path.with_extension("h5.partial");
     {
         let h = File::create(&tmp)?;
+        iono_core::receiver_timing::write_metadata(&h)?;
         iono_core::write_sparse_snr(&h, &[indices.len(), ridx.len()], &snr)?;
         let freqs: Vec<_> = indices
             .iter()

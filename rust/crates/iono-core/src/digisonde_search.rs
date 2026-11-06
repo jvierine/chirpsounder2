@@ -294,4 +294,31 @@ mod tests {
         raw[124567] = Z::new(1., 0.);
         assert!(PulseSearch::new(25e6, 12.5e6).seek(&raw, 1.8, 4).is_empty());
     }
+    #[test]
+    fn multiplexed_single_polarization_pulses_remain_searchable() {
+        let code = crate::digisonde_match::template(4_000_000, 25e6, 20000, 3);
+        let mut phase = Z::new(1., 0.);
+        let step = Z::from_polar(1., (std::f64::consts::TAU * -7.5e6 / 25e6) as f32);
+        let mut seed = 7u64;
+        let raw: Vec<_> = code
+            .iter()
+            .enumerate()
+            .map(|(i, &code)| {
+                phase *= step;
+                if i % 4096 == 0 {
+                    phase /= phase.norm();
+                }
+                seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+                let re = ((seed >> 32) as u32 as f64 / u32::MAX as f64 - 0.5) as f32;
+                seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+                let im = ((seed >> 32) as u32 as f64 / u32::MAX as f64 - 0.5) as f32;
+                code * phase + Z::new(10., 0.) + Z::new(re, im) * 0.05
+            })
+            .collect();
+        let found = PulseSearch::new(25e6, 12.5e6).seek_band(&raw, 1.8, 4, 4.8e6, 5.2e6);
+        assert!(
+            found.iter().any(|p| (p.frequency_hz - 5e6).abs() <= 60e3),
+            "{found:?}"
+        );
+    }
 }
