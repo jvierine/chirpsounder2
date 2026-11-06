@@ -331,6 +331,7 @@ mod tests {
             assumed_paths: vec![],
             health: serde_json::json!({}),
         };
+        b.products[0].grid.values[1] = f32::NAN;
         validate(&b).unwrap();
         let full = std::env::temp_dir().join(format!("iono-full-{}.h5", std::process::id()));
         let small = full.with_extension("transport.h5");
@@ -345,10 +346,11 @@ mod tests {
                 assert!(c.link_exists(id));
                 let key = format!("{id}_gzip");
                 assert!(!c.link_exists(&key));
-                assert_eq!(
-                    a.dataset(id).unwrap().read_raw::<f32>().unwrap(),
-                    c.dataset(id).unwrap().read_raw::<f32>().unwrap()
-                );
+                let original = a.dataset(id).unwrap().read_raw::<f32>().unwrap();
+                let compact = c.dataset(id).unwrap().read_raw::<f32>().unwrap();
+                for (x, y) in original.iter().zip(&compact) {
+                    assert_eq!(x.to_bits(), y.to_bits());
+                }
             }
         }
         assert!(small.metadata().unwrap().len() < full.metadata().unwrap().len());
