@@ -129,7 +129,7 @@ The live station is a set of small processes sharing the same config and Digital
 - `calc_ionograms.py`: downconverts configured or detected sweeps and writes LFM ionograms.
 - `receive_digisonde.py`: decodes Digisonde soundings with known schedules.
 - `plot_ionograms.py`, `plot_rtf.py`, `plot_detectionfiles.py`: make the web/display plots.
-- `plot_rf_spec.py`: publishes a full-band 25 MHz STFT quick-look for receiver monitoring.
+- `iono-receiver spectrum`: native receiver-local RF monitoring with HDF5 average-power products; see `rust/deploy/kho/` and `rust/README.md`. The Python RF plotter has been retired.
 - `station_monitor.py`, `iono_housekeeping.py`, `sync_iono_data.py`: monitor health, clean up old files, and publish products.
 
 ## Main Outputs
