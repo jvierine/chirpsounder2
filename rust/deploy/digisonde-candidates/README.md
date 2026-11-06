@@ -89,3 +89,26 @@ Do not increase a CPU ceiling to compensate for a scheduling mistake.
 DOB subsequently received this checksum-verified native replacement with a
 16 KiB/s transfer cap. The previous binary was backed up; no acquisition or
 existing receiver was restarted, and no new continuous sounder was enabled.
+
+## Norwegian timing comparison at 13:07:30 UTC
+
+Simultaneous bounded tests compared the legacy 2.025 MHz start against the
+GIRO nominal 2.000 MHz start, with 25 kHz frequency steps and 32 × 10 ms IPPs
+per dwell. KHO also tested 64 IPPs per dwell. TGO, DOB and KHO produced complete
+sparse probe files. No hypothesis produced a continuous identifiable Thule
+trace: the longest adjacent frequency run above 13 dB was two bins at DOB,
+three at TGO, and one at KHO. This is a simple diagnostic, not a calibrated
+false-alarm test. Both DOB start choices show isolated narrow-frequency
+features; increasing the KHO dwell did not recover a trace. Rustplotlib
+ionograms were inspected with the 0–20 dB grayscale display.
+
+A separate DOB code-bank check at sounding +32.080 seconds tested the fast and
+slow frequency-track hypotheses with 5/10/20/40 ms effective pulse spacings.
+Only weak isolated matches were obtained (coherence roughly 0.01), insufficient
+for identification or a transmit-timing correction. Thule's timing therefore
+remains unconfirmed. A GIRO header/scheduled epoch alone is not an on-air timing
+measurement. No production timing or transmit group-delay value was changed.
+
+The longer KHO test needed up to 192 MiB of service memory plus about 47 MiB
+swap, and 78 CPU seconds; it is not suitable as an unattended extra worker on
+this host without further reduction. All test units were finite and completed.

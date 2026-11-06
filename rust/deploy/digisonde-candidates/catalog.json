@@ -521,5 +521,85 @@
       "acquisition_restarted": false,
       "continuous_sounder_enabled": false
     }
+  },
+  "norway_timing_trial": {
+    "epoch_unix": 1793970450,
+    "utc": "2026-11-06T13:07:30Z",
+    "frequency_start_hz_options": [
+      2000000,
+      2025000
+    ],
+    "frequency_step_hz": 25000,
+    "n_ipp_options": [
+      32,
+      64
+    ],
+    "ipp_us": 10000,
+    "results": [
+      {
+        "trial": "DOB-base",
+        "payload_bytes": 46221,
+        "accepted_cells": 3773,
+        "cells_above_13db": 883,
+        "frequency_bins_above_13db": 23,
+        "longest_adjacent_frequency_run": 2
+      },
+      {
+        "trial": "DOB-plus25",
+        "payload_bytes": 44580,
+        "accepted_cells": 3470,
+        "cells_above_13db": 641,
+        "frequency_bins_above_13db": 23,
+        "longest_adjacent_frequency_run": 2
+      },
+      {
+        "trial": "KHO-base",
+        "payload_bytes": 27280,
+        "accepted_cells": 425,
+        "cells_above_13db": 15,
+        "frequency_bins_above_13db": 3,
+        "longest_adjacent_frequency_run": 1
+      },
+      {
+        "trial": "KHO-plus25-long",
+        "payload_bytes": 27280,
+        "accepted_cells": 393,
+        "cells_above_13db": 17,
+        "frequency_bins_above_13db": 2,
+        "longest_adjacent_frequency_run": 1
+      },
+      {
+        "trial": "KHO-plus25",
+        "payload_bytes": 27280,
+        "accepted_cells": 431,
+        "cells_above_13db": 22,
+        "frequency_bins_above_13db": 2,
+        "longest_adjacent_frequency_run": 1
+      },
+      {
+        "trial": "TGO-plus25",
+        "payload_bytes": 35907,
+        "accepted_cells": 1734,
+        "cells_above_13db": 391,
+        "frequency_bins_above_13db": 8,
+        "longest_adjacent_frequency_run": 3
+      }
+    ],
+    "code_check": {
+      "receiver": "DOB",
+      "utc": "2026-11-06T13:08:02.080Z",
+      "tested_effective_ipp_us": [
+        5000,
+        10000,
+        20000,
+        40000
+      ],
+      "coherence": [
+        0.0097,
+        0.0109
+      ],
+      "result": "isolated weak matches; no independently identified Thule sequence"
+    },
+    "conclusion": "Timing NOT confirmed; no continuous identified Thule trace in these hypotheses. No production timing change or continuous receiver enabled."
   }
 }
