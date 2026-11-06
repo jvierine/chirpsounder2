@@ -217,8 +217,9 @@ pub fn read_products(path: &Path) -> Result<Vec<Grid>> {
         nf == freqs.len() && nr == ranges.len() && modes <= 2,
         "axis/data shape mismatch"
     );
-    let prn =
-        h.link_exists("decoder") && text(&h, "decoder", "").starts_with("complex64-fft-matched");
+    let decoder = text(&h, "decoder", "");
+    let prn = decoder.starts_with("complex64-fft-matched")
+        || decoder.starts_with("complex64-finite-regularized-inverse-verso-");
     if prn && !h.link_exists("code_identity_margin_db") {
         // Early commissioning products lack the seed-discrimination control.
         // Retain their scientific arrays but exclude them from interpretations.
@@ -511,51 +512,55 @@ mod sparse_tests {
     }
     #[test]
     fn prn_cross_code_rejection_changes_display_but_preserves_source() {
-        let path = std::env::temp_dir().join(format!("iono-prn-{}.h5", std::process::id()));
-        {
-            let h = File::create(&path).unwrap();
-            h.new_dataset_builder()
-                .with_data(&[2e6, 3e6])
-                .create("freqs")
-                .unwrap();
-            h.new_dataset_builder()
-                .with_data(&[300e3, 600e3])
-                .create("ranges")
-                .unwrap();
-            h.new_dataset::<f32>()
-                .shape((2, 2))
-                .create("SNR")
-                .unwrap()
-                .write_raw(&[100f32; 4])
-                .unwrap();
-            let decoder: hdf5::types::VarLenUnicode =
-                "complex64-fft-matched-filter-doppler-v1".parse().unwrap();
-            h.new_dataset::<hdf5::types::VarLenUnicode>()
-                .create("decoder")
-                .unwrap()
-                .write_scalar(&decoder)
-                .unwrap();
-            h.new_dataset_builder()
-                .with_data(&[-5f32, 8.])
-                .create("code_identity_margin_db")
-                .unwrap();
+        for tag in [
+            "complex64-fft-matched-filter-doppler-v1",
+            "complex64-finite-regularized-inverse-verso-v3",
+        ] {
+            let path = std::env::temp_dir().join(format!("iono-prn-{}.h5", std::process::id()));
+            {
+                let h = File::create(&path).unwrap();
+                h.new_dataset_builder()
+                    .with_data(&[2e6, 3e6])
+                    .create("freqs")
+                    .unwrap();
+                h.new_dataset_builder()
+                    .with_data(&[300e3, 600e3])
+                    .create("ranges")
+                    .unwrap();
+                h.new_dataset::<f32>()
+                    .shape((2, 2))
+                    .create("SNR")
+                    .unwrap()
+                    .write_raw(&[100f32; 4])
+                    .unwrap();
+                let decoder: hdf5::types::VarLenUnicode = tag.parse().unwrap();
+                h.new_dataset::<hdf5::types::VarLenUnicode>()
+                    .create("decoder")
+                    .unwrap()
+                    .write_scalar(&decoder)
+                    .unwrap();
+                h.new_dataset_builder()
+                    .with_data(&[-5f32, 8.])
+                    .create("code_identity_margin_db")
+                    .unwrap();
+            }
+            let grids = read_products(&path).unwrap();
+            let g = &grids[0];
+            assert_eq!(g.kind, "prn");
+            assert!(g.values[0].is_nan() && g.values[2].is_nan());
+            assert_eq!(g.values[1], 20.);
+            assert_eq!(g.values[3], 20.);
+            assert_eq!(
+                File::open(&path)
+                    .unwrap()
+                    .dataset("SNR")
+                    .unwrap()
+                    .read_raw::<f32>()
+                    .unwrap(),
+                vec![100.; 4]
+            );
+            fs_remove(&path);
         }
-        let grids = read_products(&path).unwrap();
-        let g = &grids[0];
-        assert_eq!(g.kind, "prn");
-        assert!(g.values[0].is_nan() && g.values[2].is_nan());
-        assert_eq!(g.values[1], 20.);
-        assert_eq!(g.values[3], 20.);
-        assert_eq!(
-            File::open(&path)
-                .unwrap()
-                .dataset("SNR")
-                .unwrap()
-                .read_raw::<f32>()
-                .unwrap(),
-            vec![100.; 4]
-        );
-        fs_remove(&path);
     }
     fn fs_remove(path: &Path) {
         std::fs::remove_file(path).unwrap();
