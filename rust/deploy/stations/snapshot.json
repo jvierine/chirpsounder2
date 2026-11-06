@@ -148,6 +148,11 @@
       "path": "DOB/juliusruh-night.json",
       "sha256": "ab981006316b9e540217b811d765a555d6dbf270072b3f34423fee59d27c05f4",
       "deployed_utc": "2026-11-06T17:13:30.044564+00:00"
+    },
+    {
+      "path": "W2NAF/global.json",
+      "sha256": "da0e7dd26be4b59dd8395056a2a0d9fef702bee2f1fca309ca90438d11d90dfe",
+      "deployed_utc": "2026-11-06T21:11:43Z"
     }
   ],
   "updated_utc": "2026-11-06T17:13:30.044564+00:00",

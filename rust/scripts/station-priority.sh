@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Receiver scheduling policy; no acquisition restarts, timing changes or CPU caps.
+# Receiver scheduling policy; no acquisition restarts or timing changes.
+# Global search has a separate CPU budget.
 set -euo pipefail
 if [[ ${1:-} == --install ]]; then
   while read -r unit _; do
@@ -7,7 +8,7 @@ if [[ ${1:-} == --install ]]; then
       chirpsounder_*.service) weight=2000; shares=20480; nice=0;;
       iono-rust-digisonde.service) weight=1000; shares=10240; nice=0;;
       iono-rust-lfm.service) weight=600; shares=6144; nice=2;;
-      iono-rust-detect.service) weight=300; shares=3072; nice=5;;
+      iono-rust-detect.service) weight=1; shares=2; nice=19;;
       iono-prn@*.service|iono-verso.service|iono-digisonde@*.service|iono-rust-juliusruh-*.service) weight=50; shares=512; nice=10;;
       *) continue;;
     esac
@@ -39,7 +40,7 @@ while read -r pid niceness args; do
   case " $args " in
     *' receive_digisonde.py '*|*'/receive_digisonde.py '*|*' iono-receiver digisonde '*) target=0;;
     *' calc_ionograms.py '*|*'/calc_ionograms.py '*|*'/iono-receiver lfm '*) target=2;;
-    *' detect_chirps.py '*|*'/detect_chirps.py '*|*'/iono-receiver detect '*) target=5;;
+    *' detect_chirps.py '*|*'/detect_chirps.py '*|*'/iono-receiver detect '*) target=19;;
     *'/iono-prn '*|*'/iono-verso '*) target=10;;
     *' iono_housekeeping.py '*|*'/iono_housekeeping.py '*|*' station_monitor.py '*|*' -u station_monitor.py '*|*' plot_rf_spec.py '*|*' -u plot_rf_spec.py '*|*' plot_ionograms.py '*|*' plot_digisonde.py '*|*' plot_rtf.py '*|*' plot_detectionfiles.py '*|*' sync_iono_data.py '*) target=15;;
   esac

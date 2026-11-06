@@ -8,7 +8,9 @@ Restart=always
 RestartSec=10
 MemoryMax=1500M
 LimitAS=2147483648
-Nice=5
+Nice=19
+CPUQuota=100%
+CPUWeight=1
 
 [Install]
 WantedBy=default.target

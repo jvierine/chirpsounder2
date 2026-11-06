@@ -1,0 +1,11 @@
+{
+  "station": "W2NAF",
+  "data_dir": "/mnt/ramdisk/hf25",
+  "output_dir": "/home/hamsci/data/chirpsounder2",
+  "channel": "ch0",
+  "sample_rate": 25000000.0,
+  "center_freq": 12500000.0,
+  "writer_grace_s": 4.5,
+  "detector_samples_per_block": 4194304,
+  "detector_worker_count": 1
+}

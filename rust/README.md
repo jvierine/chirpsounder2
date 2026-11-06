@@ -234,8 +234,14 @@ transmitter schedule or propagation calibration. `iono-prn CONFIG --ring-status`
 checks recent 100 ms sample windows, then rechecks the same windows with a
 fresh reader three seconds later. At KHO, windows 1–3 seconds old were initially
 unavailable and subsequently present. Its configured grace is therefore 4.5 s.
-Background RF plotting, monitoring and housekeeping have lower scheduling
-priority than acquisition and the three primary receiver processing tasks.
+Acquisition, Ramfjordmoen reception and scheduled SGO processing take priority.
+Global 100/125 kHz/s chirp finding is the lowest-priority background task:
+nice 19, CPUWeight 1 (CPUShares 2 on cgroup v1), and an aggregate one-logical-CPU
+budget across all its threads. Apply `bash scripts/background-detector.sh` on
+each receiver; it persists the policy and updates the running service without
+restarting acquisition. This targets one CPU when cycles are available; it
+does not reserve CPU time against higher-priority reception. Overload produces
+explicitly counted skipped search blocks, rather than an unbounded backlog.
 
 ## Native RF monitoring
 
