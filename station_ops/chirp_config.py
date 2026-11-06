@@ -137,9 +137,6 @@ class chirp_config:
 	      "ROTHR3":{"name":"ROTHR Premont, Texas",
 	             "lat":27.527313,
 		     "lon":-98.111248},
-	      "ROTHR":{"name":"ROTHR",
-	             "lat":36.11793762278912,
-		     "lon":-82.5807086169964},
 	      "JORN":{"name":"JORN",
 	             "lat":-23.853424758715892,
 		     "lon":125.07620821000198}
@@ -148,7 +145,9 @@ class chirp_config:
           "links":'''
  [["SGO","TGO"],
 	["Ramfjordmoen","TGO"],
-	["ROTHR","TGO"],
+	["ROTHR1","TGO"],
+	["ROTHR2","TGO"],
+	["ROTHR3","TGO"],
 	["JORN","TGO"]]
           '''
             }
