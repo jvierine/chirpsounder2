@@ -290,11 +290,7 @@ fn digisonde(c: &Config, t: f64) -> Result<()> {
     let tmp = path.with_extension("h5.partial");
     {
         let h = File::create(&tmp)?;
-        h.new_dataset::<f32>()
-            .shape([2, nf, nr])
-            .deflate(3)
-            .create("SNR")?
-            .write_raw(&power)?;
+        iono_core::write_sparse_snr(&h, &[2, nf, nr], &power)?;
         h.new_dataset::<f32>()
             .shape([2, nf])
             .create("noise_floor")?

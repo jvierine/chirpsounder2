@@ -168,6 +168,26 @@ fn main() -> Result<()> {
                 .unwrap_or(None);
             browser::acquisition_health(&mut current_health, Path::new(ring), &base, newest);
         }
+        // Fast current-ionogram lane: metadata and accepted cells only. Heavy
+        // daily/history preparation cannot block sounding publication.
+        if changed > 0 {
+            let day = (now / 86400.).floor() * 86400.;
+            let directory = base.join(
+                chrono::DateTime::from_timestamp(day as i64, 0)
+                    .unwrap()
+                    .format("%Y-%m-%d")
+                    .to_string(),
+            );
+            let path = directory.join(format!("browser_latest-{}-{}.h5", cfg.station, day as i64));
+            match browser::export_latest(&catalog, &cfg.station, day, &path, current_health.clone())
+            {
+                Ok(n) => eprintln!(
+                    "latest ionograms: {n} plots, {} bytes",
+                    path.metadata()?.len()
+                ),
+                Err(e) => eprintln!("latest ionograms: {e:#}"),
+            }
+        }
         let full = last_render.is_none_or(|t| {
             t.elapsed() > Duration::from_secs(cfg.browser_interval_s.clamp(60, 86400))
         });

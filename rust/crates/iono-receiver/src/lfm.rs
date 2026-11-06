@@ -57,11 +57,7 @@ pub fn run(c: &Config, t: f64) -> Result<()> {
     let tmp = path.with_extension("h5.partial");
     {
         let h = File::create(&tmp)?;
-        h.new_dataset::<f32>()
-            .shape([indices.len(), ridx.len()])
-            .deflate(3)
-            .create("SNR")?
-            .write_raw(&snr)?;
+        iono_core::write_sparse_snr(&h, &[indices.len(), ridx.len()], &snr)?;
         let freqs: Vec<_> = indices
             .iter()
             .map(|&i| rate * i as f64 * hop as f64 / sr_dec)

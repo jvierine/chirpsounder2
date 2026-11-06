@@ -366,6 +366,96 @@ fn finished_sounding(path: &Path) -> bool {
     let end = iono_core::scalar(&h, "t0", f64::NAN) + dwell * freqs.size() as f64;
     dwell > 0. && iono_core::scalar(&h, "last_observation", 0.) >= end
 }
+fn latest_for_tx(catalog: &Catalog, station: &str, tx: &str, start: f64) -> Result<Vec<Product>> {
+    let mut products = vec![];
+    let candidates:Vec<String>=catalog.db.prepare("SELECT path FROM files WHERE kind='rti' AND tx=?1 AND time>=?2 AND time<?3 ORDER BY time DESC LIMIT 4")?
+            .query_map(rusqlite::params![tx,start,start+86400.],|r|r.get(0))?.collect::<std::result::Result<_,_>>()?;
+    // A newly started PRN sweep must not erase a complete ionogram with an
+    // almost-empty frame. Its current measurements still enter the RTIs.
+    let source = candidates
+        .iter()
+        .find(|p| finished_sounding(Path::new(p)))
+        .or(candidates.first());
+    if let Some(source) = source {
+        let grids = iono_core::read_products(Path::new(&source))?;
+        if let Some(mut g) = grids.into_iter().find(|g| g.mode != "X") {
+            // The Swedish frequency tables have larger high-band steps.
+            // Keep unmeasured frequencies blank on the WebGL uniform grid.
+            regularize_prn_frequency(&mut g);
+            // Peak-preserving display projection; native HDF5 stays authoritative.
+            let sx = g.nx.div_ceil(512);
+            let sy = g.ny.div_ceil(512);
+            let nx = g.nx.div_ceil(sx);
+            let ny = g.ny.div_ceil(sy);
+            let mut values = vec![f32::NAN; nx * ny];
+            for y in 0..g.ny {
+                for x in 0..g.nx {
+                    let v = g.values[y * g.nx + x];
+                    let k = (y / sy) * nx + x / sx;
+                    if v.is_finite() && (!values[k].is_finite() || v > values[k]) {
+                        values[k] = v;
+                    }
+                }
+            }
+            g.x = (0..nx)
+                .map(|i| g.x[(i * sx + (sx - 1) / 2).min(g.nx - 1)])
+                .collect();
+            g.y = (0..ny)
+                .map(|i| g.y[(i * sy + (sy - 1) / 2).min(g.ny - 1)])
+                .collect();
+            g.nx = nx;
+            g.ny = ny;
+            g.values = values;
+            g.station = station.into();
+            products.push(Product {
+                grid: g,
+                quantity: "ionogram".into(),
+                palette: "greys".into(),
+                occupied_minutes: 0,
+            });
+        }
+    }
+    Ok(products)
+}
+pub fn export_latest(
+    catalog: &Catalog,
+    station: &str,
+    start: f64,
+    path: &Path,
+    health: serde_json::Value,
+) -> Result<usize> {
+    let mut products = vec![];
+    let mut evidence = vec![];
+    for tx in catalog.transmitters()? {
+        let found = latest_for_tx(catalog, station, &tx, start)?;
+        if let Some(p) = found.first() {
+            let payload:Option<String>=catalog.db.query_row(
+                "SELECT payload FROM frequency_evidence WHERE tx=?1 AND time<=?2 ORDER BY time DESC LIMIT 1",
+                rusqlite::params![tx,p.grid.timestamp],|r|r.get(0)).ok();
+            if let Some(value) = payload {
+                evidence.push(serde_json::from_str::<Evidence>(&value)?);
+            }
+        }
+        products.extend(found);
+    }
+    let n = products.len();
+    let mut bundle = Bundle {
+        schema: SCHEMA.into(),
+        station: station.into(),
+        day: chrono::DateTime::from_timestamp(start as i64, 0)
+            .unwrap()
+            .format("%Y-%m-%d")
+            .to_string(),
+        generated_unix: chrono::Utc::now().timestamp() as f64,
+        partial: true,
+        products,
+        evidence,
+        assumed_paths: vec![],
+        health,
+    };
+    iono_browser::write_transport(path, &mut bundle)?;
+    Ok(n)
+}
 pub fn export(
     catalog: &Catalog,
     station: &str,
@@ -382,53 +472,7 @@ pub fn export(
             .collect();
         let frequency_rows = catalog.frequency_profiles(&tx, start, start + 86400.)?;
         products.extend(rti(&rows, &frequency_rows, station, &tx, start));
-        let candidates:Vec<String>=catalog.db.prepare("SELECT path FROM files WHERE kind='rti' AND tx=?1 AND time>=?2 AND time<?3 ORDER BY time DESC LIMIT 4")?
-            .query_map(rusqlite::params![tx,start,start+86400.],|r|r.get(0))?.collect::<std::result::Result<_,_>>()?;
-        // A newly started PRN sweep must not erase a complete ionogram with an
-        // almost-empty frame. Its current measurements still enter the RTIs.
-        let source = candidates
-            .iter()
-            .find(|p| finished_sounding(Path::new(p)))
-            .or(candidates.first());
-        if let Some(source) = source {
-            let grids = iono_core::read_products(Path::new(&source))?;
-            if let Some(mut g) = grids.into_iter().find(|g| g.mode != "X") {
-                // The Swedish frequency tables have larger high-band steps.
-                // Keep unmeasured frequencies blank on the WebGL uniform grid.
-                regularize_prn_frequency(&mut g);
-                // Peak-preserving display projection; native HDF5 stays authoritative.
-                let sx = g.nx.div_ceil(512);
-                let sy = g.ny.div_ceil(512);
-                let nx = g.nx.div_ceil(sx);
-                let ny = g.ny.div_ceil(sy);
-                let mut values = vec![f32::NAN; nx * ny];
-                for y in 0..g.ny {
-                    for x in 0..g.nx {
-                        let v = g.values[y * g.nx + x];
-                        let k = (y / sy) * nx + x / sx;
-                        if v.is_finite() && (!values[k].is_finite() || v > values[k]) {
-                            values[k] = v;
-                        }
-                    }
-                }
-                g.x = (0..nx)
-                    .map(|i| g.x[(i * sx + (sx - 1) / 2).min(g.nx - 1)])
-                    .collect();
-                g.y = (0..ny)
-                    .map(|i| g.y[(i * sy + (sy - 1) / 2).min(g.ny - 1)])
-                    .collect();
-                g.nx = nx;
-                g.ny = ny;
-                g.values = values;
-                g.station = station.into();
-                products.push(Product {
-                    grid: g,
-                    quantity: "ionogram".into(),
-                    palette: "greys".into(),
-                    occupied_minutes: 0,
-                });
-            }
-        }
+        products.extend(latest_for_tx(catalog, station, &tx, start)?);
     }
     products.extend(spectrum(
         &catalog
@@ -466,13 +510,14 @@ pub fn export(
             .format("%Y-%m-%d")
             .to_string(),
         generated_unix: chrono::Utc::now().timestamp() as f64,
+        partial: false,
         products,
         evidence,
         assumed_paths: crate::assumed::envelopes(&detections, station, start),
         health,
     };
     let n = bundle.products.len();
-    iono_browser::write(path, &mut bundle)?;
+    iono_browser::write_transport(path, &mut bundle)?;
     Ok(n)
 }
 pub fn health(previous: &mut Option<(u64, u64)>) -> serde_json::Value {

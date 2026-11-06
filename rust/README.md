@@ -193,3 +193,19 @@ the nearby-Digisonde search. HDF5 diagnostics remain on the receiver, not on
 juha.no. A code-match row is a diagnostic candidate, not a station identity.
 New receivers need consistent stepped-frequency tracks and independent timing
 confirmation; do not guess US station names from isolated correlation peaks.
+
+### Limited-bandwidth publication
+
+All native sounder products store accepted cells as sparse HDF5 index/value
+arrays, including both Digisonde modes. This changes storage, not detection
+thresholds. RF background spectra remain full average-power products.
+Browser transport omits the duplicate raw display grid and carries its gzip
+numeric array once. Original scientific files retain the measured precision.
+
+`browser_latest` bundles contain only current ionograms and their reduced
+frequency evidence. They update independently of full-day RTIs and 48-hour
+history. The thin host overlays them by transmitter/product and observation
+time, so a slower bulk arrival cannot erase a newer sounding. DOB's
+`scripts/iono-priority-publish.sh` sends these small bundles first, then gives
+resumable bulk history a 45-second slot. One worker shares the existing
+16 KiB/s cap; it never queues old-day history ahead of current observations.

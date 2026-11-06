@@ -93,6 +93,51 @@ pub fn db(v: f32) -> f32 {
         f32::NAN
     }
 }
+/// Preserve every accepted finite SNR cell, including both Digisonde modes.
+pub fn write_sparse_snr(h: &hdf5::File, shape: &[usize], values: &[f32]) -> Result<()> {
+    ensure!(matches!(shape.len(), 2 | 3), "invalid sparse SNR rank");
+    let n = shape
+        .iter()
+        .try_fold(1usize, |n, &v| n.checked_mul(v))
+        .context("sparse shape overflow")?;
+    ensure!(
+        n == values.len() && n <= 8_000_000,
+        "invalid sparse SNR size"
+    );
+    let mut ids = vec![];
+    let mut kept = vec![];
+    for (i, &v) in values.iter().enumerate() {
+        if v.is_finite() && v > 0. {
+            ids.push(i as u32);
+            kept.push(v);
+        }
+    }
+    h.new_dataset_builder()
+        .with_data(&shape.iter().map(|&v| v as u64).collect::<Vec<_>>())
+        .create("SNR_sparse_shape")?;
+    if ids.is_empty() {
+        h.new_dataset_builder()
+            .with_data(&ids)
+            .create("SNR_sparse_indices")?;
+        h.new_dataset_builder()
+            .with_data(&kept)
+            .create("SNR_sparse_values")?;
+    } else {
+        h.new_dataset::<u32>()
+            .shape(ids.len())
+            .chunk(ids.len().min(4096))
+            .deflate(3)
+            .create("SNR_sparse_indices")?
+            .write_raw(&ids)?;
+        h.new_dataset::<f32>()
+            .shape(kept.len())
+            .chunk(kept.len().min(4096))
+            .deflate(3)
+            .create("SNR_sparse_values")?
+            .write_raw(&kept)?;
+    }
+    Ok(())
+}
 pub fn read_products(path: &Path) -> Result<Vec<Grid>> {
     let h = File::open(path).context("open product")?;
     if h.link_exists("data") {
@@ -109,9 +154,22 @@ pub fn read_products(path: &Path) -> Result<Vec<Grid>> {
     ensure!(freqs.len() > 1 && ranges.len() > 1, "empty axes");
     let sparse = h.link_exists("SNR_sparse_values");
     let (shape, mut values) = if sparse {
-        let n = freqs
-            .len()
-            .checked_mul(ranges.len())
+        let shape = if h.link_exists("SNR_sparse_shape") {
+            h.dataset("SNR_sparse_shape")?
+                .read_raw::<u64>()?
+                .into_iter()
+                .map(|v| usize::try_from(v).context("sparse dimension overflow"))
+                .collect::<Result<Vec<_>>>()?
+        } else {
+            vec![freqs.len(), ranges.len()]
+        };
+        ensure!(
+            shape == [freqs.len(), ranges.len()] || shape == [2, freqs.len(), ranges.len()],
+            "invalid sparse SNR axes"
+        );
+        let n = shape
+            .iter()
+            .try_fold(1usize, |n, &v| n.checked_mul(v))
             .context("sparse shape overflow")?;
         ensure!(n <= 8_000_000, "sparse raster exceeds bounded import size");
         let ids = h.dataset("SNR_sparse_indices")?;
@@ -134,7 +192,7 @@ pub fn read_products(path: &Path) -> Result<Vec<Grid>> {
             );
             values[i as usize] = v;
         }
-        (vec![freqs.len(), ranges.len()], values)
+        (shape, values)
     } else {
         let dataset = if h.link_exists("SNR") {
             h.dataset("SNR")?
@@ -405,6 +463,51 @@ pub mod lfm;
 #[cfg(test)]
 mod sparse_tests {
     use super::*;
+    #[test]
+    fn sparse_digisonde_preserves_both_modes_and_every_accepted_echo() {
+        let values = [4., f32::NAN, 9., f32::NAN, 16., f32::NAN, 25., f32::NAN];
+        let base = std::env::temp_dir().join(format!("iono-modes-{}", std::process::id()));
+        let paths = [
+            base.with_extension("dense.h5"),
+            base.with_extension("sparse.h5"),
+        ];
+        for (i, path) in paths.iter().enumerate() {
+            let h = File::create(path).unwrap();
+            h.new_dataset_builder()
+                .with_data(&[2e6, 3e6])
+                .create("freqs")
+                .unwrap();
+            h.new_dataset_builder()
+                .with_data(&[300e3, 600e3])
+                .create("ranges")
+                .unwrap();
+            if i == 0 {
+                h.new_dataset::<f32>()
+                    .shape([2, 2, 2])
+                    .create("SNR")
+                    .unwrap()
+                    .write_raw(&values)
+                    .unwrap();
+            } else {
+                write_sparse_snr(&h, &[2, 2, 2], &values).unwrap();
+            }
+        }
+        let a = read_products(&paths[0]).unwrap();
+        let b = read_products(&paths[1]).unwrap();
+        assert_eq!(a.len(), 2);
+        assert_eq!(b.len(), 2);
+        for (a, b) in a.iter().zip(&b) {
+            assert_eq!(a.mode, b.mode);
+            assert_eq!(a.x, b.x);
+            assert_eq!(a.y, b.y);
+            for (x, y) in a.values.iter().zip(&b.values) {
+                assert!(x == y || (x.is_nan() && y.is_nan()));
+            }
+        }
+        for p in paths {
+            std::fs::remove_file(p).unwrap();
+        }
+    }
     #[test]
     fn prn_cross_code_rejection_changes_display_but_preserves_source() {
         let path = std::env::temp_dir().join(format!("iono-prn-{}.h5", std::process::id()));

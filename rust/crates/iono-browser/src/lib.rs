@@ -32,6 +32,8 @@ pub struct Bundle {
     pub station: String,
     pub day: String,
     pub generated_unix: f64,
+    #[serde(default)]
+    pub partial: bool,
     pub products: Vec<Product>,
     pub evidence: Vec<Evidence>,
     /// Receiver-computed envelopes for provisional, range-gated sweep sources.
@@ -105,6 +107,14 @@ pub fn validate(bundle: &Bundle) -> Result<()> {
     Ok(())
 }
 pub fn write(path: &Path, bundle: &mut Bundle) -> Result<()> {
+    write_impl(path, bundle, true)
+}
+/// Numeric transport retains the gzip arrays once, without a second raw copy.
+/// Authoritative scientific observations remain in their own HDF5 products.
+pub fn write_transport(path: &Path, bundle: &mut Bundle) -> Result<()> {
+    write_impl(path, bundle, false)
+}
+fn write_impl(path: &Path, bundle: &mut Bundle, raw_copy: bool) -> Result<()> {
     // Display precision is finer than the 256-level color scale and native
     // sampling. Original scientific products retain their full precision.
     for p in &mut bundle.products {
@@ -179,12 +189,14 @@ pub fn write(path: &Path, bundle: &mut Bundle) -> Result<()> {
                 p.grid.values.len() == p.grid.nx * p.grid.ny,
                 "data shape mismatch"
             );
-            h.new_dataset::<f32>()
-                .shape([p.grid.ny, p.grid.nx])
-                .chunk((p.grid.ny.min(32), p.grid.nx.min(180)))
-                .deflate(3)
-                .create(p.grid.id.as_str())?
-                .write_raw(&p.grid.values)?;
+            if raw_copy {
+                h.new_dataset::<f32>()
+                    .shape([p.grid.ny, p.grid.nx])
+                    .chunk((p.grid.ny.min(32), p.grid.nx.min(180)))
+                    .deflate(3)
+                    .create(p.grid.id.as_str())?
+                    .write_raw(&p.grid.values)?;
+            }
             let mut gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
             for value in &p.grid.values {
                 gz.write_all(&value.to_le_bytes())?;
@@ -310,12 +322,34 @@ mod tests {
             station: "DOB".into(),
             day: "2026-11-06".into(),
             generated_unix: 0.,
+            partial: false,
             products,
             evidence: vec![],
             assumed_paths: vec![],
             health: serde_json::json!({}),
         };
         validate(&b).unwrap();
+        let full = std::env::temp_dir().join(format!("iono-full-{}.h5", std::process::id()));
+        let small = full.with_extension("transport.h5");
+        write(&full, &mut b).unwrap();
+        write_transport(&small, &mut b).unwrap();
+        {
+            let a = hdf5::File::open(&full).unwrap();
+            let c = hdf5::File::open(&small).unwrap();
+            for p in &b.products {
+                let id = &p.grid.id;
+                assert!(a.link_exists(id));
+                assert!(!c.link_exists(id));
+                let key = format!("{id}_gzip");
+                assert_eq!(
+                    a.dataset(&key).unwrap().read_raw::<u8>().unwrap(),
+                    c.dataset(&key).unwrap().read_raw::<u8>().unwrap()
+                );
+            }
+        }
+        assert!(small.metadata().unwrap().len() < full.metadata().unwrap().len());
+        std::fs::remove_file(full).unwrap();
+        std::fs::remove_file(small).unwrap();
         b.products.resize(MAX_PRODUCTS + 1, b.products[0].clone());
         assert!(validate(&b).is_err());
         b.products.truncate(65);
