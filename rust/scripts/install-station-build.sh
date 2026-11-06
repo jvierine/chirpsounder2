@@ -9,7 +9,9 @@ test -d "$source_root/crates/iono-receiver"
 test -f "$build_dir/iono-prn"
 state="$HOME/.local/state/chirpsounder2-rollout"
 mkdir -p "$HOME/bin" "$HOME/.config/chirpsounder2" "$state"
-for name in iono-receiver iono-prn iono-plots; do
+names=(iono-receiver iono-prn iono-plots)
+[[ ! -x "$build_dir/iono-verso" ]] || names+=(iono-verso)
+for name in "${names[@]}"; do
     test -x "$build_dir/$name"
     if ldd "$build_dir/$name" | grep -q 'not found'; then
         echo "Missing runtime libraries for $name" >&2; exit 1
@@ -34,7 +36,8 @@ while read -r unit _; do
         argv=("${argv[@]:1}")
         name=iono-delta-publish.sh
     fi
-    case "$name" in iono-receiver|iono-prn|iono-plots|iono-delta-publish.sh|iono-delta-publish) ;; *) continue;; esac
+    case "$name" in iono-receiver|iono-prn|iono-verso|iono-plots|iono-delta-publish.sh|iono-delta-publish) ;; *) continue;; esac
+    [[ "$name" != iono-verso || -x "$build_dir/iono-verso" ]] || continue
     [[ -e "$state/$unit.before.conf" ]] || systemctl --user cat "$unit" > "$state/$unit.before.conf"
     mkdir -p "$HOME/.config/systemd/user/$unit.d"
     for ((i=1;i<${#argv[@]};i++)); do
@@ -61,14 +64,14 @@ while read -r unit _; do
     # Keep an in-flight capped upload alive; its next start uses the new path.
     [[ "$name" == iono-delta-publish* ]] || units+=("$unit")
 done < <(systemctl --user list-units --type=service --state=running --plain --no-legend 'iono*')
-for name in iono-receiver iono-prn iono-plots; do
+for name in "${names[@]}"; do
     if [[ -e "$HOME/bin/$name" && ! -e "$state/$name.before" ]]; then
         cp -p -- "$HOME/bin/$name" "$state/$name.before"
     fi
     install -m755 "$build_dir/$name" "$HOME/bin/$name.next"
     mv -- "$HOME/bin/$name.next" "$HOME/bin/$name"
 done
-sha256sum "$HOME/bin/iono-receiver" "$HOME/bin/iono-prn" "$HOME/bin/iono-plots" > "$state/installed-binaries.sha256"
+for name in "${names[@]}"; do sha256sum "$HOME/bin/$name"; done > "$state/installed-binaries.sha256"
 systemctl --user daemon-reload
 if ((${#units[@]})); then
     systemctl --user restart "${units[@]}"

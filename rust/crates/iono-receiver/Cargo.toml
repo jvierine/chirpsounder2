@@ -7,6 +7,8 @@ iono-core = { path = "../iono-core" }
 anyhow.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+serde_yaml_ng = "0.10"
+sha2 = "0.10"
 hdf5.workspace = true
 num-complex.workspace = true
 rustfft.workspace = true

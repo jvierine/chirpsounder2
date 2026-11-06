@@ -1,0 +1,18 @@
+[Unit]
+Description=Rust SGO VERSO coded-ionosonde reception
+After=default.target
+StartLimitIntervalSec=0
+
+[Service]
+ExecStart=%h/bin/iono-verso %h/.config/chirpsounder2/verso/receiver.json
+Restart=always
+RestartSec=15
+Nice=10
+CPUQuota=100%
+MemoryMax=256M
+LimitAS=536870912
+LimitCORE=0
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target

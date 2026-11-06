@@ -10,6 +10,8 @@ pub mod digisonde_search;
 #[cfg(feature = "dsp")]
 pub mod prn;
 #[cfg(feature = "dsp")]
+pub mod pulsed;
+#[cfg(feature = "dsp")]
 pub mod simd;
 pub const C: f64 = 299_792_458.;
 #[derive(Clone, Debug, Serialize, Deserialize)]

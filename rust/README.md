@@ -24,6 +24,7 @@ library compatibility before running it; do not run a build for another glibc.
 | `iono-digisonde-search` | Bounded PINS-style pulse discovery from the local ring |
 | `iono-digisonde-verify` | Complementary-code, carrier and pulse-period checks |
 | `iono-prn` | Receive scheduled pseudorandom coded sounders |
+| `iono-verso` | Receive the Finnish SGO VERSO coded/TDM network from its supplied waveform and timing program |
 | `iono-plots` | Incremental SQLite indexing, RTI reduction, bounded HDF5 browser arrays and optional Rustplotlib figures |
 | `iono-render` | Legacy Rustplotlib static-figure compatibility |
 
@@ -46,7 +47,7 @@ export HDF5_DIR=/usr/lib/x86_64-linux-gnu/hdf5/serial
 cargo build --release --locked -p iono-receiver -p iono-plots
 cargo test --workspace --locked
 mkdir -p ~/bin
-install -m755 target/release/iono-receiver target/release/iono-prn target/release/iono-plots ~/bin/
+install -m755 target/release/iono-receiver target/release/iono-prn target/release/iono-verso target/release/iono-plots ~/bin/
 ```
 
 Build against the target station's glibc/HDF5. Ubuntu 24.04 binaries are not
@@ -129,6 +130,16 @@ journalctl --user -u iono-digisonde@w2naf-millstone -f
 
 Other nearby transmitters require independent discovery and commissioning;
 no Wallops or Alpena identity is assigned to unverified pulse candidates.
+
+## Finnish VERSO reception
+
+See [the waveform, timing interpretation and receiver configurations](deploy/verso/README.md).
+`iono-verso` imports the supplied YAML and complex128 baud file into an HDF5
+program, then performs receiver-local complex64 pulse compression and coherent
+integration with the 10 ms inter-channel delays removed. It writes sparse PRN
+products compatible with the existing receiver-side RTI/browser preparation.
+The GUI host never processes its voltage. The station installer also updates
+an active VERSO unit when the reviewed build contains `iono-verso`.
 
 ## Acceleration and output
 
