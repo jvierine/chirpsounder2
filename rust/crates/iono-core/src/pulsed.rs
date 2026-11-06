@@ -323,6 +323,19 @@ mod tests {
         };
         assert!(20. * (sidelobe(&old) / sidelobe(&new)).log10() > 10.);
         assert!(inv.noise_gain_db() < 3.);
+        // Put a real weak return at the strongest positive-lag matched sidelobe.
+        // Compare complex amplitude error, rather than merely counting peaks.
+        let lag = (1010..1500)
+            .max_by(|&a, &b| old[a].norm_sqr().total_cmp(&old[b].norm_sqr()))
+            .unwrap();
+        let weak = Z::new(0.08, 0.);
+        for (j, &v) in code.iter().enumerate() {
+            m[lag + j] += v * weak;
+            x[inv.input_prefix() + lag + j] += v * weak;
+        }
+        let biased = mf.decode_pulse(&m).unwrap()[lag];
+        let recovered = inv.decode_pulse(&x).unwrap()[lag];
+        assert!((recovered - weak).norm() < (biased - weak).norm() / 3.);
         for invalid in [0., -0.1, f32::NAN, f32::INFINITY] {
             assert!(PulseDecoder::regularized(&code, 3000, invalid).is_err());
         }
