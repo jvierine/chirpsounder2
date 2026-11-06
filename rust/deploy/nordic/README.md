@@ -47,3 +47,8 @@ staged configuration without reading RF. Legacy non-aligned Digisonde upper
 frequency limits retain their stop-exclusive bin counts. Runtime station JSON
 is authoritative; old INI signal-processing sections are compatibility settings
 and are not used by the enabled native services.
+
+The active maintenance helpers now live under `station_ops/`. Update the
+station checkout before installing a new native bundle. The installer checks
+for those helpers before changing files; archived `python/` entry points must
+not be used. A repository-only update does not restart existing receivers.

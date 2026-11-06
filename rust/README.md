@@ -35,6 +35,10 @@ prepared HDF5 display-product contract shared with the GUI service. The GUI
 consumes these shared types with `iono-core` default features disabled, so
 receiver DSP modules and RustFFT are not compiled into the web service.
 
+The former Python DSP and plotting implementation is retired under
+[`python/`](../python/README.md). Do not start its workers. Maintenance-only
+utilities remain separate under [`station_ops/`](../station_ops/README.md).
+
 ## Build on a Linux receiver
 
 Install Rust with the official rustup installer, then install HDF5 development

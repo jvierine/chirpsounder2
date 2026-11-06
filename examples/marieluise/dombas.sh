@@ -33,13 +33,13 @@ mkdir -p logs
 # at least about 2 GB less than the amount of ram available.
 #RINGBUFFER_SIZE=30000MB
 echo "iono_housekeeping.py"
-python3 iono_housekeeping.py --config $CONF_FILE > logs/housekeeping.log 2>&1 &
+python3 station_ops/iono_housekeeping.py --config $CONF_FILE > logs/housekeeping.log 2>&1 &
 
 # All RF analysis and plot arrays are native Rust workers.
 systemctl --user start iono-rust-digisonde.service iono-rust-lfm.service iono-rust-detect.service iono-rust-spectrum.service iono-digisonde@juliusruh-day.service iono-digisonde@juliusruh-night.service iono-digisonde@dourbes.service iono-digisonde@dourbes-night.service iono-digisonde@dourbes-regular-05.service iono-digisonde@dourbes-night-regular-05.service iono-digisonde@dourbes-regular-10.service iono-digisonde@dourbes-night-regular-10.service iono-digisonde@chilton.service
 
 echo "station_monitor.py"
-python3 station_monitor.py --config $CONF_FILE > logs/station_monitor.log 2>&1 &
+python3 station_ops/station_monitor.py --config $CONF_FILE > logs/station_monitor.log 2>&1 &
 
 echo "Starting rx_uhd with external 1 PPS and 10 MHz. Restarting in 24 hours."
 while true;

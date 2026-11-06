@@ -28,7 +28,7 @@ config = configparser.ConfigParser()
 config.read(args.chirpsounder_source / "examples/marieluise/server.ini")
 stations = json.loads(config["stations"]["station_info"])
 stations["KREA"] = paths["KREA"]
-spec = importlib.util.spec_from_file_location("propagation", args.chirpsounder_source / "propagation.py")
+spec = importlib.util.spec_from_file_location("propagation", args.chirpsounder_source / "station_ops/propagation.py")
 model = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(model)
 bands = json.loads(bands_file.read_text())

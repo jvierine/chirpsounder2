@@ -1,0 +1,4 @@
+numpy
+digital_rf
+psutil
+requests

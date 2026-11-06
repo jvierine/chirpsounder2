@@ -11,6 +11,10 @@ case "$station" in
 esac
 [[ "$bundle" = /* && -d "$bundle" ]]
 repo="$HOME/src/chirpsounder2"
+[[ -f "$repo/station_ops/station_monitor.py" && -f "$repo/station_ops/iono_housekeeping.py" ]] || {
+  echo "Update the station checkout before installing this release: station_ops is required" >&2
+  exit 2
+}
 backup="$HOME/.local/state/chirpsounder2-rollout/native-dsp-20261106"
 mkdir -p "$backup" "$HOME/bin" "$HOME/.config/systemd/user" "$HOME/.config/chirpsounder2"
 recorder_before=$(pgrep -f '^./rx_uhd_ext_gps ' | sort)
@@ -56,7 +60,7 @@ if [[ "$station" == DOB ]]; then
   units+=(iono-digisonde@juliusruh-day.service iono-digisonde@juliusruh-night.service iono-digisonde@dourbes.service iono-digisonde@dourbes-night.service iono-digisonde@dourbes-regular-05.service iono-digisonde@dourbes-night-regular-05.service iono-digisonde@dourbes-regular-10.service iono-digisonde@dourbes-night-regular-10.service iono-digisonde@chilton.service)
 fi
 systemctl --user enable --now "${units[@]}"
-nohup "$monitor_python" "$repo/station_monitor.py" --config "$repo/examples/marieluise/$name.ini" --period-s 60 > "$repo/logs/station_monitor.log" 2>&1 < /dev/null &
+nohup "$monitor_python" "$repo/station_ops/station_monitor.py" --config "$repo/examples/marieluise/$name.ini" --period-s 60 > "$repo/logs/station_monitor.log" 2>&1 < /dev/null &
 recorder_after=$(pgrep -f '^./rx_uhd_ext_gps ' | sort)
 [[ "$recorder_before" == "$recorder_after" ]]
 printf 'Recorder unchanged: %s\n' "$recorder_after"

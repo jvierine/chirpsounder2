@@ -4,7 +4,8 @@ from pathlib import Path
 import h5py
 import numpy as np
 from scipy.signal.windows import kaiser
-sys.path.insert(0,os.environ.get('CHIRPSOUNDER_ROOT',str(Path.home()/'src/chirpsounder2')))
+# Frozen Python decoder is used only for offline parity validation.
+sys.path.insert(0,str(Path(os.environ.get('CHIRPSOUNDER_ROOT',str(Path.home()/'src/chirpsounder2')))/'python'))
 from digisonde_stuff import complementary_code
 root=Path(__file__).parent
 if len(sys.argv)==1:

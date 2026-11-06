@@ -10,7 +10,7 @@ from pathlib import Path
 import sys
 
 source = Path(sys.argv[1]).resolve()
-spec = importlib.util.spec_from_file_location("propagation", source / "propagation.py")
+spec = importlib.util.spec_from_file_location("propagation", source / "station_ops/propagation.py")
 model = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(model)
 config = configparser.ConfigParser()
