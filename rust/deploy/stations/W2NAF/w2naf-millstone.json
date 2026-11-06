@@ -1,0 +1,21 @@
+{
+  "station": "W2NAF",
+  "data_dir": "/mnt/ramdisk/hf25",
+  "output_dir": "/home/hamsci/data/chirpsounder2",
+  "channel": "ch0",
+  "sample_rate": 25000000.0,
+  "center_freq": 12500000.0,
+  "transmitter": "Millstone",
+  "transmit_delay_us": 0.0,
+  "offset_us": 0.0,
+  "snr_threshold_db": 6.0,
+  "rfi_clip_ratio": 10.0,
+  "range_reference": "Measured sounding schedule; transmitter group delay not independently calibrated. Apparent one-way vacuum light time.",
+  "interval_s": 450.0,
+  "start_offset_s": 0.0,
+  "freq_start_hz": 2000000.0,
+  "freq_stop_hz": 18000000.0,
+  "freq_step_hz": 25000.0,
+  "n_ipp": 32,
+  "ipp_us": 10000
+}

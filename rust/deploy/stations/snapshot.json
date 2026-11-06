@@ -1,0 +1,62 @@
+{
+  "captured_utc": "2026-11-06T07:49:46.622712+00:00",
+  "purpose": "Deployed native DSP configuration snapshot. No private keys, passwords or legacy sync credentials. VERSO HDF5 program is regenerated from deploy/verso source attachments.",
+  "configs": [
+    {
+      "path": "TGO/tgo-juliusruh-day.json",
+      "sha256": "0f61bcf163d63269f42db8e62420df5b74b3cd2aa1650466cdfc3ac4fa0a6fee"
+    },
+    {
+      "path": "TGO/tgo-juliusruh-night.json",
+      "sha256": "b9397133fb005fb1f4e816a84934d258365d28662567a151fcb7bf697742003d"
+    },
+    {
+      "path": "TGO/tgo-rust.json",
+      "sha256": "296cd63952e8ce9dbd85535db74ee7bd7d0ea9e4e16b8979f8284251bb0a0350"
+    },
+    {
+      "path": "W2NAF/w2naf-millstone.json",
+      "sha256": "6f6304e36ce227ee2f89c0d4e6c6a709cc9706f8bdfa69f9c69db4b3b14bc59c"
+    },
+    {
+      "path": "W2NAF/digisonde-search.json",
+      "sha256": "3fb5c3e2c387481d2c064137c0062a06b05e20cc7f5fe6399321334416dfcccd"
+    },
+    {
+      "path": "W2NAF/w2naf-digisonde-search.json",
+      "sha256": "a7458bc10d0d0caa2a08ed9f5d62287eedbec033feb5bf603012c4f833d93da7"
+    },
+    {
+      "path": "DOB/iono-prn/Kiruna.json",
+      "sha256": "55f5958a0890a2d3540b5cdd8ca78055b18707f68e7b3be4151cd3dbdddb8e77"
+    },
+    {
+      "path": "DOB/iono-prn/Uppsala.json",
+      "sha256": "72de8a2428c8ee02198012e6aa0adc74a0dc7dbdf140612db84b1c5b4bce29de"
+    },
+    {
+      "path": "DOB/iono-prn/Montelibretti.json",
+      "sha256": "e3779cabb77ef05ceb722c3815a4d5fb07fc33c1d224f00867087c01c33d933a"
+    },
+    {
+      "path": "DOB/verso/receiver.json",
+      "sha256": "7376e7de968c718f5c2c4983fefc02d61c57b5e8ea39f8ca031f0f329117b962"
+    },
+    {
+      "path": "KHO/iono-prn/Kiruna.json",
+      "sha256": "102c160b08f1cf42538ce511a1e597f8c9b77e36f28ebe1a6c318b22d36184dc"
+    },
+    {
+      "path": "KHO/verso/receiver.json",
+      "sha256": "4c49770f9d6d9f8feb319189bc4d0465452e6fa41dc31d25dc98f872a64c1541"
+    },
+    {
+      "path": "TGO/iono-prn/Kiruna.json",
+      "sha256": "e421ae3e2af5714971abe52a85e3a8a212138329f0a5ddf927aa28e695577680"
+    },
+    {
+      "path": "TGO/verso/receiver.json",
+      "sha256": "e5d6c1cfa59e1bf9085400ce75bdff4c11aafeed18b96ef618a7caa18079aaa4"
+    }
+  ]
+}

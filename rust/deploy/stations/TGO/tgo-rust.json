@@ -1,0 +1,1 @@
+{"station":"TGO","data_dir":"/dev/shm/hf25","output_dir":"/data0","channel":"ch0","sample_rate":25000000.0,"center_freq":12500000.0,"transmit_delay_us":4688.0,"offset_us":-330.0,"interval_s":450.0,"upload_url":"https://juha.no/upload_h5.php"}
