@@ -62,6 +62,12 @@
       "path": "KHO/spectrum.json",
       "sha256": "71090e8abb08dad1642c6694eb9008d1a446ef165af8f1016174e1b7527d4e33",
       "verified_utc": "2026-11-06T12:40:00Z"
+    },
+    {
+      "path": "DOB/digisonde-survey.json",
+      "sha256": "392b7fca649fd5da68c11ded1a0c93d74406567a804fc3b66e77b1a905d6e93a",
+      "verified_utc": "2026-11-06T14:02:06Z",
+      "activation": "manually started finite 30-minute survey; completed successfully, not boot-enabled"
     }
   ],
   "updated_utc": "2026-11-06T09:55:15.114646+00:00",

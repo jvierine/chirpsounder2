@@ -1,0 +1,17 @@
+{
+  "station": "DOB",
+  "data_dir": "/dev/shm/hf25",
+  "output_dir": "/data0/digisonde-survey",
+  "channel": "ch0",
+  "frequency_range_hz": [
+    700000.0,
+    24500000.0
+  ],
+  "max_candidates": 48,
+  "stratified_frequency_budget": true,
+  "worker_count": 1,
+  "stride_s": 0.32,
+  "writer_grace_s": 1.0,
+  "verify_every_windows": 8,
+  "verify_candidates_per_window": 1
+}

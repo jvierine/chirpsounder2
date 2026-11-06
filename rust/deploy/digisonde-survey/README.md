@@ -84,3 +84,29 @@ consistent with known Ramfjordmoen reception; the second is shared by Thule
 and Millstone timing and remains unassigned. Their identities must not be
 inferred merely from these slopes and approximate starts. Low-coherence
 isolated code matches do not settle the association.
+
+## Completed DOB survey
+
+The 13:32:05–14:02:05 UTC survey on 2026-11-06 completed all 5625 planned
+windows with zero missing windows and zero restarts. It recorded 178592 coarse
+candidates, 704 sampled code checks and 212 accepted code-match hypotheses.
+Most sampled matches were low-coherence; these are not 212 sounders. CPU use
+was 1298.743 seconds over 1800 seconds (about 72% of one CPU, or 7.2% of DOB's
+10 logical CPUs). The service peaked at 287.5 MiB with no swap. The original
+compressed HDF5 stayed on DOB and was about 3.3 MiB; its locally produced track
+and code-check summary was 49 KiB. No raw voltage was transferred.
+
+The track summary retains 100 candidates, including LFM/radar or interference
+tracks, so that number is not a transmitter count. Six tracks agree with the
+known Juliusruh five-minute daytime schedule and its 196-second offset.
+Strong targeted complementary-code matches in the 1 MHz / 450-second family
+are consistent with known Ramfjordmoen reception. The separate 2 MHz /
+450-second family repeats too, but is compatible with both Thule and Millstone.
+It remains unassigned. This survey has not established all audible Digisonde
+identities, and has not independently confirmed Thule, Dourbes or Chilton.
+No new continuous receiver or public propagation-map identity was enabled.
+
+Some supplemental standalone code checks initially computed results but failed
+to save because their output directory had not been created. The verifier now
+creates that directory, and the final repeated checks saved valid HDF5 files.
+The main live survey's checkpoints were unaffected and completed successfully.

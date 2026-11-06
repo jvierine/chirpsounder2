@@ -23,6 +23,8 @@ library compatibility before running it; do not run a build for another glibc.
 | `iono-receiver spectrum` | RF spectrum/background products |
 | `iono-digisonde-search` | Bounded PINS-style pulse discovery from the local ring |
 | `iono-digisonde-verify` | Complementary-code, carrier and pulse-period checks |
+| `iono-digisonde-tracks` | Bounded candidate sweep tracks and compact HDF5 survey summaries |
+| `iono-digisonde-survey-plot` | Rustplotlib pulse-survey overview |
 | `iono-prn` | Receive scheduled pseudorandom coded sounders |
 | `iono-verso` | Receive the Finnish SGO VERSO coded/TDM network from its supplied waveform and timing program |
 | `iono-plots` | Incremental SQLite indexing, RTI reduction, bounded HDF5 browser arrays and optional Rustplotlib figures |
@@ -134,6 +136,10 @@ journalctl --user -u iono-digisonde@w2naf-millstone -f
 
 Other nearby transmitters require independent discovery and commissioning;
 no Wallops or Alpena identity is assigned to unverified pulse candidates.
+
+For a finite live wideband survey with in-memory sampled code checks, see
+[the DOB survey deployment](deploy/digisonde-survey/README.md). Its CPU, memory,
+coverage and identity limits are recorded explicitly.
 
 ## Finnish VERSO reception
 
