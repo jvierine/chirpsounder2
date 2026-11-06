@@ -574,6 +574,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "hdf5-metno",
  "iono-core",
  "rusqlite",
  "rustplotlib 0.1.0 (git+https://github.com/jvierine/rustplotlib?rev=549fa9dea6f04a506fabe86283fa3ac96ee77de2)",
