@@ -213,6 +213,7 @@ fn main() -> Result<()> {
             eprintln!("verified {}/{} candidate windows", n + 1, chosen.len());
         }
     }
+    fs::create_dir_all(&c.output_dir)?;
     let path = Path::new(&c.output_dir).join(format!(
         "digisonde_code_matches-{}.h5",
         samples.last().copied().unwrap_or(0) / 25_000_000
