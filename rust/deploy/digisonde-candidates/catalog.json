@@ -512,6 +512,14 @@
       "W2NAF": "finite sparse probe completed; strongest return agrees with simultaneous Millstone echo after two 10 ms pulse periods; not confirmed Thule",
       "DOB": "finite probe completed with old binary; transmitter metadata correct despite hard-coded Ramfjordmoen progress text; dense payload and unsupported range-reference text; commissioning output quarantined"
     },
-    "production_changes": "none; existing Millstone remains active"
+    "production_changes": "none; existing Millstone remains active",
+    "DOB_native_receiver_update": {
+      "installed": true,
+      "sha256": "4521dab51eb4d5a553b7e0a510b25cfd43e41272209086e3f49bc1e575aa08f2",
+      "source_commit": "518b38c",
+      "transfer_limit_kib_s": 16,
+      "acquisition_restarted": false,
+      "continuous_sounder_enabled": false
+    }
   }
 }

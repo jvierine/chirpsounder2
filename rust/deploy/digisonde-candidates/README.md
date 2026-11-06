@@ -85,3 +85,7 @@ included waiting for the future epoch. A retry against retained local voltage
 completed. For future starts, launch the finite service at the epoch with a
 systemd timer, or set the runtime allowance to include the scheduled wait.
 Do not increase a CPU ceiling to compensate for a scheduling mistake.
+
+DOB subsequently received this checksum-verified native replacement with a
+16 KiB/s transfer cap. The previous binary was backed up; no acquisition or
+existing receiver was restarted, and no new continuous sounder was enabled.
