@@ -163,23 +163,13 @@ pub fn prepare(catalog: &Catalog, station: &str, end: f64) -> Result<Vec<Product
             let range = (if delay > 0.5 { delay - 1. } else { delay }) * iono_core::C / 1000.;
             let matched: Vec<_> = sources
                 .iter()
-                .filter(|s| s.id != "US" || station != "W2NAF")
                 .filter(|s| s.gates.iter().any(|g| range >= g[0] && range <= g[1]))
                 .collect();
-            let us = matched.iter().filter(|s| s.id.starts_with("ROTHR")).count();
             for s in matched {
-                if station == "W2NAF" && s.id.starts_with("ROTHR") && us > 1 {
-                    continue;
-                }
                 panels
                     .get_mut(&s.id)
                     .unwrap()
                     .point(row[1], range, row[2], row[4] as f32, start);
-            }
-            if us > 1 {
-                if let Some(p) = panels.get_mut("US") {
-                    p.point(row[1], range, row[2], row[4] as f32, start);
-                }
             }
         }
     }

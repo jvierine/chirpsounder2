@@ -17,7 +17,6 @@ pub(crate) fn sources(station: &str) -> Vec<Source> {
         let (id, label) = match name {
             "NIC" => ("Cyprus", "Cyprus"),
             "JORN" => ("Australia", "Australia"),
-            _ if name.starts_with("ROTHR") && station != "W2NAF" => ("US", "US"),
             _ if name.starts_with("ROTHR") => (name, band["label"].as_str().unwrap()),
             _ => continue,
         };
@@ -34,22 +33,6 @@ pub(crate) fn sources(station: &str) -> Vec<Source> {
                 band["max_km"].as_f64().unwrap(),
             ]);
     }
-    // A detection in overlapping W2NAF US gates remains a US association.
-    if station == "W2NAF" {
-        let gates = result
-            .values()
-            .filter(|s| s.id.starts_with("ROTHR"))
-            .flat_map(|s| s.gates.iter().copied())
-            .collect();
-        result.insert(
-            "US".into(),
-            Source {
-                id: "US".into(),
-                label: "US".into(),
-                gates,
-            },
-        );
-    }
     result.into_values().collect()
 }
 
@@ -58,7 +41,7 @@ pub fn envelopes(rows: &[[f64; 5]], station: &str, start: f64) -> Vec<Value> {
     // Keep an entire sweep together using its extrapolated zero-frequency
     // epoch and rate. Minute bins would truncate a 2–4 minute sweep's band.
     // Timestamp each envelope at its last measured point, avoiding look-ahead.
-    let mut windows = BTreeMap::<(i64, i64), (f64, Vec<Vec<f64>>)>::new();
+    let mut windows = BTreeMap::<(i64, i64), (f64, Vec<Vec<f64>>, Vec<bool>)>::new();
     for rate in [100000., 125000.] {
         for p in crate::render::clustered(rows, rate) {
             if !(start..start + 86400.).contains(&p[1]) || !(0.0..=25.).contains(&p[2]) {
@@ -67,14 +50,17 @@ pub fn envelopes(rows: &[[f64; 5]], station: &str, start: f64) -> Vec<Value> {
             let delay = p[0].rem_euclid(1.);
             let range = (if delay > 0.5 { delay - 1. } else { delay }) * iono_core::C / 1000.;
             let index = (p[0].floor() as i64, rate as i64);
-            let window = windows
-                .entry(index)
-                .or_insert_with(|| (p[1], vec![vec![]; sources.len()]));
+            let window = windows.entry(index).or_insert_with(|| {
+                (
+                    p[1],
+                    vec![vec![]; sources.len()],
+                    vec![false; sources.len()],
+                )
+            });
             window.0 = window.0.max(p[1]);
             let matches: Vec<_> = sources
                 .iter()
                 .enumerate()
-                .filter(|(_, s)| s.id != "US" || station != "W2NAF")
                 .filter(|(_, s)| s.gates.iter().any(|g| range >= g[0] && range <= g[1]))
                 .map(|(i, _)| i)
                 .collect();
@@ -84,21 +70,14 @@ pub fn envelopes(rows: &[[f64; 5]], station: &str, start: f64) -> Vec<Value> {
                 .filter(|&i| sources[i].id.starts_with("ROTHR"))
                 .collect();
             for i in matches {
-                if station == "W2NAF" && sources[i].id.starts_with("ROTHR") && us.len() > 1 {
-                    continue;
-                }
+                window.2[i] |= sources[i].id.starts_with("ROTHR") && us.len() > 1;
                 window.1[i].push(p[2]);
-            }
-            if us.len() > 1 {
-                if let Some(i) = sources.iter().position(|s| s.id == "US") {
-                    window.1[i].push(p[2]);
-                }
             }
         }
     }
     let mut result = vec![];
-    for (_, (time, frequencies)) in windows {
-        for (source, mut f) in sources.iter().zip(frequencies) {
+    for (_, (time, frequencies, ambiguous)) in windows {
+        for ((source, mut f), ambiguous) in sources.iter().zip(frequencies).zip(ambiguous) {
             // Other radars' activity does not establish a non-detection for
             // this unknown schedule. An absent source ages into stale instead.
             if f.is_empty() {
@@ -128,7 +107,7 @@ pub fn envelopes(rows: &[[f64; 5]], station: &str, start: f64) -> Vec<Value> {
                     .map(|g| g[1])
                     .fold(f64::NEG_INFINITY, f64::max),
             ];
-            result.push(json!({"transmitter":source.id,"source_label":format!("{} (assumed)",source.label),"receiver":station,"time":time,"lower_mhz":low,"upper_mhz":high,"bands":if detected {json!([[low,high,count]])}else{json!([])},"support_bins":if detected {count}else{0},"range_gate_km":gate,"range_gates_km":source.gates,"method":"range-gated-sweep-envelope-v1","assumed":true,"experimental":true,"lower_censored":false,"upper_censored":false}));
+            result.push(json!({"transmitter":source.id,"source_label":format!("{} (candidate)",source.label),"receiver":station,"time":time,"lower_mhz":if ambiguous {None}else{low},"upper_mhz":if ambiguous {None}else{high},"candidate_band_mhz":[low,high],"association_ambiguous":ambiguous,"quantitative_eligible":!ambiguous,"bands":if detected && !ambiguous {json!([[low,high,count]])}else{json!([])},"support_bins":if detected {count}else{0},"range_gate_km":gate,"range_gates_km":source.gates,"method":"range-gated-sweep-envelope-v2","assumed":true,"experimental":true,"lower_censored":false,"upper_censored":false}));
         }
     }
     result
@@ -151,7 +130,7 @@ mod tests {
             .collect()
     }
     #[test]
-    fn long_range_sources_are_countries_and_time_is_measurement_time() {
+    fn sources_preserve_named_rothr_sites_and_measurement_time() {
         let start = 1793750400.;
         let result = envelopes(&rows(start, 4600.), "TGO", start);
         let cyprus = result
@@ -166,6 +145,8 @@ mod tests {
             .iter()
             .all(|r| !r["transmitter"].as_str().unwrap().starts_with("ROTHR")));
         assert!(sources("TGO").iter().any(|s| s.id == "Australia"));
+        assert!(sources("TGO").iter().any(|s| s.id == "ROTHR1"));
+        assert!(sources("TGO").iter().all(|s| s.id != "US"));
         assert!(result.iter().all(|r| r["transmitter"] != "US"));
     }
     #[test]
@@ -193,19 +174,26 @@ mod tests {
         );
     }
     #[test]
-    fn w2naf_distinguishes_unique_paths_and_does_not_duplicate_ambiguous_detections() {
+    fn w2naf_distinguishes_unique_paths_and_marks_overlapping_site_candidates() {
         let start = 1793750400.;
         let near = envelopes(&rows(start, 500.), "W2NAF", start);
         assert!(near
             .iter()
             .any(|r| r["transmitter"] == "ROTHR1" && !r["lower_mhz"].is_null()));
         let overlap = envelopes(&rows(start, 3000.), "W2NAF", start);
-        assert!(overlap
-            .iter()
-            .any(|r| r["transmitter"] == "US" && !r["lower_mhz"].is_null()));
+        assert!(overlap.iter().all(|r| r["transmitter"] != "US"));
+        assert!(
+            overlap
+                .iter()
+                .filter(|r| r["transmitter"].as_str().unwrap().starts_with("ROTHR"))
+                .count()
+                >= 2
+        );
         assert!(overlap
             .iter()
             .filter(|r| r["transmitter"].as_str().unwrap().starts_with("ROTHR"))
-            .all(|r| r["lower_mhz"].is_null()));
+            .all(|r| r["lower_mhz"].is_null()
+                && r["association_ambiguous"] == true
+                && r["quantitative_eligible"] == false));
     }
 }

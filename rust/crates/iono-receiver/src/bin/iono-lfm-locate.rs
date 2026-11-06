@@ -53,6 +53,14 @@ fn main() -> Result<()> {
             .shape([s.best.len(), 3])
             .create("model_minima_rms_lat_lon")?
             .write_raw(&s.best.concat())?;
+        if let Some(minima) = &s.conditional_best {
+            g.new_dataset::<f64>()
+                .shape([minima.len(), 3])
+                .create("conditional_integer_epoch_minima_rms_lat_lon")?
+                .write_raw(&minima.concat())?;
+            text(&g,"conditional_range_assumption","Assumes the selected anchor receiver's apparent range is actual propagation path length from an integer-second transmission epoch. This epoch is unvalidated; unrestricted TDOA surfaces are retained separately.")?;
+            println!("conditional integer-epoch minima: {minima:?}");
+        }
         println!(
             "family {i}: {} kHz/s, {} events, receivers {:?}, delays ms {:?}, model minima {:?}",
             f.rate / 1000,

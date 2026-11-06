@@ -1,1 +1,162 @@
-{"SGO":{"name":"SGO","lat":67.36369337350563,"lon":26.634311805059543},"TGO":{"name":"TGO","lat":69.66174439007057,"lon":18.939127366530286},"DOB":{"name":"Dombas","lat":62.073,"lon":9.111},"KHO":{"name":"KHO","lat":78.1478,"lon":16.04035},"W2NAF":{"name":"W2NAF","lat":41.33509166666666,"lon":-75.60079},"NIC":{"name":"Cyprus","lat":35.18557,"lon":33.38228},"Ramfjordmoen":{"name":"Ramfjordmoen","lat":69.58187184247221,"lon":19.220853348827067},"ROTHR1":{"name":"ROTHR Chesapeake Bay","lat":37.56561111111111,"lon":-76.26387222222223},"ROTHR2":{"name":"ROTHR Culebra","lat":18.00889,"lon":-66.50611},"ROTHR3":{"name":"ROTHR Texas","lat":27.527361111111112,"lon":-98.71644444444443},"ROTHR":{"name":"ROTHR","lat":36.11793762278912,"lon":-82.5807086169964},"JORN":{"name":"JORN","lat":-23.853424758715892,"lon":125.07620821000198},"Juliusruh":{"name":"Juliusruh","lat":54.628740389301186,"lon":13.374299986524846},"TH76":{"name":"Thule","lat":76.54,"lon":-68.44},"DB049":{"name":"Dourbes","lat":50.1,"lon":4.6},"Chilton":{"name":"Chilton","lat":51.56932026174434,"lon":-1.32},"Cyprus":{"name":"Cyprus (assumed)","lat":35.18557,"lon":33.38228},"US":{"name":"US (assumed)","lat":36.11793762278912,"lon":-82.5807086169964},"Australia":{"name":"Australia (assumed)","lat":-23.853424758715892,"lon":125.07620821000198},"KREA":{"name":"Krea University","lat":13.548829999999999,"lon":79.998975},"Kiruna":{"name":"Kiruna","lat":67.840741,"lon":20.410559},"Uppsala":{"name":"Uppsala","lat":59.800588,"lon":17.597136},"Millstone":{"name":"Millstone Hill","lat":42.6,"lon":-71.5,"quantitative_eligible":false},"Joutseno":{"name":"Joutseno VERSO","lat":61.12,"lon":28.5,"position_quality":"approximate locality; antenna location unverified","quantitative_eligible":false},"Kuusamo":{"name":"Kuusamo VERSO","lat":65.911368,"lon":29.040164,"position_quality":"historical SGO locality; current antenna location unverified","quantitative_eligible":false},"Vaasa":{"name":"Vaasa VERSO","lat":63.1,"lon":21.65,"position_quality":"approximate locality; antenna location unverified","quantitative_eligible":false},"Sodankyla":{"name":"Sodankyla VERSO","lat":67.364354,"lon":26.630437,"position_quality":"SGO locality; antenna location unverified","quantitative_eligible":false}}
+{
+  "SGO": {
+    "name": "SGO",
+    "lat": 67.36369337350563,
+    "lon": 26.634311805059543
+  },
+  "TGO": {
+    "name": "TGO",
+    "lat": 69.66174439007057,
+    "lon": 18.939127366530286
+  },
+  "DOB": {
+    "name": "Dombas",
+    "lat": 62.073,
+    "lon": 9.111
+  },
+  "KHO": {
+    "name": "KHO",
+    "lat": 78.1478,
+    "lon": 16.04035
+  },
+  "W2NAF": {
+    "name": "W2NAF",
+    "lat": 41.33509166666666,
+    "lon": -75.60079
+  },
+  "NIC": {
+    "name": "Cyprus",
+    "lat": 35.18557,
+    "lon": 33.38228
+  },
+  "Ramfjordmoen": {
+    "name": "Ramfjordmoen",
+    "lat": 69.58187184247221,
+    "lon": 19.220853348827067
+  },
+  "ROTHR1": {
+    "name": "ROTHR New Kent, Virginia",
+    "lat": 37.565563,
+    "lon": -77.024754,
+    "position_references": [
+      "https://clui.org/ludb/site/new-kent-rothr-transmitter",
+      "https://www.repi.mil/Portals/44/Documents/Buffer_Fact_Sheets/AllProjectFactSheets.pdf"
+    ],
+    "position_quality": "published transmitter site; ionosonde antenna position unverified",
+    "association_quality": "range-gated candidate; transmitter identity unverified"
+  },
+  "ROTHR2": {
+    "name": "ROTHR Vieques, Puerto Rico",
+    "lat": 18.1,
+    "lon": -65.51,
+    "position_references": [
+      "https://www.govinfo.gov/content/pkg/FR-1998-02-17/pdf/98-3903.pdf"
+    ],
+    "position_quality": "approximate Playa Grande transmitter locality; antenna position unverified",
+    "association_quality": "range-gated candidate; transmitter identity unverified"
+  },
+  "ROTHR3": {
+    "name": "ROTHR Premont, Texas",
+    "lat": 27.527313,
+    "lon": -98.111248,
+    "position_references": [
+      "https://clui.org/ludb/site/south-texas-rothr-transmitter"
+    ],
+    "position_quality": "published transmitter site; ionosonde antenna position unverified",
+    "association_quality": "range-gated candidate; transmitter identity unverified"
+  },
+  "JORN": {
+    "name": "JORN",
+    "lat": -23.853424758715892,
+    "lon": 125.07620821000198
+  },
+  "Juliusruh": {
+    "name": "Juliusruh",
+    "lat": 54.628740389301186,
+    "lon": 13.374299986524846
+  },
+  "TH76": {
+    "name": "Thule",
+    "lat": 76.54,
+    "lon": -68.44
+  },
+  "DB049": {
+    "name": "Dourbes",
+    "lat": 50.1,
+    "lon": 4.6
+  },
+  "Chilton": {
+    "name": "Chilton",
+    "lat": 51.56932026174434,
+    "lon": -1.32
+  },
+  "Cyprus": {
+    "name": "Cyprus (assumed)",
+    "lat": 35.18557,
+    "lon": 33.38228
+  },
+  "Australia": {
+    "name": "Australia (assumed)",
+    "lat": -23.853424758715892,
+    "lon": 125.07620821000198
+  },
+  "KREA": {
+    "name": "Krea University",
+    "lat": 13.548829999999999,
+    "lon": 79.998975
+  },
+  "Kiruna": {
+    "name": "Kiruna",
+    "lat": 67.840741,
+    "lon": 20.410559
+  },
+  "Uppsala": {
+    "name": "Uppsala",
+    "lat": 59.800588,
+    "lon": 17.597136
+  },
+  "Millstone": {
+    "name": "Millstone Hill",
+    "lat": 42.6,
+    "lon": -71.5,
+    "quantitative_eligible": false
+  },
+  "Joutseno": {
+    "name": "Joutseno VERSO",
+    "lat": 61.12,
+    "lon": 28.5,
+    "position_quality": "approximate locality; antenna location unverified",
+    "quantitative_eligible": false
+  },
+  "Kuusamo": {
+    "name": "Kuusamo VERSO",
+    "lat": 65.911368,
+    "lon": 29.040164,
+    "position_quality": "historical SGO locality; current antenna location unverified",
+    "quantitative_eligible": false
+  },
+  "Vaasa": {
+    "name": "Vaasa VERSO",
+    "lat": 63.1,
+    "lon": 21.65,
+    "position_quality": "approximate locality; antenna location unverified",
+    "quantitative_eligible": false
+  },
+  "Sodankyla": {
+    "name": "Sodankyla VERSO",
+    "lat": 67.364354,
+    "lon": 26.630437,
+    "position_quality": "SGO locality; antenna location unverified",
+    "quantitative_eligible": false
+  },
+  "Montelibretti": {
+    "name": "Montelibretti (IonoNet)",
+    "lat": 42.1,
+    "lon": 12.64,
+    "position_quality": "approximate CNR research campus location; antenna position unverified",
+    "position_references": [
+      "https://collane-editoriali.ingv.it/index.php/rt/en/article/download/778/pdf",
+      "https://www.retispeciali.it/wp-content/uploads/2024/11/Report_Rete-Speciale-Mercurio.pdf"
+    ]
+  }
+}

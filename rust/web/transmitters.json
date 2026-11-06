@@ -30,29 +30,29 @@
     {
       "name": "ROTHR1",
       "path": "short",
-      "label": "ROTHR Chesapeake Bay",
-      "center_km": 7443.462148610489,
-      "min_km": 6326.942826318916,
-      "max_km": 8559.981470902061,
-      "distance_km": 6322.621301034868
+      "label": "ROTHR New Kent, Virginia",
+      "center_km": 7476.037404378992,
+      "min_km": 6354.631793722143,
+      "max_km": 8597.44301503584,
+      "distance_km": 6350.291355895971
     },
     {
       "name": "ROTHR2",
       "path": "short",
-      "label": "ROTHR Culebra",
-      "center_km": 9369.081547993104,
-      "min_km": 7963.719315794138,
-      "max_km": 10774.44378019207,
-      "distance_km": 7958.279814391486
+      "label": "ROTHR Vieques, Puerto Rico",
+      "center_km": 9312.679910839757,
+      "min_km": 7915.777924213794,
+      "max_km": 10709.581897465721,
+      "distance_km": 7910.371168473866
     },
     {
       "name": "ROTHR3",
       "path": "short",
-      "label": "ROTHR Texas",
-      "center_km": 9572.468631913622,
-      "min_km": 8136.598337126578,
-      "max_km": 11008.338926700664,
-      "distance_km": 8131.04075324993
+      "label": "ROTHR Premont, Texas",
+      "center_km": 9549.80023500061,
+      "min_km": 8117.330199750519,
+      "max_km": 10982.270270250701,
+      "distance_km": 8111.78577669184
     }
   ],
   "DOB": [
@@ -86,29 +86,29 @@
     {
       "name": "ROTHR1",
       "path": "short",
-      "label": "ROTHR Chesapeake Bay",
-      "center_km": 7245.312266240947,
-      "min_km": 6158.515426304804,
-      "max_km": 8332.10910617709,
-      "distance_km": 6154.308942880257
+      "label": "ROTHR New Kent, Virginia",
+      "center_km": 7290.052747782302,
+      "min_km": 6196.544835614956,
+      "max_km": 8383.560659949646,
+      "distance_km": 6192.312376761456
     },
     {
       "name": "ROTHR2",
       "path": "short",
-      "label": "ROTHR Culebra",
-      "center_km": 8827.17603675969,
-      "min_km": 7503.099631245737,
-      "max_km": 10151.252442273644,
-      "distance_km": 7497.974749346968
+      "label": "ROTHR Vieques, Puerto Rico",
+      "center_km": 8755.895327741004,
+      "min_km": 7442.511028579853,
+      "max_km": 10069.279626902155,
+      "distance_km": 7437.427530835411
     },
     {
       "name": "ROTHR3",
       "path": "short",
-      "label": "ROTHR Texas",
-      "center_km": 9643.70806249807,
-      "min_km": 8197.15185312336,
-      "max_km": 11090.26427187278,
-      "distance_km": 8191.552909057817
+      "label": "ROTHR Premont, Texas",
+      "center_km": 9610.996748061629,
+      "min_km": 8169.347235852385,
+      "max_km": 11052.646260270873,
+      "distance_km": 8163.7672833219085
     }
   ],
   "KHO": [
@@ -142,29 +142,29 @@
     {
       "name": "ROTHR1",
       "path": "short",
-      "label": "ROTHR Chesapeake Bay",
-      "center_km": 7047.259905655743,
-      "min_km": 5990.170919807381,
-      "max_km": 8104.348891504104,
-      "distance_km": 5986.079421623135
+      "label": "ROTHR New Kent, Virginia",
+      "center_km": 7067.310502018311,
+      "min_km": 6007.213926715564,
+      "max_km": 8127.407077321058,
+      "distance_km": 6003.110787556002
     },
     {
       "name": "ROTHR2",
       "path": "short",
-      "label": "ROTHR Culebra",
-      "center_km": 9275.811766970635,
-      "min_km": 7884.44000192504,
-      "max_km": 10667.18353201623,
-      "distance_km": 7879.054651092228
+      "label": "ROTHR Vieques, Puerto Rico",
+      "center_km": 9237.446961674768,
+      "min_km": 7851.829917423553,
+      "max_km": 10623.064005925984,
+      "distance_km": 7846.4668404295535
     },
     {
       "name": "ROTHR3",
       "path": "short",
-      "label": "ROTHR Texas",
-      "center_km": 8890.035845821283,
-      "min_km": 7556.530468948091,
-      "max_km": 10223.541222694475,
-      "distance_km": 7551.369091901124
+      "label": "ROTHR Premont, Texas",
+      "center_km": 8875.86096291117,
+      "min_km": 7544.481818474495,
+      "max_km": 10207.240107347847,
+      "distance_km": 7539.328671081104
     }
   ],
   "W2NAF": [
@@ -198,29 +198,29 @@
     {
       "name": "ROTHR1",
       "path": "short",
-      "label": "ROTHR Chesapeake Bay",
-      "center_km": 497.9783903295391,
-      "min_km": 397.9783903295391,
-      "max_km": 597.978390329539,
-      "distance_km": 422.99251548425656
+      "label": "ROTHR New Kent, Virginia",
+      "center_km": 514.0004101605642,
+      "min_km": 414.00041016056423,
+      "max_km": 614.0004101605642,
+      "distance_km": 436.6019302762903
     },
     {
       "name": "ROTHR2",
       "path": "short",
-      "label": "ROTHR Culebra",
-      "center_km": 3219.37356730898,
-      "min_km": 2736.467532212633,
-      "max_km": 3702.279602405327,
-      "distance_km": 2734.598428294033
+      "label": "ROTHR Vieques, Puerto Rico",
+      "center_km": 3245.1314088547097,
+      "min_km": 2758.361697526503,
+      "max_km": 3731.901120182916,
+      "distance_km": 2756.4776391201553
     },
     {
       "name": "ROTHR3",
       "path": "short",
-      "label": "ROTHR Texas",
-      "center_km": 3065.32690680879,
-      "min_km": 2605.527870787472,
-      "max_km": 3525.1259428301087,
-      "distance_km": 2603.7482032796415
+      "label": "ROTHR Premont, Texas",
+      "center_km": 3013.449418749229,
+      "min_km": 2561.4320059368447,
+      "max_km": 3465.4668315616136,
+      "distance_km": 2559.68245746124
     }
   ],
   "DMB": [
@@ -254,29 +254,29 @@
     {
       "name": "ROTHR1",
       "path": "short",
-      "label": "ROTHR Chesapeake Bay",
-      "center_km": 7245.312266240947,
-      "min_km": 6158.515426304804,
-      "max_km": 8332.10910617709,
-      "distance_km": 6154.308942880257
+      "label": "ROTHR New Kent, Virginia",
+      "center_km": 7290.052747782302,
+      "min_km": 6196.544835614956,
+      "max_km": 8383.560659949646,
+      "distance_km": 6192.312376761456
     },
     {
       "name": "ROTHR2",
       "path": "short",
-      "label": "ROTHR Culebra",
-      "center_km": 8827.17603675969,
-      "min_km": 7503.099631245737,
-      "max_km": 10151.252442273644,
-      "distance_km": 7497.974749346968
+      "label": "ROTHR Vieques, Puerto Rico",
+      "center_km": 8755.895327741004,
+      "min_km": 7442.511028579853,
+      "max_km": 10069.279626902155,
+      "distance_km": 7437.427530835411
     },
     {
       "name": "ROTHR3",
       "path": "short",
-      "label": "ROTHR Texas",
-      "center_km": 9643.70806249807,
-      "min_km": 8197.15185312336,
-      "max_km": 11090.26427187278,
-      "distance_km": 8191.552909057817
+      "label": "ROTHR Premont, Texas",
+      "center_km": 9610.996748061629,
+      "min_km": 8169.347235852385,
+      "max_km": 11052.646260270873,
+      "distance_km": 8163.7672833219085
     }
   ],
   "KREA": [
@@ -310,29 +310,29 @@
     {
       "name": "ROTHR1",
       "path": "short",
-      "label": "ROTHR Chesapeake Bay",
-      "center_km": 16263.134943913983,
-      "min_km": 13823.664702326885,
-      "max_km": 18702.60518550108,
-      "distance_km": 13814.222651376023
+      "label": "ROTHR New Kent, Virginia",
+      "center_km": 16300.008945468648,
+      "min_km": 13855.007603648352,
+      "max_km": 18745.010287288944,
+      "distance_km": 13845.544144389518
     },
     {
       "name": "ROTHR2",
       "path": "short",
-      "label": "ROTHR Culebra",
-      "center_km": 17582.54712799937,
-      "min_km": 14945.165058799463,
-      "max_km": 20219.929197199275,
-      "distance_km": 14934.95698351748
+      "label": "ROTHR Vieques, Puerto Rico",
+      "center_km": 17481.16215234144,
+      "min_km": 14858.987829490223,
+      "max_km": 20103.336475192657,
+      "distance_km": 14848.838616297815
     },
     {
       "name": "ROTHR3",
       "path": "short",
-      "label": "ROTHR Texas",
-      "center_km": 18183.647868486885,
-      "min_km": 15456.100688213854,
-      "max_km": 20911.195048759917,
-      "distance_km": 15445.54362586155
+      "label": "ROTHR Premont, Texas",
+      "center_km": 18180.77674275883,
+      "min_km": 15453.660231345006,
+      "max_km": 20907.893254172654,
+      "distance_km": 15443.104835910892
     }
   ]
 }

@@ -1,8 +1,7 @@
 //! Standalone candidate surface, with source provenance retained in HDF5 only.
 use anyhow::{ensure, Result};
 use rustplotlib::{
-    Axes, ColorMap, Colorbar, Figure, IntendedUse, Label, Layer, Line, Normalization, Panel, Rect,
-    Scale,
+    ArticleLayout, Axes, ColorMap, Colorbar, Label, Layer, Line, Normalization, Panel, Rect, Scale,
 };
 fn main() -> Result<()> {
     let args: Vec<_> = std::env::args().collect();
@@ -18,15 +17,11 @@ fn main() -> Result<()> {
         .collect();
     ensure!(!names.is_empty(), "no supported timing families to plot");
     let coast: Vec<Option<f64>> = serde_json::from_str(&std::fs::read_to_string(&args[2])?)?;
-    let mut fig = Figure::new(IntendedUse::Custom {
-        width_mm: 250.,
-        font_pt: 11.,
-    });
+    let mut fig = ArticleLayout::new(178., 11.)?.figure(1., names.len() as f64 * 96. + 5.)?;
     fig.latex.cache = std::path::Path::new(&args[3])
         .parent()
         .unwrap_or(std::path::Path::new("."))
         .join(".latex-cache");
-    fig.height_mm = names.len() as f64 * 116. + 10.;
     fig.raster_dpi = 140.;
     let scale = fig.scale(Scale::new(
         [0., 0.5],
@@ -55,14 +50,14 @@ fn main() -> Result<()> {
                 }
             })
             .collect();
-        let top = 10. + k as f64 * 116.;
+        let top = 8. + k as f64 * 96.;
         let axes = Axes::new(
             [-180., 180.],
             [-90., 90.],
             "Longitude (deg)",
             "Latitude (deg)",
         );
-        let mut p = Panel::new(Rect::new(21., top + 7., 200., 86.), axes);
+        let mut p = Panel::new(Rect::new(18., top + 6., 128., 64.), axes);
         let step = lon[1] - lon[0];
         let xe: Vec<_> = (0..=lon.len())
             .map(|i| lon[0] - step / 2. + i as f64 * step)
@@ -86,7 +81,7 @@ fn main() -> Result<()> {
         }
         fig.panels.push(p);
         fig.colorbars.push(Colorbar::new(
-            Rect::new(227., top + 7., 3., 86.),
+            Rect::new(152., top + 6., 3., 64.),
             scale,
             "Timing residual (ms)",
             vec![0., 0.1, 0.2, 0.3, 0.4, 0.5],
@@ -97,10 +92,15 @@ fn main() -> Result<()> {
                 metadata["rate"].as_u64().unwrap() / 1000,
                 metadata["events"].as_array().unwrap().len()
             ),
-            121.,
+            82.,
             top,
         ));
     }
-    fig.save(std::path::Path::new(&args[3]))?;
+    let path = std::path::Path::new(&args[3]);
+    if path.extension().and_then(|s| s.to_str()) == Some("pdf") {
+        fig.save_for_article(path, path.file_name().unwrap().to_str().unwrap())?;
+    } else {
+        fig.save(path)?;
+    }
     Ok(())
 }

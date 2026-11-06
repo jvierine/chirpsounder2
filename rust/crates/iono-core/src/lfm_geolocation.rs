@@ -21,6 +21,27 @@ pub struct Settings {
     pub minimum_common_bands: usize,
     pub minimum_events: usize,
     pub grid_step_deg: f64,
+    #[serde(default)]
+    pub anchor_range: Option<AnchorRange>,
+    #[serde(default = "default_frequency_bin")]
+    pub frequency_bin_hz: f64,
+    #[serde(default = "default_bin_detections")]
+    pub minimum_detections_per_bin: usize,
+    #[serde(default)]
+    pub minimum_frequency_span_hz: f64,
+}
+fn default_frequency_bin() -> f64 {
+    1e6
+}
+fn default_bin_detections() -> usize {
+    3
+}
+#[derive(Clone, Deserialize, Serialize)]
+pub struct AnchorRange {
+    pub station: String,
+    /// Apparent range relative to the assumed integer-second sweep epoch.
+    /// This selects a plotted feature; it is not an absolute ground distance.
+    pub virtual_range_km: [f64; 2],
 }
 #[derive(Clone, Copy)]
 pub struct Detection {
@@ -38,6 +59,8 @@ pub struct Event {
     pub delay_s: Vec<f64>,
     pub common_bands: usize,
     pub band_scatter_s: f64,
+    #[serde(default)]
+    pub anchor_virtual_range_km: Option<f64>,
 }
 #[derive(Serialize)]
 pub struct Family {
@@ -53,6 +76,27 @@ pub fn quantile(v: &mut [f64], p: f64) -> f64 {
     v[t.floor() as usize] * (1. - t.fract()) + v[t.ceil() as usize] * t.fract()
 }
 pub fn load(c: &Settings) -> Result<Vec<Detection>> {
+    ensure!(
+        c.frequency_bin_hz.is_finite()
+            && (10000. ..=1e6).contains(&c.frequency_bin_hz)
+            && (1..=20).contains(&c.minimum_detections_per_bin)
+            && c.minimum_frequency_span_hz.is_finite()
+            && (0. ..=23.5e6).contains(&c.minimum_frequency_span_hz),
+        "invalid frequency matching bins"
+    );
+    if let Some(anchor) = &c.anchor_range {
+        ensure!(
+            c.receivers
+                .iter()
+                .any(|r| r.station == anchor.station && r.quantitative),
+            "anchor receiver unavailable for timing"
+        );
+        let [lo, hi] = anchor.virtual_range_km;
+        ensure!(
+            lo.is_finite() && hi.is_finite() && lo < hi && lo >= -C_KM_S / 2. && hi <= C_KM_S / 2.,
+            "invalid anchor range"
+        );
+    }
     ensure!(
         c.receivers.len() >= 3 && c.receivers.len() <= 16,
         "need 3..16 receivers"
@@ -131,14 +175,17 @@ pub fn events(c: &Settings, rows: &[Detection]) -> Vec<Event> {
         let mut bins = BTreeMap::<(usize, u32), Vec<f64>>::new();
         for r in g {
             if c.receivers[r.receiver].quantitative {
-                bins.entry((r.receiver, (r.frequency / 1e6).floor() as u32))
-                    .or_default()
-                    .push(r.epoch - first.epoch);
+                bins.entry((
+                    r.receiver,
+                    (r.frequency / c.frequency_bin_hz).floor() as u32,
+                ))
+                .or_default()
+                .push(r.epoch - first.epoch);
             }
         }
         let mut centers = BTreeMap::new();
         for (key, mut v) in bins {
-            if v.len() >= 3 {
+            if v.len() >= c.minimum_detections_per_bin {
                 v.sort_by(f64::total_cmp);
                 // Reject blended source epochs or strongly split propagation modes.
                 if v[v.len() - 1] - v[0] < 0.008 {
@@ -150,13 +197,26 @@ pub fn events(c: &Settings, rows: &[Detection]) -> Vec<Event> {
             .filter(|&i| centers.keys().filter(|(j, _)| *j == i).count() >= c.minimum_common_bands)
             .collect();
         if ids.len() >= 3 {
+            let common: Vec<_> = centers
+                .keys()
+                .filter_map(|&(receiver, band)| {
+                    (receiver == ids[0] && ids.iter().all(|i| centers.contains_key(&(*i, band))))
+                        .then_some(band)
+                })
+                .collect();
+            if common.len() < c.minimum_common_bands
+                || common.last().zip(common.first()).is_none_or(|(hi, lo)| {
+                    (*hi - *lo) as f64 * c.frequency_bin_hz < c.minimum_frequency_span_hz
+                })
+            {
+                start = end;
+                continue;
+            }
             let mut delays = vec![vec![]; ids.len()];
-            for band in 1..25 {
-                if ids.iter().all(|i| centers.contains_key(&(*i, band))) {
-                    let reference = centers[&(ids[0], band)];
-                    for (k, &i) in ids.iter().enumerate() {
-                        delays[k].push(centers[&(i, band)] - reference);
-                    }
+            for &band in &common {
+                let reference = centers[&(ids[0], band)];
+                for (k, &i) in ids.iter().enumerate() {
+                    delays[k].push(centers[&(i, band)] - reference);
                 }
             }
             if delays[0].len() >= c.minimum_common_bands {
@@ -168,6 +228,31 @@ pub fn events(c: &Settings, rows: &[Detection]) -> Vec<Event> {
                     .flat_map(|(v, m)| v.iter().map(move |x| (x - m).abs()))
                     .fold(0., f64::max);
                 if scatter <= 0.001 {
+                    let anchor_virtual_range_km = if let Some(anchor) = &c.anchor_range {
+                        let Some(index) = c
+                            .receivers
+                            .iter()
+                            .position(|r| r.station == anchor.station)
+                            .filter(|i| ids.contains(i))
+                        else {
+                            start = end;
+                            continue;
+                        };
+                        let mut arrivals: Vec<_> = common
+                            .iter()
+                            .map(|&band| first.epoch + centers[&(index, band)])
+                            .collect();
+                        let phase = quantile(&mut arrivals, 0.5).rem_euclid(1.);
+                        let range = (if phase > 0.5 { phase - 1. } else { phase }) * C_KM_S;
+                        if range < anchor.virtual_range_km[0] || range > anchor.virtual_range_km[1]
+                        {
+                            start = end;
+                            continue;
+                        }
+                        Some(range)
+                    } else {
+                        None
+                    };
                     out.push(Event {
                         epoch: first.epoch,
                         rate: first.rate,
@@ -175,6 +260,7 @@ pub fn events(c: &Settings, rows: &[Detection]) -> Vec<Event> {
                         delay_s: med,
                         common_bands: count,
                         band_scatter_s: scatter,
+                        anchor_virtual_range_km,
                     });
                 }
             }
@@ -276,6 +362,10 @@ pub struct Surface {
     pub heights: Vec<f64>,
     pub rms_km: Vec<f64>,
     pub best: Vec<[f64; 3]>,
+    /// Conditional minima only: assumes the plotted apparent range is actual
+    /// path length from an integer-second transmission epoch. Not established
+    /// by TDOA, and never used to discard the unrestricted surface.
+    pub conditional_best: Option<Vec<[f64; 3]>>,
 }
 pub fn surface(c: &Settings, f: &Family) -> Surface {
     let latitude: Vec<_> = (0..=(180. / c.grid_step_deg) as usize)
@@ -287,8 +377,16 @@ pub fn surface(c: &Settings, f: &Family) -> Surface {
     let heights = vec![0., 110., 200., 300., 400.];
     let mut rms_km = vec![];
     let mut best = vec![];
+    let anchor = c.anchor_range.as_ref().and_then(|a| {
+        f.receivers
+            .iter()
+            .position(|&i| c.receivers[i].station == a.station)
+            .map(|i| (i, a.virtual_range_km))
+    });
+    let mut conditional_best = anchor.map(|_| vec![]);
     for &height in &heights {
         let mut optimum = [f64::INFINITY, 0., 0.];
+        let mut conditional = [f64::INFINITY, 0., 0.];
         for &lat in &latitude {
             for &lon in &longitude {
                 let ranges: Vec<_> = f
@@ -307,10 +405,18 @@ pub fn surface(c: &Settings, f: &Family) -> Surface {
                 if rms < optimum[0] {
                     optimum = [rms, lat, lon];
                 }
+                if let Some((index, [lo, hi])) = anchor {
+                    if (lo..=hi).contains(&ranges[index]) && rms < conditional[0] {
+                        conditional = [rms, lat, lon];
+                    }
+                }
                 rms_km.push(rms);
             }
         }
         best.push(optimum);
+        if let Some(v) = &mut conditional_best {
+            v.push(conditional);
+        }
     }
     Surface {
         latitude,
@@ -318,6 +424,7 @@ pub fn surface(c: &Settings, f: &Family) -> Surface {
         heights,
         rms_km,
         best,
+        conditional_best,
     }
 }
 #[cfg(test)]
@@ -352,6 +459,10 @@ mod tests {
             minimum_common_bands: 2,
             minimum_events: 5,
             grid_step_deg: 1.,
+            frequency_bin_hz: 1e6,
+            minimum_detections_per_bin: 3,
+            minimum_frequency_span_hz: 0.,
+            anchor_range: None,
         };
         let ranges: Vec<_> = c
             .receivers
@@ -377,6 +488,10 @@ mod tests {
             minimum_common_bands: 2,
             minimum_events: 5,
             grid_step_deg: 1.,
+            frequency_bin_hz: 1e6,
+            minimum_detections_per_bin: 3,
+            minimum_frequency_span_hz: 0.,
+            anchor_range: None,
         };
         c.receivers[3].quantitative = false;
         let mut rows = vec![];
@@ -407,6 +522,10 @@ mod tests {
             minimum_common_bands: 2,
             minimum_events: 5,
             grid_step_deg: 1.,
+            frequency_bin_hz: 1e6,
+            minimum_detections_per_bin: 3,
+            minimum_frequency_span_hz: 0.,
+            anchor_range: None,
         };
         let mut rows = vec![];
         for i in 0..3 {
@@ -422,6 +541,80 @@ mod tests {
                 }
             }
         }
+        assert!(events(&c, &rows).is_empty());
+    }
+    #[test]
+    fn plotted_anchor_gate_selects_a_feature_without_becoming_a_ground_range() {
+        let mut c = Settings {
+            receivers: (0..3)
+                .map(|i| Receiver {
+                    station: format!("R{i}"),
+                    ..receiver(60., 0.)
+                })
+                .collect(),
+            minimum_snr: 16.,
+            minimum_common_bands: 2,
+            minimum_events: 3,
+            grid_step_deg: 1.,
+            frequency_bin_hz: 1e6,
+            minimum_detections_per_bin: 3,
+            minimum_frequency_span_hz: 0.,
+            anchor_range: Some(AnchorRange {
+                station: "R2".into(),
+                virtual_range_km: [6000., 6500.],
+            }),
+        };
+        let mut rows = vec![];
+        for i in 0..3 {
+            for band in [16., 20.] {
+                for k in 0..3 {
+                    rows.push(Detection {
+                        receiver: i,
+                        epoch: 1000.019 + i as f64 * 0.001,
+                        frequency: band * 1e6 + k as f64 * 10000.,
+                        rate: 100000,
+                        snr: 20.,
+                    });
+                }
+            }
+        }
+        let selected = events(&c, &rows);
+        assert_eq!(selected.len(), 1);
+        assert!((selected[0].anchor_virtual_range_km.unwrap() - 0.021 * C_KM_S).abs() < 1e-6);
+        assert!((selected[0].delay_s[2] - 0.002).abs() < 1e-10);
+        c.anchor_range.as_mut().unwrap().virtual_range_km = [7000., 7500.];
+        assert!(events(&c, &rows).is_empty());
+    }
+    #[test]
+    fn fine_matching_requires_broad_shared_frequency_support() {
+        let mut c = Settings {
+            receivers: vec![receiver(60., 0.); 3],
+            minimum_snr: 16.,
+            minimum_common_bands: 6,
+            minimum_events: 5,
+            grid_step_deg: 1.,
+            frequency_bin_hz: 100000.,
+            minimum_detections_per_bin: 1,
+            minimum_frequency_span_hz: 1e6,
+            anchor_range: None,
+        };
+        let mut rows = vec![];
+        for i in 0..3 {
+            for band in [80., 82., 84., 86., 88., 90.] {
+                rows.push(Detection {
+                    receiver: i,
+                    epoch: 1000. + i as f64 * 0.001,
+                    frequency: band * 100000. + 1000.,
+                    rate: 100000,
+                    snr: 20.,
+                });
+            }
+        }
+        let ev = events(&c, &rows);
+        assert_eq!(ev.len(), 1);
+        assert_eq!(ev[0].common_bands, 6);
+        assert!((ev[0].delay_s[2] - 0.002).abs() < 1e-10);
+        c.minimum_frequency_span_hz = 1.1e6;
         assert!(events(&c, &rows).is_empty());
     }
 }
