@@ -51,7 +51,7 @@ pub struct Detection {
     pub rate: u32,
     pub snr: f64,
 }
-#[derive(Clone, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct Event {
     pub epoch: f64,
     pub rate: u32,
@@ -62,7 +62,7 @@ pub struct Event {
     #[serde(default)]
     pub anchor_virtual_range_km: Option<f64>,
 }
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct Family {
     pub rate: u32,
     pub receivers: Vec<usize>,

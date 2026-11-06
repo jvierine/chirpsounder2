@@ -444,6 +444,19 @@ pub fn export_latest(
         products.extend(found);
     }
     let n = products.len();
+    // The small publication lane also carries current radar associations.
+    // Limited-bandwidth stations must not upload a full-day raster bundle
+    // merely to update a few map rows. Use the local indexed detection table.
+    let since = start.max(chrono::Utc::now().timestamp() as f64 - 1800.);
+    let mut latest_paths = std::collections::BTreeMap::new();
+    for row in crate::assumed::envelopes(&catalog.detections(since)?, station, start) {
+        let id = row["transmitter"].as_str().unwrap().to_owned();
+        if latest_paths.get(&id).is_none_or(|old: &serde_json::Value| {
+            old["time"].as_f64().unwrap() < row["time"].as_f64().unwrap()
+        }) {
+            latest_paths.insert(id, row);
+        }
+    }
     let mut bundle = Bundle {
         schema: SCHEMA.into(),
         station: station.into(),
@@ -455,7 +468,7 @@ pub fn export_latest(
         partial: true,
         products,
         evidence,
-        assumed_paths: vec![],
+        assumed_paths: latest_paths.into_values().collect(),
         health,
     };
     iono_browser::write_transport(path, &mut bundle)?;
