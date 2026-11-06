@@ -22,7 +22,7 @@ while true; do
         snapshot="$pending/${source##*/}"
         rm -f "$snapshot"
         ln "$source" "$snapshot" 2>/dev/null || cp "$source" "$snapshot"
-        if transfer 60 "$snapshot"; then
+        if transfer 120 "$snapshot"; then
           last_latest=$fingerprint;rm -f "$snapshot"
           echo "Priority ionograms published for $station" >&2
         fi
