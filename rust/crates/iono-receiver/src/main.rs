@@ -45,6 +45,14 @@ struct Config {
     n_ipp: usize,
     #[serde(default = "ipp")]
     ipp_us: usize,
+    /// Time spent searching/settling between transmitted frequency dwells.
+    #[serde(default)]
+    inter_frequency_gap_s: f64,
+    /// Optional bounded search around the programmed RF carrier.
+    #[serde(default)]
+    carrier_search_hz: f64,
+    #[serde(default)]
+    polarization_interleaved: bool,
     /// Physical transmitter PRI; ipp_us may be the effective per-carrier PRI.
     #[serde(default)]
     physical_ipp_us: Option<usize>,
@@ -246,7 +254,9 @@ fn digisonde_frequency_count(c: &Config) -> usize {
     (((c.freq_stop_hz - c.freq_start_hz) / c.freq_step_hz) + 1e-9).floor() as usize
 }
 fn digisonde_frequency_sample(c: &Config, t: f64, frequency: usize) -> Result<u64> {
-    let dwell = c.n_ipp * (c.sample_rate * c.ipp_us as f64 * 1e-6).round() as usize;
+    let dwell = (c.sample_rate
+        * (c.n_ipp as f64 * c.ipp_us as f64 * 1e-6 + c.inter_frequency_gap_s))
+        .round() as usize;
     let shift = ((c.offset_us + c.delay()) * c.sample_rate / 1e6).round() as i64;
     epoch_sample(t, c.sample_rate as u64)?
         .checked_add((frequency * dwell) as u64)
@@ -254,6 +264,18 @@ fn digisonde_frequency_sample(c: &Config, t: f64, frequency: usize) -> Result<u6
         .context("sounding sample overflow")
 }
 fn validate_digisonde(c: &Config) -> Result<()> {
+    ensure!(
+        c.inter_frequency_gap_s.is_finite() && (0. ..=1.).contains(&c.inter_frequency_gap_s),
+        "invalid inter-frequency gap"
+    );
+    ensure!(
+        c.carrier_search_hz.is_finite() && (0. ..=30000.).contains(&c.carrier_search_hz),
+        "invalid RF carrier search extent"
+    );
+    ensure!(
+        c.carrier_search_hz == 0. || c.n_ipp * c.ipp_us >= 160000,
+        "carrier search requires at least 160 ms of RF"
+    );
     ensure!(
         [5000, 10000, 20000, 40000].contains(&c.ipp_us),
         "unsupported effective Digisonde PRI"
@@ -315,7 +337,7 @@ fn digisonde(c: &Config, t: f64) -> Result<()> {
     let decoding_nr = decoding_ipp / 10;
     let ipp_samples = (c.sample_rate * decoding_ipp as f64 * 1e-6).round() as usize;
     let raw_samples = nipp * (c.sample_rate * c.ipp_us as f64 * 1e-6).round() as usize;
-    let frequency_duration = nipp as f64 * c.ipp_us as f64 * 1e-6;
+    let frequency_duration = nipp as f64 * c.ipp_us as f64 * 1e-6 + c.inter_frequency_gap_s;
     let threshold = c
         .snr_threshold_db
         .map(|db| 10f32.powf(db as f32 / 10.))
@@ -330,6 +352,19 @@ fn digisonde(c: &Config, t: f64) -> Result<()> {
     );
     let mut power = vec![f32::NAN; 2 * nf * nr];
     let mut noise = vec![f32::NAN; 2 * nf];
+    let mut actual_carriers = vec![0f64; nf];
+    let mut search_coherence = vec![f32::NAN; nf];
+    let mut carrier_decoder = if c.carrier_search_hz > 0. {
+        Some(iono_core::digisonde_match::CodeSearch::with_orders(
+            16000,
+            100e3,
+            &[physical_ipp as u32],
+            &[(1, 1)],
+            &[c.polarization_interleaved],
+        ))
+    } else {
+        None
+    };
     let start_time = now();
     for f in 0..nf {
         let freq = c.freq_start_hz + f as f64 * c.freq_step_hz;
@@ -337,7 +372,11 @@ fn digisonde(c: &Config, t: f64) -> Result<()> {
         let mut decoded = Vec::with_capacity(nipp);
         // One contiguous frequency read avoids repeated HDF5 hyperslab setup.
         // The voltage budget is 128 MB, including 128 physical 5 ms IPPs.
-        let padding = if c.rfi_clip_ratio.is_some() { 1000 } else { 0 };
+        let padding = if c.rfi_clip_ratio.is_some() || c.carrier_search_hz > 0. {
+            1000
+        } else {
+            0
+        };
         let raw = read_live(
             &mut r,
             c,
@@ -347,7 +386,21 @@ fn digisonde(c: &Config, t: f64) -> Result<()> {
         )?;
         // Reuse oscillator and FIR coefficients for the whole frequency dwell.
         // The 30 kHz total FIR bandwidth matches the historical 0.006 cutoff.
-        let channelizer = Channelizer::new(freq - c.center_freq, 30000.)?;
+        let mut carrier = freq;
+        if let Some(decoder) = carrier_decoder.as_mut() {
+            let baseband =
+                Channelizer::new(freq - c.center_freq, 100e3)?.process(&raw[..4_002_000], -1000);
+            if let Some(m) =
+                decoder.seek_with_doppler(&baseband[4..16004], c.carrier_search_hz, 5000., 4)
+            {
+                search_coherence[f] = m.coherence;
+                if m.coherence >= 0.01 {
+                    carrier += 5000. * (m.carrier_offset_hz / 5000.).round();
+                }
+            }
+        }
+        actual_carriers[f] = carrier;
+        let channelizer = Channelizer::new(carrier - c.center_freq, 30000.)?;
         for pi in 0..nipp {
             let ppi = c.multiplex_block_pulses.map_or(pi, |block| {
                 multiplex_pulse_index(pi, block, c.ipp_us / physical_ipp)
@@ -358,7 +411,14 @@ fn digisonde(c: &Config, t: f64) -> Result<()> {
             if padding > 0 {
                 baseband = baseband[4..4 + decoding_nr].to_vec();
             }
-            decoded.push(dsp.decode_baseband_ipp(baseband, pi, c.rfi_clip_ratio));
+            let logical =
+                iono_core::digisonde_match::logical_pulse_index(pi, c.polarization_interleaved);
+            decoded.push(dsp.decode_baseband_ipp(baseband, logical, c.rfi_clip_ratio));
+        }
+        if c.polarization_interleaved {
+            for group in decoded.chunks_exact_mut(4) {
+                group.swap(1, 2);
+            }
         }
         let p = dsp.power(&decoded);
         for mode in 0..2 {
@@ -423,6 +483,22 @@ fn digisonde(c: &Config, t: f64) -> Result<()> {
             c.physical_ipp_us.unwrap_or(c.ipp_us) as f64,
         )?;
         dataset(&h, "frequency_duration_s", frequency_duration)?;
+        dataset(&h, "inter_frequency_gap_s", c.inter_frequency_gap_s)?;
+        dataset(
+            &h,
+            "polarization_interleaved",
+            u8::from(c.polarization_interleaved) as f64,
+        )?;
+        if c.carrier_search_hz > 0. {
+            dataset(&h, "carrier_search_hz", c.carrier_search_hz)?;
+            h.new_dataset_builder()
+                .with_data(&actual_carriers)
+                .create("actual_carrier_hz")?;
+            h.new_dataset_builder()
+                .with_data(&search_coherence)
+                .create("carrier_search_coherence")?;
+            text(&h,"frequency_axis_reference","nominal search-channel centres; actual_carrier_hz records the received RF carriers")?;
+        }
         if let Some(ratio) = c.rfi_clip_ratio {
             dataset(&h, "rfi_clip_amplitude_ratio", ratio as f64)?;
         }
@@ -681,6 +757,19 @@ fn main() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn frequency_search_pause_changes_step_time_but_not_pulse_integration() {
+        let mut c:Config=serde_json::from_str(r#"{"station":"DOB","data_dir":"x","output_dir":"y","ipp_us":5000,"n_ipp":128,"inter_frequency_gap_s":0.26,"carrier_search_hz":25000}"#).unwrap();
+        validate_digisonde(&c).unwrap();
+        assert_eq!(
+            digisonde_frequency_sample(&c, 1793995200., 80).unwrap()
+                - digisonde_frequency_sample(&c, 1793995200., 0).unwrap(),
+            1_800_000_000
+        );
+        assert_eq!(c.n_ipp * c.ipp_us, 640000);
+        c.inter_frequency_gap_s = f64::NAN;
+        assert!(validate_digisonde(&c).is_err());
+    }
     #[test]
     fn legacy_juliusruh_partial_frequency_step_limits_remain_supported() {
         let mut c:Config=serde_json::from_str(r#"{"station":"DOB","data_dir":"x","output_dir":"y","transmitter":"Juliusruh","freq_start_hz":1010000,"freq_stop_hz":14000000,"freq_step_hz":50000,"n_ipp":16}"#).unwrap();

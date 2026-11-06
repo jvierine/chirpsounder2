@@ -1,6 +1,6 @@
 {
   "schema": "chirpsounder2-digisonde-commissioning-v1",
-  "checked_utc": "2026-11-06T17:13:30.044564+00:00",
+  "checked_utc": "2026-11-06T20:34:11.340765+00:00",
   "metadata_source": "GIRO DIDBase LOCATION, MEASUREMENT and PROGRAM tables, authorized read-only access",
   "source_url": "https://giro.uml.edu/didbase/",
   "positions": "Approximate GIRO station coordinates; not surveyed antenna positions",
@@ -650,5 +650,24 @@
       16
     ],
     "result": "clear shared-waveform trace; source identity unresolved; not enabled as confirmed Thule"
+  },
+  "dob_validation_20261106": {
+    "chilton": {
+      "status": "experimental profile deployed; source association and absolute range zero not independently confirmed",
+      "physical_ipp_us": 5000,
+      "frequency_step_duration_s": 0.9,
+      "inter_frequency_gap_s": 0.26,
+      "carrier_search_hz": 30000,
+      "packet_alignment_us": 286000,
+      "first_live_observation_utc": "2026-11-06T20:20:00Z"
+    },
+    "dourbes": {
+      "status": "not validated in nighttime windows; no alternative mode promoted"
+    },
+    "Thule": {
+      "status": "not identified; shared-program and code/polarization ambiguity remain; no confirmed map link enabled"
+    },
+    "follow_up_capture_utc": "2026-11-07T09:00:00Z",
+    "receiver_clock_adjusted": false
   }
 }

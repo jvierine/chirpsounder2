@@ -21,6 +21,15 @@ struct Config {
     fine_frequency_count: usize,
     #[serde(default)]
     multiplex_blocks: Vec<usize>,
+    #[serde(default)]
+    save_iq: bool,
+    #[serde(default = "orders")]
+    polarization_orders: Vec<bool>,
+    #[serde(default)]
+    replay_carrier_search_hz: Option<f64>,
+}
+fn orders() -> Vec<bool> {
+    vec![false]
 }
 fn one() -> usize {
     1
@@ -31,8 +40,91 @@ fn default_ipps() -> Vec<u32> {
 fn doppler() -> f64 {
     100.
 }
+/// Export only small numeric diagnostics; cached voltage stays at the receiver.
+fn export_summary(source: &Path, destination: &Path) -> Result<()> {
+    ensure!(
+        source != destination,
+        "summary must use a separate output path"
+    );
+    let input = File::open(source)?;
+    if let Some(parent) = destination.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let temporary = destination.with_extension("partial.h5");
+    let out = File::create(&temporary)?;
+    fn copy_dataset(input: &File, out: &File, name: &str) -> Result<()> {
+        let d = input.dataset(name)?;
+        ensure!(d.size() <= 10000, "summary dataset exceeds budget");
+        macro_rules! copy {
+            ($t:ty) => {
+                out.new_dataset::<$t>()
+                    .shape(d.shape())
+                    .create(name)?
+                    .write_raw(&d.read_raw::<$t>()?)?;
+            };
+        }
+        let t = d.dtype()?;
+        if t.is::<f32>() {
+            copy!(f32);
+        } else if t.is::<f64>() {
+            copy!(f64);
+        } else if t.is::<u64>() {
+            copy!(u64);
+        } else if t.is::<u32>() {
+            copy!(u32);
+        } else if t.is::<u8>() {
+            copy!(u8);
+        } else {
+            anyhow::bail!("unsupported diagnostic datatype");
+        }
+        Ok(())
+    }
+    for name in input.member_names()? {
+        if name != "iq" {
+            copy_dataset(&input, &out, &name)?;
+        }
+    }
+    if input.link_exists("iq/sample_index") {
+        out.create_group("iq")?;
+        for name in ["iq/sample_index", "iq/carrier_hz"] {
+            copy_dataset(&input, &out, name)?;
+        }
+    }
+    for name in input.attr_names()? {
+        let a = input.attr(&name)?;
+        ensure!(a.size() == 1, "non-scalar diagnostic attribute");
+        macro_rules! copy {
+            ($t:ty) => {
+                out.new_attr::<$t>()
+                    .create(name.as_str())?
+                    .write_scalar(&a.read_scalar::<$t>()?)?;
+            };
+        }
+        let t = a.dtype()?;
+        if t.is::<u64>() {
+            copy!(u64);
+        } else if t.is::<u8>() {
+            copy!(u8);
+        } else if t.is::<f64>() {
+            copy!(f64);
+        } else {
+            anyhow::bail!("unsupported diagnostic attribute");
+        }
+    }
+    out.flush()?;
+    drop(out);
+    fs::rename(temporary, destination)?;
+    Ok(())
+}
 fn main() -> Result<()> {
     let a: Vec<_> = std::env::args().collect();
+    if a.get(1).is_some_and(|s| s == "--summary") {
+        ensure!(
+            a.len() == 4,
+            "usage: iono-digisonde-verify --summary INPUT.h5 OUTPUT.h5"
+        );
+        return export_summary(Path::new(&a[2]), Path::new(&a[3]));
+    }
     let c: Config = serde_json::from_slice(&fs::read(
         a.get(1)
             .context("usage: iono-digisonde-verify CONFIG SEARCH_HDF5 [MAX_ROWS]")?,
@@ -48,6 +140,11 @@ fn main() -> Result<()> {
         "invalid fine-frequency program bank"
     );
     let grid = a.get(2).is_some_and(|s| s == "--grid");
+    let replay = a.get(2).is_some_and(|s| s == "--iq");
+    let mut replay_iq: Vec<[f32; 2]> = vec![];
+    let mut search_span_hz = if grid { 0. } else { 30000. };
+    // Explicit bounded commissioning grids may revisit adjacent pulse epochs.
+    let dense = a.iter().any(|s| s == "--dense");
     ensure!(
         !c.ipp_candidates_us.is_empty()
             && c.ipp_candidates_us.len() <= 8
@@ -56,7 +153,31 @@ fn main() -> Result<()> {
                 .all(|p| [5000, 10000, 20000, 40000].contains(p)),
         "unsupported commissioning pulse-spacing bank"
     );
-    let (samples, freq, contrast) = if grid {
+    let (samples, freq, contrast) = if replay {
+        let h = File::open(a.get(3).context("--iq requires a captured HDF5 product")?)?;
+        let d = h.dataset("iq/baseband_complex32")?;
+        ensure!(
+            d.shape().len() == 2 && d.shape()[1] == 16000 && d.shape()[0] <= 512,
+            "invalid bounded IQ cache"
+        );
+        replay_iq = d.read_raw::<[f32; 2]>()?;
+        search_span_hz = h.attr("iq_carrier_search_hz")?.read_scalar::<f64>()?;
+        if let Some(span) = c.replay_carrier_search_hz {
+            search_span_hz = span;
+        }
+        ensure!(
+            search_span_hz.is_finite() && (0. ..=30000.).contains(&search_span_hz),
+            "invalid cached carrier search extent"
+        );
+        let samples = h.dataset("iq/sample_index")?.read_raw::<u64>()?;
+        let freq = h.dataset("iq/carrier_hz")?.read_raw::<f64>()?;
+        ensure!(
+            samples.len() * 16000 == replay_iq.len(),
+            "IQ cache axes disagree"
+        );
+        let n = samples.len();
+        (samples, freq, vec![1f32; n])
+    } else if grid {
         let epoch: f64 = a
             .get(3)
             .context("--grid requires UTC Unix epoch")?
@@ -119,19 +240,29 @@ fn main() -> Result<()> {
             && contrast.iter().all(|v| v.is_finite()),
         "invalid candidate values"
     );
-    let mut r = Reader::open([&c.data_dir])?;
-    r.set_cache_options(CacheOptions {
-        minimum_bytes: 1024 * 1024,
-        max_open_files: 2,
-    })?;
-    r.set_cache_byte_limit(16 * 1024 * 1024)?;
-    let bounds = r.bounds(&c.channel)?.context("no voltage")?;
+    let mut r = if replay {
+        None
+    } else {
+        let mut r = Reader::open([&c.data_dir])?;
+        r.set_cache_options(CacheOptions {
+            minimum_bytes: 1024 * 1024,
+            max_open_files: 2,
+        })?;
+        r.set_cache_byte_limit(16 * 1024 * 1024)?;
+        Some(r)
+    };
+    let bounds = if let Some(r) = r.as_mut() {
+        r.bounds(&c.channel)?.context("no voltage")?
+    } else {
+        (0, u64::MAX)
+    };
     let mut order: Vec<_> = (0..samples.len())
         .filter(|&i| {
-            samples[i] > bounds.0.saturating_add(25_000_000)
-                && samples[i]
-                    .checked_add(4_002_000)
-                    .is_some_and(|end| end < bounds.1)
+            replay
+                || (samples[i] > bounds.0.saturating_add(25_000_000)
+                    && samples[i]
+                        .checked_add(4_002_000)
+                        .is_some_and(|end| end < bounds.1))
         })
         .collect();
     // Avoid spending the commissioning budget on a single stationary interferer.
@@ -153,7 +284,7 @@ fn main() -> Result<()> {
             }
         }
     }
-    let max = if grid {
+    let max = if grid || replay {
         samples.len()
     } else {
         a.get(3)
@@ -164,6 +295,8 @@ fn main() -> Result<()> {
     let mut chosen: Vec<usize> = vec![];
     for i in order {
         if !grid
+            && !replay
+            && !dense
             && chosen.iter().any(|&j| {
                 (freq[i] - freq[j]).abs() < 100e3 && samples[i].abs_diff(samples[j]) < 250_000_000
             })
@@ -184,7 +317,25 @@ fn main() -> Result<()> {
             .map(|&b| (c.fine_frequency_count, b))
             .collect()
     };
-    let mut decoder = CodeSearch::with_programs(16000, 100e3, &c.ipp_candidates_us, &programs);
+    ensure!(
+        !c.save_iq || chosen.len() <= 512,
+        "IQ capture exceeds 512-window budget"
+    );
+    let mut captured_iq: Vec<[f32; 2]> = vec![];
+    let mut captured_samples = vec![];
+    let mut captured_carriers = vec![];
+    let mut successful = 0u64;
+    ensure!(
+        !c.polarization_orders.is_empty() && c.polarization_orders.len() <= 2,
+        "invalid polarization order bank"
+    );
+    let mut decoder = CodeSearch::with_orders(
+        16000,
+        100e3,
+        &c.ipp_candidates_us,
+        &programs,
+        &c.polarization_orders,
+    );
     let mut time = vec![];
     let mut frequency = vec![];
     let mut ipp = vec![];
@@ -195,18 +346,38 @@ fn main() -> Result<()> {
     let mut all_polarizations = vec![];
     let mut fine_frequency_count = vec![];
     let mut multiplex_block_pulses = vec![];
+    let mut polarization_interleaved = vec![];
     for (n, &i) in chosen.iter().enumerate() {
-        let carrier = if grid {
+        let carrier = if grid || replay {
             freq[i]
         } else {
             (freq[i] / 10000.).round() * 10000.
         };
-        match r.read_complex32(samples[i] - 1000, 4_002_000, &c.channel, 0) {
-            Ok(raw) => {
-                let z = Channelizer::new(carrier - 12.5e6, 100e3)?.process(&raw, -1000);
+        let baseband = if replay {
+            Ok(replay_iq[i * 16000..(i + 1) * 16000]
+                .iter()
+                .map(|v| num_complex::Complex32::new(v[0], v[1]))
+                .collect::<Vec<_>>())
+        } else {
+            r.as_mut()
+                .unwrap()
+                .read_complex32(samples[i] - 1000, 4_002_000, &c.channel, 0)
+                .and_then(|raw| {
+                    let z = Channelizer::new(carrier - 12.5e6, 100e3)?.process(&raw, -1000);
+                    Ok(z[4..16004].to_vec())
+                })
+        };
+        match baseband {
+            Ok(z) => {
+                successful += 1;
+                if c.save_iq {
+                    captured_iq.extend(z.iter().map(|v| [v.re, v.im]));
+                    captured_samples.push(samples[i]);
+                    captured_carriers.push(carrier);
+                }
                 if let Some(m) = decoder.seek_with_doppler(
-                    &z[4..16004],
-                    if grid { 0. } else { 30000. },
+                    &z,
+                    search_span_hz,
                     5000.,
                     (c.doppler_search_hz / 100e3 * 16384.).ceil() as isize,
                 ) {
@@ -220,6 +391,7 @@ fn main() -> Result<()> {
                     all_polarizations.push(u8::from(m.all_polarizations));
                     fine_frequency_count.push(m.fine_frequency_count as u32);
                     multiplex_block_pulses.push(m.multiplex_block_pulses as u32);
+                    polarization_interleaved.push(u8::from(m.polarization_interleaved));
                     println!(
                         "{} {:.6} MHz IPP={} mode={} coherence={:.4} score={:.1} lag={:.6}",
                         samples[i] as f64 / 25e6,
@@ -245,11 +417,43 @@ fn main() -> Result<()> {
     ));
     let tmp = path.with_extension("partial.h5");
     let out = File::create(&tmp)?;
+    out.new_attr::<u64>()
+        .create("successful_windows")?
+        .write_scalar(&successful)?;
+    out.new_attr::<u64>()
+        .create("requested_windows")?
+        .write_scalar(&(samples.len() as u64))?;
+    if c.save_iq {
+        out.create_group("iq")?;
+        out.new_attr::<f64>()
+            .create("iq_carrier_search_hz")?
+            .write_scalar(&search_span_hz)?;
+        out.new_attr::<f64>()
+            .create("iq_sample_rate_hz")?
+            .write_scalar(&100000.)?;
+        out.new_dataset_builder()
+            .with_data(&captured_samples)
+            .create("iq/sample_index")?;
+        out.new_dataset_builder()
+            .with_data(&captured_carriers)
+            .create("iq/carrier_hz")?;
+        if !captured_samples.is_empty() {
+            out.new_dataset::<[f32; 2]>()
+                .shape([captured_samples.len(), 16000])
+                .chunk([1, 16000])
+                .deflate(4)
+                .create("iq/baseband_complex32")?
+                .write_raw(&captured_iq)?;
+        }
+    }
     macro_rules! save {
         ($name:expr,$v:expr) => {
             out.new_dataset_builder().with_data(&$v).create($name)?;
         };
     }
+    out.new_attr::<u8>()
+        .create("dense_candidate_grid")?
+        .write_scalar(&u8::from(dense))?;
     save!("searched_ipp_candidates_us", c.ipp_candidates_us);
     save!("time_unix", time);
     save!("frequency_hz", frequency);
@@ -258,6 +462,7 @@ fn main() -> Result<()> {
     save!("lag_s", lag);
     save!("score_db", score);
     save!("coherence", coherence);
+    save!("polarization_interleaved", polarization_interleaved);
     save!("all_polarizations", all_polarizations);
     save!("fine_frequency_count", fine_frequency_count);
     save!("multiplex_block_pulses", multiplex_block_pulses);

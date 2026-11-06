@@ -15,6 +15,14 @@ pub fn template(n: usize, sr: f64, ipp_us: u32, mode: u8) -> Vec<Z> {
 fn template_polarizations(n: usize, sr: f64, ipp_us: u32, mode: u8, all: bool) -> Vec<Z> {
     template_program(n, sr, ipp_us, mode, all, 1, 1)
 }
+/// Map A-O,A-X,B-O,B-X physical pulses to the legacy A-O,B-O,A-X,B-X order.
+pub fn logical_pulse_index(pulse: usize, polarization_interleaved: bool) -> usize {
+    if polarization_interleaved {
+        (pulse / 4) * 4 + (pulse % 2) * 2 + (pulse % 4) / 2
+    } else {
+        pulse
+    }
+}
 fn template_program(
     n: usize,
     sr: f64,
@@ -23,6 +31,18 @@ fn template_program(
     all: bool,
     fine: usize,
     block: usize,
+) -> Vec<Z> {
+    template_ordered(n, sr, ipp_us, mode, all, fine, block, false)
+}
+fn template_ordered(
+    n: usize,
+    sr: f64,
+    ipp_us: u32,
+    mode: u8,
+    all: bool,
+    fine: usize,
+    block: usize,
+    polarization_interleaved: bool,
 ) -> Vec<Z> {
     assert!(mode < 4 && fine > 0 && block > 0);
     (0..n)
@@ -39,7 +59,10 @@ fn template_program(
             if (pulse / block) % fine != 0 {
                 return Z::default();
             }
-            let pulse = (pulse / (block * fine)) * block + pulse % block;
+            let pulse = logical_pulse_index(
+                (pulse / (block * fine)) * block + pulse % block,
+                polarization_interleaved,
+            );
             if !all && mode >= 2 && pulse % 4 >= 2 {
                 return Z::default();
             }
@@ -64,13 +87,14 @@ pub struct CodeMatch {
     pub all_polarizations: bool,
     pub fine_frequency_count: usize,
     pub multiplex_block_pulses: usize,
+    pub polarization_interleaved: bool,
 }
 pub struct CodeSearch {
     n: usize,
     sr: f64,
     fft: Arc<dyn Fft<f32>>,
     ifft: Arc<dyn Fft<f32>>,
-    kernels: Vec<(u32, u8, bool, usize, usize, f32, Vec<Z>)>,
+    kernels: Vec<(u32, u8, bool, usize, usize, bool, f32, Vec<Z>)>,
     spectrum: Vec<Z>,
     shifted: Vec<Z>,
     work: Vec<Z>,
@@ -90,6 +114,16 @@ impl CodeSearch {
         ipps: &[u32],
         programs: &[(usize, usize)],
     ) -> Self {
+        Self::with_orders(samples, sr, ipps, programs, &[false])
+    }
+    pub fn with_orders(
+        samples: usize,
+        sr: f64,
+        ipps: &[u32],
+        programs: &[(usize, usize)],
+        orders: &[bool],
+    ) -> Self {
+        assert!(!orders.is_empty() && orders.len() <= 2);
         assert!(
             !programs.is_empty()
                 && programs.len() <= 16
@@ -102,21 +136,24 @@ impl CodeSearch {
         let fft = planner.plan_fft_forward(n);
         let ifft = planner.plan_fft_inverse(n);
         let mut kernels = vec![];
-        for &(fine, block) in programs {
-            for &ipp in ipps {
-                for mode in 0..4 {
-                    for all in [false, true] {
-                        if all && mode < 3 {
-                            continue;
+        for &order in orders {
+            for &(fine, block) in programs {
+                for &ipp in ipps {
+                    for mode in 0..4 {
+                        for all in [false, true] {
+                            if all && mode < 3 {
+                                continue;
+                            }
+                            let mut c =
+                                template_ordered(samples, sr, ipp, mode, all, fine, block, order);
+                            let energy = c.iter().map(|z| z.norm_sqr()).sum();
+                            c.resize(n, Z::default());
+                            fft.process(&mut c);
+                            for z in &mut c {
+                                *z = z.conj();
+                            }
+                            kernels.push((ipp, mode, all, fine, block, order, energy, c));
                         }
-                        let mut c = template_program(samples, sr, ipp, mode, all, fine, block);
-                        let energy = c.iter().map(|z| z.norm_sqr()).sum();
-                        c.resize(n, Z::default());
-                        fft.process(&mut c);
-                        for z in &mut c {
-                            *z = z.conj();
-                        }
-                        kernels.push((ipp, mode, all, fine, block, energy, c));
                     }
                 }
             }
@@ -153,7 +190,12 @@ impl CodeSearch {
         assert!(z.len() <= self.n && span_hz >= 0. && step_hz > 0.);
         let spectrum = &mut self.spectrum;
         spectrum.fill(Z::default());
-        spectrum[..z.len()].copy_from_slice(z);
+        // Remove a stationary carrier before zero padding. Otherwise its
+        // artificial frame edges can become apparent code peaks after clipping.
+        let mean = z.iter().copied().sum::<Z>() / z.len() as f32;
+        for (out, &v) in spectrum.iter_mut().zip(z) {
+            *out = v - mean;
+        }
         self.fft.process_with_scratch(spectrum, &mut self.scratch);
         let mut best: Option<CodeMatch> = None;
         let shifted = &mut self.shifted;
@@ -161,6 +203,17 @@ impl CodeSearch {
         let bins = (span_hz / step_hz).ceil() as isize;
         for whiten in [false, true] {
             if whiten {
+                // Taper the real data before the robust spectral branch. A
+                // clipped rectangular-window sinusoid produces broadband edge
+                // impulses, which are not evidence of transmitted phase codes.
+                spectrum.fill(Z::default());
+                for (i, (out, &v)) in spectrum.iter_mut().zip(z).enumerate() {
+                    let w = (0.5
+                        - 0.5 * (std::f64::consts::TAU * i as f64 / (z.len() - 1) as f64).cos())
+                        as f32;
+                    *out = (v - mean) * w;
+                }
+                self.fft.process_with_scratch(spectrum, &mut self.scratch);
                 let floor = median(&spectrum.iter().map(|z| z.norm()).collect::<Vec<_>>());
                 for z in spectrum.iter_mut() {
                     let a = z.norm();
@@ -181,7 +234,7 @@ impl CodeSearch {
                     for (k, v) in shifted.iter_mut().enumerate() {
                         *v = spectrum[(k as isize + shift).rem_euclid(self.n as isize) as usize];
                     }
-                    for (ipp, mode, all, fine, block, energy, kernel) in &self.kernels {
+                    for (ipp, mode, all, fine, block, order, energy, kernel) in &self.kernels {
                         simd::multiply(shifted, kernel, work);
                         self.ifft.process_with_scratch(work, &mut self.scratch);
                         let (lag, peak) = work
@@ -198,26 +251,29 @@ impl CodeSearch {
                             for (p, z) in self.best_power.iter_mut().zip(work.iter()) {
                                 *p = z.norm_sqr();
                             }
+                            let noise = median(&self.best_power) / std::f32::consts::LN_2;
+                            let score_db = 10. * (peak / noise.max(f32::MIN_POSITIVE)).log10();
+                            // A tone's correlation magnitude is nearly flat;
+                            // require a localized code peak before ranking it.
+                            if score_db < 10. {
+                                continue;
+                            }
                             best = Some(CodeMatch {
                                 ipp_us: *ipp,
                                 mode: *mode,
                                 carrier_offset_hz: shift as f64 * self.sr / self.n as f64,
                                 lag_s: lag as f64 / self.sr,
-                                score_db: 0.,
+                                score_db,
                                 coherence,
                                 all_polarizations: *all,
                                 fine_frequency_count: *fine,
                                 multiplex_block_pulses: *block,
+                                polarization_interleaved: *order,
                             });
                         }
                     }
                 }
             }
-        }
-        if let Some(m) = &mut best {
-            let peak = self.best_power.iter().copied().fold(0., f32::max);
-            let noise = median(&self.best_power) / std::f32::consts::LN_2;
-            m.score_db = 10. * (peak / noise.max(f32::MIN_POSITIVE)).log10();
         }
         best
     }
@@ -225,6 +281,43 @@ impl CodeSearch {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn polarization_first_order_is_identified_on_multiplexed_codes() {
+        for order in [false, true] {
+            // Independent physical pulse assembly: fine-frequency pairs alternate;
+            // within a selected four-pulse group, repeat A then B for O/X-first.
+            let legacy = template_program(16000, 100e3, 10000, 3, true, 2, 2);
+            let mut physical = vec![Z::default(); 16000];
+            for p in 0..16 {
+                if (p / 2) % 2 != 0 {
+                    continue;
+                }
+                let selected = (p / 4) * 2 + p % 2;
+                let logical = if order {
+                    (selected / 4) * 4 + [0, 2, 1, 3][selected % 4]
+                } else {
+                    selected
+                };
+                let source = (logical / 2) * 4 + logical % 2;
+                physical[p * 1000..(p + 1) * 1000]
+                    .copy_from_slice(&legacy[source * 1000..(source + 1) * 1000]);
+            }
+            let m = CodeSearch::with_orders(16000, 100e3, &[10000], &[(2, 2)], &[false, true])
+                .seek(&physical, 0., 5000.)
+                .unwrap();
+            assert_eq!(m.polarization_interleaved, order, "{m:?}");
+            // Independently copied fractional-chip pulses can differ by one
+            // 100 kHz sample at a chip boundary; require a strong, correctly
+            // ordered zero-delay result and separation from the wrong order.
+            assert!(m.coherence > 0.95 && m.lag_s < 0.00002, "{m:?}");
+            let wrong = CodeSearch::with_orders(16000, 100e3, &[10000], &[(2, 2)], &[!order])
+                .seek(&physical, 0., 5000.);
+            assert!(
+                wrong.is_none_or(|w| w.coherence < m.coherence * 0.8),
+                "wrong order not separated"
+            );
+        }
+    }
     #[test]
     fn multiplexed_codeword_delay_does_not_fold_at_the_physical_pri() {
         let n = 16000;
@@ -272,6 +365,48 @@ mod tests {
             assert_eq!(m.ipp_us, ipp, "{m:?}");
             assert!(m.coherence > 0.99, "{m:?}");
             assert!(m.lag_s.abs() < 0.00002, "{m:?}");
+        }
+    }
+    #[test]
+    fn an_unmodulated_carrier_is_not_a_complementary_code_detection() {
+        for carrier in [0., 5000.] {
+            let z: Vec<_> = (0..16000)
+                .map(|i| {
+                    Z::from_polar(
+                        1.,
+                        (std::f64::consts::TAU * carrier * i as f64 / 100000.) as f32,
+                    )
+                })
+                .collect();
+            let m = CodeSearch::new(16000, 100e3).seek_with_doppler(&z, 10000., 5000., 2);
+            assert!(m.is_none(), "carrier={carrier}, false match={m:?}");
+        }
+    }
+    #[test]
+    fn a_code_train_survives_a_stronger_stationary_carrier() {
+        let code = template(16000, 100e3, 10000, 3);
+        for carrier in [0., 5000.] {
+            let z: Vec<_> = code
+                .iter()
+                .enumerate()
+                .map(|(i, &v)| {
+                    v + Z::from_polar(
+                        10.,
+                        (std::f64::consts::TAU * carrier * i as f64 / 100000.) as f32,
+                    )
+                })
+                .collect();
+            let m = CodeSearch::new(16000, 100e3)
+                .seek(&z, 10000., 5000.)
+                .unwrap();
+            assert!(
+                m.score_db > 10. && m.coherence > 0.1,
+                "carrier={carrier} {m:?}"
+            );
+            assert!(
+                m.carrier_offset_hz.abs() < 20. && m.lag_s < 0.00002,
+                "carrier={carrier} {m:?}"
+            );
         }
     }
     #[test]

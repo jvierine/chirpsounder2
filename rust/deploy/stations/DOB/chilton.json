@@ -16,10 +16,12 @@
   "n_ipp": 128,
   "offset_us": 3378.0,
   "interval_s": 600,
-  "transmit_delay_us": 0.0,
+  "transmit_delay_us": 286000.0,
   "start_offset_s": 0.0,
   "physical_ipp_us": 5000,
   "rfi_clip_ratio": 6.0,
   "snr_threshold_db": 3.0,
-  "range_reference": "Historical GIRO programme 7593, 200 Hz and 32 coherent repeats; current programme, frequency search and transmit timing unconfirmed"
+  "range_reference": "Experimental Chilton association: 200 Hz coded bursts and frequency-search timing observed at DOB; 0.90 s coarse step and 286 ms packet alignment; receiver clock unchanged; absolute range zero not independently calibrated",
+  "inter_frequency_gap_s": 0.26,
+  "carrier_search_hz": 30000.0
 }

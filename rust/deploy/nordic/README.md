@@ -52,3 +52,8 @@ The active maintenance helpers now live under `station_ops/`. Update the
 station checkout before installing a new native bundle. The installer checks
 for those helpers before changing files; archived `python/` entry points must
 not be used. A repository-only update does not restart existing receivers.
+
+DOB Chilton now has an experimental frequency-search timing profile. See
+[the on-air validation report](../../validation/dob-timing-20261106/README.md).
+Its absolute propagation-range zero and transmitter association remain
+provisional; other candidate modes were not promoted.

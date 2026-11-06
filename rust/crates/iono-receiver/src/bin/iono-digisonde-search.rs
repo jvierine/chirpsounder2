@@ -38,6 +38,17 @@ struct Config {
     verify_every_windows: u64,
     #[serde(default = "one")]
     verify_candidates_per_window: usize,
+    /// (fine-frequency count, consecutive physical pulses per fine channel).
+    #[serde(default = "verification_programs")]
+    verification_programs: Vec<[usize; 2]>,
+    #[serde(default = "orders")]
+    verification_orders: Vec<bool>,
+}
+fn orders() -> Vec<bool> {
+    vec![false]
+}
+fn verification_programs() -> Vec<[usize; 2]> {
+    vec![[1, 1]]
 }
 fn one() -> usize {
     1
@@ -93,6 +104,18 @@ fn grace() -> f64 {
     0.15
 }
 fn stride_samples(c: &Config) -> Result<u64> {
+    ensure!(
+        !c.verification_orders.is_empty() && c.verification_orders.len() <= 2,
+        "invalid verification polarization order bank"
+    );
+    ensure!(
+        !c.verification_programs.is_empty()
+            && c.verification_programs.len() <= 5
+            && c.verification_programs
+                .iter()
+                .all(|p| (1..=4).contains(&p[0]) && (1..=16).contains(&p[1])),
+        "invalid bounded verification program bank"
+    );
     ensure!(
         (1..=2).contains(&c.verify_candidates_per_window),
         "verification budget must be 1..2"
@@ -293,6 +316,53 @@ fn save(
             .map(|r| r.result.as_ref().map_or(f32::NAN, |m| m.score_db))
             .collect::<Vec<_>>()
     );
+    vector!(
+        "code_checks/fine_frequency_count",
+        checks
+            .iter()
+            .map(|r| r
+                .result
+                .as_ref()
+                .map_or(0, |m| m.fine_frequency_count as u32))
+            .collect::<Vec<_>>()
+    );
+    vector!(
+        "code_checks/multiplex_block_pulses",
+        checks
+            .iter()
+            .map(|r| r
+                .result
+                .as_ref()
+                .map_or(0, |m| m.multiplex_block_pulses as u32))
+            .collect::<Vec<_>>()
+    );
+    vector!(
+        "code_checks/polarization_interleaved",
+        checks
+            .iter()
+            .map(|r| r
+                .result
+                .as_ref()
+                .map_or(0, |m| u8::from(m.polarization_interleaved)))
+            .collect::<Vec<_>>()
+    );
+    vector!(
+        "verification_orders",
+        c.verification_orders
+            .iter()
+            .map(|v| u8::from(*v))
+            .collect::<Vec<_>>()
+    );
+    let programs: Vec<_> = c
+        .verification_programs
+        .iter()
+        .flatten()
+        .map(|v| *v as u32)
+        .collect();
+    h.new_dataset::<u32>()
+        .shape([c.verification_programs.len(), 2])
+        .create("verification_programs")?
+        .write_raw(&programs)?;
     h.new_attr::<u64>()
         .create("verify_every_windows")?
         .write_scalar(&c.verify_every_windows)?;
@@ -400,10 +470,23 @@ fn main() -> Result<()> {
         let (tx, rx) = std::sync::mpsc::sync_channel::<Job>(1);
         senders.push(tx);
         let tx = result_tx.clone();
+        let programs: Vec<_> = c
+            .verification_programs
+            .iter()
+            .map(|p| (p[0], p[1]))
+            .collect();
+        let orders = c.verification_orders.clone();
         thread::spawn(move || {
             let mut search = PulseSearch::new(25e6, 12.5e6);
-            let mut decoder = (verify_every > 0)
-                .then(|| CodeSearch::with_ipps(16000, 100e3, &[5000, 10000, 20000, 40000]));
+            let mut decoder = (verify_every > 0).then(|| {
+                CodeSearch::with_orders(
+                    16000,
+                    100e3,
+                    &[5000, 10000, 20000, 40000],
+                    &programs,
+                    &orders,
+                )
+            });
             while let Ok((n, i, z)) = rx.recv() {
                 let candidates = if stratified {
                     search.seek_stratified(&z[1000..4_001_000], 1.8, max_candidates, min_hz, max_hz)
@@ -525,6 +608,23 @@ mod tests {
     use super::*;
     fn config() -> Config {
         serde_json::from_str(r#"{"station":"DOB","data_dir":"/dev/shm/hf25","output_dir":"/tmp/search-test","worker_count":1,"stride_s":0.64}"#).unwrap()
+    }
+    #[test]
+    fn verification_bank_is_bounded_and_default_preserves_original_search() {
+        let mut c = config();
+        assert_eq!(c.verification_programs, vec![[1, 1]]);
+        for invalid in [
+            vec![],
+            vec![[0, 1]],
+            vec![[2, 0]],
+            vec![[2, 17]],
+            vec![[1, 1]; 6],
+        ] {
+            c.verification_programs = invalid;
+            assert!(stride_samples(&c).is_err());
+        }
+        c.verification_programs = vec![[1, 1], [2, 1], [2, 2], [2, 4], [2, 8]];
+        stride_samples(&c).unwrap();
     }
     #[test]
     fn live_plan_extends_beyond_existing_voltage_without_rounding_sample_indices() {

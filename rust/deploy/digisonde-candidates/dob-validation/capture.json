@@ -1,0 +1,8 @@
+{
+  "data_dir": "/dev/shm/hf25",
+  "output_dir": "/data0/digisonde-commission/daytime-check",
+  "channel": "ch0",
+  "doppler_search_hz": 30,
+  "ipp_candidates_us": [5000, 10000],
+  "save_iq": true
+}
