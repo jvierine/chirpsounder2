@@ -134,9 +134,28 @@ impl Digisonde {
         sample_rate: f64,
         pi: usize,
     ) -> Vec<Complex32> {
+        self.decode_ipp_with_clip(raw, offset, sample_rate, pi, None)
+    }
+    /// Optional phase-preserving narrow-carrier suppression. Estimate the
+    /// reference within the FIR passband so its stopband cannot lower it.
+    pub fn decode_ipp_with_clip(
+        &self,
+        raw: &[Complex32],
+        offset: f64,
+        sample_rate: f64,
+        pi: usize,
+        clip_ratio: Option<f32>,
+    ) -> Vec<Complex32> {
+        let period_samples = self.n * 250;
+        let padding = if raw.len() == period_samples + 2000 {
+            1000
+        } else {
+            0
+        };
+        assert_eq!(raw.len(), period_samples + 2 * padding);
         let phase = Complex64::from_polar(
             1.,
-            -TAU * offset * (raw.len() as f64 / sample_rate) * pi as f64,
+            -TAU * offset * (period_samples as f64 * pi as f64 - padding as f64) / sample_rate,
         );
         let mut z = downconvert(
             raw,
@@ -145,7 +164,29 @@ impl Digisonde {
             Complex32::new(phase.re as f32, phase.im as f32),
             &self.taps,
         );
+        if padding > 0 {
+            z = z[4..4 + self.n].to_vec();
+        }
         self.fft.process(&mut z);
+        if let Some(ratio) = clip_ratio {
+            assert!(ratio.is_finite() && ratio >= 2.);
+            let band = self.n * 15 / 100;
+            let amplitudes: Vec<_> = z
+                .iter()
+                .enumerate()
+                .filter(|(i, _)| *i <= band || *i >= self.n - band)
+                .map(|(_, v)| v.norm())
+                .collect();
+            let floor = crate::median(&amplitudes);
+            if floor.is_finite() && floor > 0. {
+                for v in &mut z {
+                    let amp = v.norm();
+                    if amp > ratio * floor {
+                        *v *= floor / amp;
+                    }
+                }
+            }
+        }
         for (v, h) in z.iter_mut().zip(&self.kernels[pi % 8]) {
             *v *= *h
         }
@@ -190,5 +231,26 @@ mod tests {
         let z = downconvert(&raw, 0., 25e6, Complex32::new(1., 0.), &h);
         assert_eq!(z.len(), 1000);
         assert!((z[500].re - 1.).abs() < 1e-5)
+    }
+    #[test]
+    fn digisonde_carrier_suppression_recovers_delayed_code() {
+        let reference = crate::digisonde_match::template(1000, 100e3, 10000, 3);
+        let raw: Vec<_> = (0..252000usize)
+            .map(|i| reference[((i / 250) + 896) % 1000] + Complex32::new(100., 0.))
+            .collect();
+        let d = Digisonde::new(10000);
+        let clean = d.decode_ipp_with_clip(&raw, 0., 25e6, 0, Some(10.));
+        let p: Vec<_> = clean.iter().map(|v| v.norm_sqr()).collect();
+        let peak = p
+            .iter()
+            .enumerate()
+            .max_by(|a, b| a.1.total_cmp(b.1))
+            .unwrap()
+            .0;
+        assert!(peak.abs_diff(100) <= 2, "peak={peak}");
+        assert!(
+            p[peak] / crate::median(&p) > 20.,
+            "coded return lost under carrier"
+        );
     }
 }

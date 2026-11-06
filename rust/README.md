@@ -21,6 +21,8 @@ library compatibility before running it; do not run a build for another glibc.
 | `iono-receiver lfm` | Receive chirp sounders |
 | `iono-receiver digisonde` | Receive scheduled Digisonde transmissions |
 | `iono-receiver spectrum` | RF spectrum/background products |
+| `iono-digisonde-search` | Bounded PINS-style pulse discovery from the local ring |
+| `iono-digisonde-verify` | Complementary-code, carrier and pulse-period checks |
 | `iono-prn` | Receive scheduled pseudorandom coded sounders |
 | `iono-plots` | Incremental SQLite indexing, RTI reduction, bounded HDF5 browser arrays and optional Rustplotlib figures |
 | `iono-render` | Legacy Rustplotlib static-figure compatibility |
@@ -83,6 +85,50 @@ journalctl --user -u iono-prn@Kiruna -f
 The units use `~/bin/iono-prn` and `~/.config/iono-prn/NAME.json`. The shared
 slice bounds the total worker CPU/memory. Existing recording continues
 independently, including when a PRN worker restarts.
+
+## Digisonde discovery and W2NAF
+
+The discovery tools port the 2019 PINS pulse-folding and complementary-code
+search. They read the existing ring and write HDF5; they never retune UHD.
+`iono-digisonde-search CONFIG --lookback 900` observes 160 ms every 320 ms,
+uses four bounded workers, and reports coarse pulse candidates after spectral
+soft clipping. Config keys are `station`, `data_dir`, `output_dir`, `channel`,
+optional `frequency_range_hz` (default `[700000,24500000]`) and
+`max_candidates` (default 6, maximum 64 per window).
+
+`iono-digisonde-verify CONFIG SEARCH_HDF5 128` checks candidates against
+5/10 ms complementary-code modes. A commissioning grid can instead be read
+with `CONFIG --grid UNIX_EPOCH TMIN TMAX DT FMIN FMAX DF`, in seconds and Hz.
+Carrier checks cover ±100 Hz by default (`doppler_search_hz` in the config).
+Recurrence, matched-filter
+score and code-mode aliases alone do not identify a transmitter; require a
+consistent stepped-frequency track and independent schedule evidence.
+Lag is a circular correlation coordinate, not a calibrated propagation range.
+
+`deploy/w2naf-millstone.json` receives the Millstone Hill MHJ45 schedule:
+450 s cadence, 2 MHz starting frequency, 25 kHz steps and 32 × 10 ms IPPs
+per step. The cadence was checked against current GIRO records; consecutive
+steps and a consistent coded echo were measured in W2NAF's voltage on
+2026-11-06. A continuous return around 3–6 MHz was decoded and rendered in
+the live GUI. The configured upper sweep limit is a reception search extent,
+not a measured usable-frequency limit. Transmitter group delay remains
+uncalibrated and is explicitly recorded in `range_reference`.
+
+For this receiver, optional `rfi_clip_ratio` suppresses narrow spectral peaks
+relative to the in-passband median while preserving phase. Real voltage
+overlap prevents artificial FIR edges; no samples are invented over gaps.
+`snr_threshold_db` controls sparse acceptance. Both options preserve historical
+behavior when absent. Install the JSON under `~/.config/chirpsounder2/` and
+`deploy/iono-digisonde@.service` under `~/.config/systemd/user/`, then:
+
+```sh
+systemctl --user daemon-reload
+systemctl --user enable --now iono-digisonde@w2naf-millstone
+journalctl --user -u iono-digisonde@w2naf-millstone -f
+```
+
+Other nearby transmitters require independent discovery and commissioning;
+no Wallops or Alpena identity is assigned to unverified pulse candidates.
 
 ## Acceleration and output
 

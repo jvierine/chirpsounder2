@@ -1,0 +1,8 @@
+{
+  "station": "W2NAF",
+  "data_dir": "/mnt/ramdisk/hf25",
+  "output_dir": "/home/hamsci/data/chirpsounder2/digisonde-search",
+  "channel": "ch0",
+  "frequency_range_hz": [1000000.0, 8000000.0],
+  "max_candidates": 24
+}

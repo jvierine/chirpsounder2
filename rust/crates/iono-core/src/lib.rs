@@ -4,6 +4,10 @@ use hdf5::File;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 #[cfg(feature = "dsp")]
+pub mod digisonde_match;
+#[cfg(feature = "dsp")]
+pub mod digisonde_search;
+#[cfg(feature = "dsp")]
 pub mod prn;
 #[cfg(feature = "dsp")]
 pub mod simd;

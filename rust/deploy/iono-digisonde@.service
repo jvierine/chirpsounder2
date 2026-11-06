@@ -1,0 +1,18 @@
+[Unit]
+Description=Rust Digisonde receiver (%i)
+After=default.target
+StartLimitIntervalSec=0
+
+[Service]
+ExecStart=%h/bin/iono-receiver digisonde %h/.config/chirpsounder2/%i.json
+Restart=always
+RestartSec=15
+Nice=10
+CPUQuota=200%
+MemoryMax=512M
+LimitAS=1073741824
+LimitCORE=0
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target

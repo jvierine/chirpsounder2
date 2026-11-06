@@ -1,4 +1,4 @@
-//! TGO experimental processor; UHD acquisition remains in the existing recorder.
+//! Station signal processor; UHD acquisition remains in the existing recorder.
 mod detection;
 mod lfm;
 mod radar;
@@ -27,6 +27,12 @@ struct Config {
     center_freq: f64,
     #[serde(default)]
     transmit_delay_us: Option<f64>,
+    #[serde(default)]
+    range_reference: Option<String>,
+    #[serde(default)]
+    snr_threshold_db: Option<f64>,
+    #[serde(default)]
+    rfi_clip_ratio: Option<f32>,
     #[serde(default = "transmitter")]
     transmitter: String,
     #[serde(default = "freq_start")]
@@ -209,6 +215,18 @@ fn digisonde(c: &Config, t: f64) -> Result<()> {
     );
     let ipp_samples = (c.sample_rate * c.ipp_us as f64 * 1e-6).round() as usize;
     let frequency_duration = nipp as f64 * c.ipp_us as f64 * 1e-6;
+    let threshold = c
+        .snr_threshold_db
+        .map(|db| 10f32.powf(db as f32 / 10.))
+        .unwrap_or(2.);
+    ensure!(
+        threshold.is_finite() && threshold > 0.,
+        "invalid SNR threshold"
+    );
+    ensure!(
+        c.rfi_clip_ratio.is_none_or(|v| v.is_finite() && v >= 2.),
+        "invalid RFI clip ratio"
+    );
     let mut power = vec![f32::NAN; 2 * nf * nr];
     let mut noise = vec![f32::NAN; 2 * nf];
     let start_time = now();
@@ -223,9 +241,23 @@ fn digisonde(c: &Config, t: f64) -> Result<()> {
         let mut decoded = Vec::with_capacity(nipp);
         // One contiguous frequency read avoids repeated HDF5 hyperslab setup.
         // The validated maximum is 64 IPPs (128 MB of complex-f32 voltage).
-        let raw = read_live(&mut r, c, base, nipp * ipp_samples)?;
-        for (pi, ipp_raw) in raw.chunks_exact(ipp_samples).enumerate() {
-            decoded.push(dsp.decode_ipp(ipp_raw, freq - c.center_freq, c.sample_rate, pi));
+        let padding = if c.rfi_clip_ratio.is_some() { 1000 } else { 0 };
+        let raw = read_live(
+            &mut r,
+            c,
+            base.checked_sub(padding as u64)
+                .context("FIR overlap before sample zero")?,
+            nipp * ipp_samples + 2 * padding,
+        )?;
+        for pi in 0..nipp {
+            let ipp_raw = &raw[pi * ipp_samples..(pi + 1) * ipp_samples + 2 * padding];
+            decoded.push(dsp.decode_ipp_with_clip(
+                ipp_raw,
+                freq - c.center_freq,
+                c.sample_rate,
+                pi,
+                c.rfi_clip_ratio,
+            ));
         }
         let p = dsp.power(&decoded);
         for mode in 0..2 {
@@ -233,13 +265,14 @@ fn digisonde(c: &Config, t: f64) -> Result<()> {
             noise[mode * nf + f] = floor;
             for k in 0..nr {
                 let snr = (p[mode][k] - floor) / floor;
-                power[(mode * nf + f) * nr + k] = if snr >= 2. { snr } else { f32::NAN }
+                power[(mode * nf + f) * nr + k] = if snr >= threshold { snr } else { f32::NAN }
             }
         }
         if f % 20 == 0 {
             println!(
-                "{} Ramfjordmoen frequency {}/{} elapsed {:.2}s observation {:.2}s",
+                "{} {} frequency {}/{} elapsed {:.2}s observation {:.2}s",
                 c.station,
+                c.transmitter,
                 f,
                 nf,
                 now() - start_time,
@@ -276,6 +309,13 @@ fn digisonde(c: &Config, t: f64) -> Result<()> {
         dataset(&h, "offset_us", c.offset_us)?;
         dataset(&h, "transmit_delay_us", c.delay())?;
         dataset(&h, "sample_rate_hz", c.sample_rate)?;
+        dataset(&h, "n_ipp", nipp as f64)?;
+        dataset(&h, "ipp_us", c.ipp_us as f64)?;
+        dataset(&h, "frequency_duration_s", frequency_duration)?;
+        if let Some(ratio) = c.rfi_clip_ratio {
+            dataset(&h, "rfi_clip_amplitude_ratio", ratio as f64)?;
+        }
+        dataset(&h, "snr_threshold_db", 10. * (threshold as f64).log10())?;
         text(&h, "type", "digisonde")?;
         text(&h, "receiver", &c.station)?;
         text(&h, "transmitter", &c.transmitter)?;
@@ -283,7 +323,9 @@ fn digisonde(c: &Config, t: f64) -> Result<()> {
         text(
             &h,
             "range_reference",
-            "calibrated transmit epoch; one-way vacuum light time",
+            c.range_reference
+                .as_deref()
+                .unwrap_or("calibrated transmit epoch; one-way vacuum light time"),
         )?;
         h.flush()?;
     }
