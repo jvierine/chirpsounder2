@@ -1,0 +1,156 @@
+/home/j/.zshenv:.:1: no such file or directory: /tmp/momap-cargo/env
+   Compiling iono-core v0.1.0 (/tmp/iono-opt-build/rust/crates/iono-core)
+   Compiling iono-receiver v0.1.0 (/tmp/iono-opt-build/rust/crates/iono-receiver)
+    Finished `release` profile [optimized] target(s) in 53.35s
+     Running unittests src/lib.rs (/home/j/.cache/iono2-server-build/release/deps/iono_core-55a7bf45dbf57195)
+
+running 43 tests
+test dsp::tests::fir_has_unit_gain_and_symmetry ... ok
+test dsp::tests::digisonde_carrier_suppression_recovers_delayed_code ... ok
+test dsp::tests::dc_survives_downconversion ... ok
+test lfm::tests::recursive_mixing_has_expected_beat ... ok
+test lfm_geolocation::tests::cross_modulated_receiver_is_not_used_for_timing ... ok
+test chirp::tests::identifies_a_chirp_without_changing_its_epoch ... ok
+test lfm_geolocation::tests::different_frequency_bands_do_not_create_coincidences ... ok
+test prn::tests::benchmark_shared_prn_fft ... ignored, bounded PRN decoder benchmark; run in release mode
+test prn::tests::channelizer_preserves_tone_phase_across_chunks ... ok
+test lfm_geolocation::tests::globe_and_skywave_geometry ... ok
+test prn::tests::numpy_randomstate_seed_one_and_pulse_gate ... ok
+test digisonde_match::tests::a_single_impulse_does_not_match_a_code_train ... ok
+test pulsed::tests::exact_ten_ms_resampling ... ok
+test pulsed::tests::inverse_is_finite_linear_convolution_at_both_range_boundaries ... ok
+test pulsed::tests::linear_delay_and_doppler_preserve_two_echoes_without_wrapping ... ok
+test digisonde_match::tests::both_polarizations_resolve_mode_three_carrier_alias ... ok
+test receiver_timing::tests::a_single_fixed_delay_is_applied_without_rounding_the_absolute_index ... ok
+test receiver_timing::tests::nominal_preserves_existing_samples_and_does_not_claim_calibration ... ok
+test receiver_timing::tests::station_mismatch_and_out_of_validity_are_rejected ... ok
+test pulsed::tests::supplied_verso_code_reduces_sidelobes_with_bounded_noise_gain ... ok
+test simd::tests::benchmark_receiver_kernels ... ignored, receiver CPU benchmark; run in release mode with --ignored --nocapture
+test simd::tests::fir_length_191_matches_double_precision_reference ... ok
+test simd::tests::simd_matches_scalar_including_unaligned_tails ... ok
+test sparse_tests::sparse_digisonde_preserves_both_modes_and_every_accepted_echo ... ok
+test sparse_tests::sparse_hdf5_keeps_echo_geometry_and_never_fills_unmeasured_cells ... ok
+test tests::finite_interquartile_limits ... ok
+test sparse_tests::prn_cross_code_rejection_changes_display_but_preserves_source ... ok
+test tests::median_ignores_gaps ... ok
+test tests::missing_stays_missing ... ok
+test prn::tests::known_delay_survives_doppler_and_wrong_seed_does_not_match ... ok
+test digisonde_match::tests::polarization_first_order_is_identified_on_multiplexed_codes ... ok
+test prn::tests::shared_fft_preserves_delays_controls_and_transition_guards ... ok
+test dsp::tests::vector_channelizer_preserves_scalar_digisonde_phase_and_range ... ok
+test digisonde_match::tests::custom_bank_recovers_multiplexed_carrier_pulse_spacing ... ok
+test digisonde_match::tests::an_unmodulated_carrier_is_not_a_complementary_code_detection ... ok
+test digisonde_match::tests::multiplexed_codeword_delay_does_not_fold_at_the_physical_pri ... ok
+test digisonde_match::tests::identifies_known_code_ipp_carrier_and_delay ... ok
+test lfm_geolocation::tests::known_source_has_zero_residual_on_global_grid ... ok
+test digisonde_match::tests::a_code_train_survives_a_stronger_stationary_carrier ... ok
+test digisonde_search::tests::a_continuous_carrier_is_not_a_pulsed_sounder ... ok
+test digisonde_search::tests::one_broadband_impulse_is_not_a_repeated_pulse_train ... ok
+test digisonde_search::tests::multiplexed_single_polarization_pulses_remain_searchable ... ok
+test digisonde_search::tests::periodic_pulses_survive_a_strong_continuous_carrier ... ok
+
+test result: ok. 41 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.38s
+
+
+running 2 tests
+test tests::one_outlier_does_not_move_the_fixed_bias_estimate ... ok
+test tests::residual_sign_and_systematic_uncertainty_are_preserved ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/iono-delay.rs (/home/j/.cache/iono2-server-build/release/deps/iono_delay-fb82860f2576256f)
+     Running unittests src/bin/iono-digisonde-search.rs (/home/j/.cache/iono2-server-build/release/deps/iono_digisonde_search-83dc71c8f194459c)
+
+running 5 tests
+test tests::verification_bank_is_bounded_and_default_preserves_original_search ... ok
+test tests::live_plan_extends_beyond_existing_voltage_without_rounding_sample_indices ... ok
+test tests::worker_and_sampling_budgets_are_validated ... ok
+test tests::atomic_checkpoints_keep_empty_and_nonempty_candidates_with_coverage ... ok
+test tests::code_check_reuses_real_overlapped_rf_with_correct_carrier_and_delay ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s
+
+
+running 4 tests
+test tests::breaks_a_track_across_a_real_observation_gap ... ok
+test tests::common_digisonde_dwell_rates_survive_step_quantization ... ok
+test tests::does_not_promote_a_stationary_carrier ... ok
+     Running unittests src/bin/iono-digisonde-tracks.rs (/home/j/.cache/iono2-server-build/release/deps/iono_digisonde_tracks-90b48fa3dd98d3e7)
+test tests::recovers_a_stepped_sweep_amid_scattered_candidates ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/iono-digisonde-verify.rs (/home/j/.cache/iono2-server-build/release/deps/iono_digisonde_verify-7d1e816eaed0bd8c)
+     Running unittests src/bin/iono-lfm-locate.rs (/home/j/.cache/iono2-server-build/release/deps/iono_lfm_locate-14542a9598c21fc9)
+
+running 1 test
+test tests::sparse_output_thresholds_and_discriminates_codes_without_losing_diagnostics ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 9 tests
+test tests::absolute_indices_are_not_rounded_through_f64 ... ok
+test tests::legacy_juliusruh_partial_frequency_step_limits_remain_supported ... ok
+test tests::frequency_search_pause_changes_step_time_but_not_pulse_integration ... ok
+test tests::long_5ms_dwells_fit_the_existing_voltage_budget_and_multiplexing_is_explicit ... ok
+test tests::spectrum_sampling_is_bounded_spread_and_normalized_by_actual_count ... ok
+test tests::fine_frequency_selection_does_not_advance_the_sweep_twice_as_fast ... ok
+test tests::transmitter_default_is_specific ... ok
+test tests::physical_fine_frequency_demultiplexing_recovers_a_known_echo_delay ... ok
+test radar::tests::known_delayed_chirp_maps_to_physical_gate_without_filling_noise ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 3 tests
+test program::tests::supplied_schedule_keeps_silence_split_stations_and_channel_offsets ... ok
+test tests::supplied_waveform_survives_real_channelization_and_discriminates_control ... ok
+test tests::narrow_carrier_cannot_gain_a_false_code_margin_at_resampling_spectral_nulls ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+     Running unittests src/bin/iono-prn.rs (/home/j/.cache/iono2-server-build/release/deps/iono_prn-d764f6365f7420c6)
+     Running unittests src/main.rs (/home/j/.cache/iono2-server-build/release/deps/iono_receiver-a7eb3f5f977d65d1)
+     Running unittests src/bin/iono-verso.rs (/home/j/.cache/iono2-server-build/release/deps/iono_verso-4e68e7caf60c44ff)
+     Running unittests src/bin/iono-verso-filter-check.rs (/home/j/.cache/iono2-server-build/release/deps/iono_verso_filter_check-54e7cda4b3f4caa0)
+     Running tests/digisonde_iq_replay.rs (/home/j/.cache/iono2-server-build/release/deps/digisonde_iq_replay-7fa9d93944571454)
+test cached_channelized_iq_recovers_code_without_opening_rf ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+   Doc-tests iono_core
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running unittests src/lib.rs (/home/j/.cache/iono2-server-build/release/deps/iono_core-55a7bf45dbf57195)
+
+running 1 test
+test prn::tests::benchmark_shared_prn_fft ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.23s
+
+avx+fma PRN five-code compression: separate=0.149293s shared=0.082474s speedup=1.810x
+   Compiling iono-core v0.1.0 (/tmp/iono-opt-build/rust/crates/iono-core)
+   Compiling iono-receiver v0.1.0 (/tmp/iono-opt-build/rust/crates/iono-receiver)
+    Finished `release` profile [optimized] target(s) in 23.40s

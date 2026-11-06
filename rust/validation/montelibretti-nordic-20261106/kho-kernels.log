@@ -1,0 +1,25 @@
+
+running 5 tests
+test prn::tests::benchmark_shared_prn_fft ... ignored, bounded PRN decoder benchmark; run in release mode
+test prn::tests::numpy_randomstate_seed_one_and_pulse_gate ... ok
+test prn::tests::channelizer_preserves_tone_phase_across_chunks ... ok
+test prn::tests::known_delay_survives_doppler_and_wrong_seed_does_not_match ... ok
+test prn::tests::shared_fft_preserves_delays_controls_and_transition_guards ... ok
+
+test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 38 filtered out; finished in 0.16s
+
+
+running 3 tests
+test simd::tests::benchmark_receiver_kernels ... ignored, receiver CPU benchmark; run in release mode with --ignored --nocapture
+test simd::tests::fir_length_191_matches_double_precision_reference ... ok
+test simd::tests::simd_matches_scalar_including_unaligned_tails ... ok
+
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 40 filtered out; finished in 0.00s
+
+
+running 1 test
+test prn::tests::benchmark_shared_prn_fft ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 42 filtered out; finished in 2.03s
+
+avx PRN five-code compression: separate=1.275726s shared=0.746914s speedup=1.708x

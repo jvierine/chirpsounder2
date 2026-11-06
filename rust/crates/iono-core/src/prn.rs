@@ -153,6 +153,7 @@ pub struct Decoder {
     ifft: Arc<dyn Fft<f32>>,
     scratch: Vec<Z>,
     work: Vec<Z>,
+    filtered: Vec<Z>,
     decoded: Vec<Vec<Z>>,
     nr: usize,
 }
@@ -182,11 +183,41 @@ impl Decoder {
             ifft,
             scratch,
             work: vec![Z::default(); code.len()],
+            filtered: vec![Z::default(); code.len()],
             decoded: vec![],
             nr,
         })
     }
     pub fn push(&mut self, input: &[Z]) -> Result<()> {
+        self.prepare(input)?;
+        self.filter_work();
+        Ok(())
+    }
+    /// Transform the received samples once for the target and all control codes.
+    /// Every decoder retains its independent inverse transform and normalization.
+    pub fn push_shared(input: &[Z], bank: &mut [Self]) -> Result<()> {
+        ensure!(!bank.is_empty(), "empty decoder bank");
+        ensure!(
+            bank.iter()
+                .all(|d| d.n == input.len() && d.decoded.len() < 256),
+            "invalid code block count/length"
+        );
+        let (first, controls) = bank.split_first_mut().unwrap();
+        first.prepare(input)?;
+        for control in controls {
+            simd::multiply(&first.work, &control.kernel, &mut control.filtered);
+            control.save_filtered();
+        }
+        first.filter_work();
+        Ok(())
+    }
+    /// Transition guards are exactly zero and discarded by the Doppler stage.
+    pub fn push_zero(&mut self) -> Result<()> {
+        ensure!(self.decoded.len() < 256, "invalid code block count/length");
+        self.decoded.push(vec![Z::default(); self.nr]);
+        Ok(())
+    }
+    fn prepare(&mut self, input: &[Z]) -> Result<()> {
         ensure!(
             input.len() == self.n && self.decoded.len() < 256,
             "invalid code block count/length"
@@ -199,14 +230,22 @@ impl Decoder {
         }
         self.fft
             .process_with_scratch(&mut self.work, &mut self.scratch);
-        let mut spectrum = vec![Z::default(); self.n];
-        simd::multiply(&self.work, &self.kernel, &mut spectrum);
-        self.ifft
-            .process_with_scratch(&mut spectrum, &mut self.scratch);
-        let scale = 1. / (self.n as f32 * self.energy);
-        self.decoded
-            .push(spectrum[..self.nr].iter().map(|z| *z * scale).collect());
         Ok(())
+    }
+    fn filter_work(&mut self) {
+        simd::multiply(&self.work, &self.kernel, &mut self.filtered);
+        self.save_filtered();
+    }
+    fn save_filtered(&mut self) {
+        self.ifft
+            .process_with_scratch(&mut self.filtered, &mut self.scratch);
+        let scale = 1. / (self.n as f32 * self.energy);
+        self.decoded.push(
+            self.filtered[..self.nr]
+                .iter()
+                .map(|z| *z * scale)
+                .collect(),
+        );
     }
     pub fn finish(&self) -> Result<Vec<f32>> {
         Ok(self.finish_with_score()?.0)
@@ -251,6 +290,94 @@ impl Decoder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn shared_fft_preserves_delays_controls_and_transition_guards() {
+        for pulse in [10, 400] {
+            let templates: Vec<_> = [10, 1, 2, 3, 4]
+                .into_iter()
+                .map(|seed| code(seed, 10000, pulse, 400).unwrap())
+                .collect();
+            let make = || {
+                templates
+                    .iter()
+                    .map(|c| Decoder::new(c, 1500).unwrap())
+                    .collect::<Vec<_>>()
+            };
+            let mut separate = make();
+            let mut shared = make();
+            for t in 0..10 {
+                let phase = Z::from_polar(1., t as f32 * 0.7);
+                let input: Vec<_> = (0..10000)
+                    .map(|i| {
+                        if t == 0 || t == 9 {
+                            Z::default()
+                        } else {
+                            templates[0][(i + 10000 - 723) % 10000] * phase + Z::new(0.3, -0.2)
+                        }
+                    })
+                    .collect();
+                for d in &mut separate {
+                    d.push(&input).unwrap();
+                }
+                if t == 0 || t == 9 {
+                    for d in &mut shared {
+                        d.push_zero().unwrap();
+                    }
+                } else {
+                    Decoder::push_shared(&input, &mut shared).unwrap();
+                }
+            }
+            for (a, b) in separate.iter().zip(&shared) {
+                assert_eq!(a.decoded, b.decoded);
+                assert_eq!(
+                    a.finish_with_score().unwrap(),
+                    b.finish_with_score().unwrap()
+                );
+            }
+            let power = shared[0].finish().unwrap();
+            assert_eq!(
+                power
+                    .iter()
+                    .enumerate()
+                    .max_by(|a, b| a.1.total_cmp(b.1))
+                    .unwrap()
+                    .0,
+                723
+            );
+        }
+    }
+    #[test]
+    #[ignore = "bounded PRN decoder benchmark; run in release mode"]
+    fn benchmark_shared_prn_fft() {
+        let templates: Vec<_> = [10, 1, 2, 3, 4]
+            .into_iter()
+            .map(|seed| code(seed, 10000, 400, 400).unwrap())
+            .collect();
+        let input = &templates[0];
+        let run = |shared| {
+            let start = std::time::Instant::now();
+            for _ in 0..4 {
+                let mut bank: Vec<_> = templates
+                    .iter()
+                    .map(|c| Decoder::new(c, 1500).unwrap())
+                    .collect();
+                for _ in 0..128 {
+                    if shared {
+                        Decoder::push_shared(std::hint::black_box(input), &mut bank).unwrap();
+                    } else {
+                        for d in &mut bank {
+                            d.push(std::hint::black_box(input)).unwrap();
+                        }
+                    }
+                }
+                std::hint::black_box(bank);
+            }
+            start.elapsed().as_secs_f64()
+        };
+        let separate = run(false);
+        let shared = run(true);
+        eprintln!("{} PRN five-code compression: separate={separate:.6}s shared={shared:.6}s speedup={:.3}x", simd::backend(), separate/shared);
+    }
     #[test]
     fn numpy_randomstate_seed_one_and_pulse_gate() {
         let mut rng = Mt::new(1);

@@ -4,7 +4,7 @@ After=chirpsounder_tgo.service
 PartOf=chirpsounder_tgo.service
 [Service]
 Nice=19
-CPUQuota=100%
+CPUQuota=
 CPUWeight=1
 WorkingDirectory=%h/src/chirpsounder2/rust
 ExecStart=%h/bin/iono-receiver detect %h/src/chirpsounder2/rust/deploy/tgo-rust.json

@@ -228,20 +228,23 @@ time, so a slower bulk arrival cannot erase a newer sounding. DOB's
 resumable bulk history a 45-second slot. One worker shares the existing
 16 KiB/s cap; it never queues old-day history ahead of current observations.
 
-PRN receiver configs may set `writer_grace_s` (0.25–6 seconds). This delays
+PRN receiver configs may set `writer_grace_s` (0.25–15 seconds). This delays
 reading until the recorder's files are available; it does not change the
 transmitter schedule or propagation calibration. `iono-prn CONFIG --ring-status`
 checks recent 100 ms sample windows, then rechecks the same windows with a
 fresh reader three seconds later. At KHO, windows 1–3 seconds old were initially
-unavailable and subsequently present. Its configured grace is therefore 4.5 s.
+unavailable and subsequently present. A later live check found publication
+roughly eight seconds late; KHO PRN workers now use a 10.5 s grace period.
 Acquisition, Ramfjordmoen reception and scheduled SGO processing take priority.
 Global 100/125 kHz/s chirp finding is the lowest-priority background task:
-nice 19, CPUWeight 1 (CPUShares 2 on cgroup v1), and an aggregate one-logical-CPU
-budget across all its threads. Apply `bash scripts/background-detector.sh` on
-each receiver; it persists the policy and updates the running service without
-restarting acquisition. This targets one CPU when cycles are available; it
-does not reserve CPU time against higher-priority reception. Overload produces
-explicitly counted skipped search blocks, rather than an unbounded backlog.
+nice 19 and CPUWeight 1 (CPUShares 2 on cgroup v1), with no CPU quota. Keep
+at least one search worker active; its bounded worker pool may consume spare
+CPU cycles after higher-priority reception. Apply
+`bash scripts/background-detector.sh` on each receiver to persist the policy
+and update running services without restarting acquisition. This clears the
+former one-CPU cap. Scheduler priority yields under contention; it does not
+provide a hard one-core reservation against arbitrary higher-priority load.
+Overload produces counted skipped search blocks rather than an unbounded queue.
 
 ## Native RF monitoring
 

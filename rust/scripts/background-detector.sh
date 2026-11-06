@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One logical CPU of aggregate search time; acquisition never restarts.
+# Continuous background search may borrow spare CPUs; acquisition never restarts.
 set -euo pipefail
 unit=iono-rust-detect.service
 systemctl --user cat "$unit" >/dev/null
@@ -10,9 +10,9 @@ if [[ -f /sys/fs/cgroup/cgroup.controllers ]]; then
 else
   weight=CPUShares=2
 fi
-printf '[Service]\nNice=19\nCPUQuota=100%%\n%s\n' "$weight" > "$dir/zzzz-background-budget.conf"
+printf '[Service]\nNice=19\nCPUQuota=\n%s\n' "$weight" > "$dir/zzzz-background-budget.conf"
 systemctl --user daemon-reload
-systemctl --user set-property "$unit" CPUQuota=100% "$weight"
+systemctl --user set-property "$unit" CPUQuota= "$weight"
 pid=$(systemctl --user show "$unit" -p MainPID --value)
 if [[ "$pid" =~ ^[1-9][0-9]*$ ]]; then
   for task in /proc/"$pid"/task/*; do

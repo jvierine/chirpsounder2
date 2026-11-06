@@ -182,8 +182,7 @@ fn column(c: &Config, r: &mut Reader, epoch: f64, f: usize, nr: usize) -> Result
         "frequency outside recorded RF band"
     );
     let channel = Channelizer::new(frequency - 12.5e6, code.bandwidth_hz)?;
-    let mut decoder = Decoder::new(&template, nr)?;
-    let mut controls: Vec<_> = code
+    let mut decoders: Vec<_> = code
         .control_seeds
         .iter()
         .map(|&seed| {
@@ -193,6 +192,7 @@ fn column(c: &Config, r: &mut Reader, epoch: f64, f: usize, nr: usize) -> Result
             )
         })
         .collect::<Result<_>>()?;
+    decoders.insert(0, Decoder::new(&template, nr)?);
     let base = epoch_sample(epoch + f as f64 * c.dwell_s)?;
     let n = code.length * 250;
     let periods = (c.dwell_s * 100000. / code.length as f64).round() as usize;
@@ -200,10 +200,8 @@ fn column(c: &Config, r: &mut Reader, epoch: f64, f: usize, nr: usize) -> Result
         // The Doppler estimator discards these transition periods. Do not read
         // padding into a future, still-open recorder file just to discard it.
         if p == 0 || p + 1 == periods {
-            let zero = vec![num_complex::Complex32::default(); code.length];
-            decoder.push(&zero)?;
-            for control in &mut controls {
-                control.push(&zero)?;
+            for decoder in &mut decoders {
+                decoder.push_zero()?;
             }
             continue;
         }
@@ -225,14 +223,11 @@ fn column(c: &Config, r: &mut Reader, epoch: f64, f: usize, nr: usize) -> Result
         }
         let raw = raw.ok_or_else(|| anyhow::anyhow!("missing voltage at {start}: {:?}", last))?;
         let z = channel.process(&raw, p as i64 * n as i64 - 1000);
-        decoder.push(&z[4..4 + code.length])?;
-        for control in &mut controls {
-            control.push(&z[4..4 + code.length])?;
-        }
+        Decoder::push_shared(&z[4..4 + code.length], &mut decoders)?;
     }
-    let (snr, peak) = decoder.finish_with_score()?;
+    let (snr, peak) = decoders[0].finish_with_score()?;
     let mut control_peak = 0f32;
-    for control in controls {
+    for control in &decoders[1..] {
         control_peak = control_peak.max(control.finish_with_score()?.1);
     }
     let margin = if control_peak > 0. && peak > 0. {
@@ -424,8 +419,8 @@ fn main() -> Result<()> {
     iono_core::receiver_timing::initialize(&c.station)?;
     validate(&c)?;
     ensure!(
-        c.writer_grace_s.is_finite() && (0.25..=6.).contains(&c.writer_grace_s),
-        "writer grace must be 0.25--6 seconds"
+        c.writer_grace_s.is_finite() && (0.25..=15.).contains(&c.writer_grace_s),
+        "writer grace must be 0.25--15 seconds"
     );
     if args.iter().any(|s| s == "--ring-status") {
         let inspect = |indices: &[u64]| -> Result<Vec<bool>> {
@@ -497,7 +492,7 @@ fn main() -> Result<()> {
         let mut r = None;
         for f in 0..c.frequencies_hz.len() {
             let end = epoch + (f + 1) as f64 * c.dwell_s;
-            if explicit.is_none() && now() - end > 8. {
+            if explicit.is_none() && now() - end > c.writer_grace_s + 8. {
                 continue;
             }
             wait(end.ceil() + c.writer_grace_s);

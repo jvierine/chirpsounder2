@@ -31,8 +31,8 @@ The JSON files retain exact irregular frequency tables and source hashes.
 | --- | --- | --- |
 | DOB | `DOB-Kiruna.json`, `DOB-Uppsala.json` | `~/.config/iono-prn/Kiruna.json`, `~/.config/iono-prn/Uppsala.json` |
 | DOB (Italian reception trial) | `DOB-Montelibretti.json` | `~/.config/iono-prn/Montelibretti.json` |
-| TGO | `TGO-Kiruna.json` | `~/.config/iono-prn/Kiruna.json` |
-| KHO | `KHO-Kiruna.json` | `~/.config/iono-prn/Kiruna.json` |
+| TGO | `TGO-Kiruna.json`, `TGO-Montelibretti.json` | `~/.config/iono-prn/{Kiruna,Montelibretti}.json` |
+| KHO | `KHO-Kiruna.json`, `KHO-Montelibretti.json` | `~/.config/iono-prn/{Kiruna,Montelibretti}.json` |
 
 `iono-prn@Kiruna` and `iono-prn@Uppsala` explicitly name these installed files.
 No automatic INI discovery occurs. The old seed-1 `irf_prn.ini`,
@@ -49,7 +49,7 @@ does not change the API station catalogue.
 
 ### Italian reception trial
 
-`iono-prn@Montelibretti` on DOB uses Achille Zirizzotti's supplied
+`iono-prn@Montelibretti` on DOB, TGO and KHO uses Achille Zirizzotti's supplied
 `irf_prn_MTB.INI` and the accompanying `iono_config.py` frequency generator:
 seed 10, 10000 chips at 100 kchip/s, pulse length = IPP = 400 (continuous
 code), one second per frequency, 300-second period and UTC phase zero.
@@ -67,8 +67,8 @@ The supplied INI contains copied Kiruna coordinates; do not use them for
 Italian map positions. Other Italian transmitter codes/timing are not enabled
 by guessing from this configuration. Stop the trial with
 `systemctl --user disable --now iono-prn@Montelibretti`.
-To install this opt-in trial after the normal installer, copy the DOB JSON to
-the installed path above and enable that unit. It shares the existing bounded
+The installer includes the receiver-specific Montelibretti configuration and
+enables its unit. It shares the existing bounded
 PRN slice and existing bandwidth-capped publisher; no extra raw-data transfer.
 
 ## DSP and interpretation
@@ -80,6 +80,18 @@ also run the SSE fallback; the floating-point kernels do not require SSE4.
 FMA uses independent FIR accumulators to reduce dependency stalls. KHO's Ivy Bridge has no AVX2/FMA;
 do not compile these binaries with a newer machine's `target-cpu=native`.
 RustFFT selects its own compatible transform kernels.
+Target and control codes share one forward FFT per received code period.
+Each retains its own inverse correlation and normalization; inverse buffers
+are reused. Zero transition guards bypass FFTs. Tests compare every decoded
+complex sample, power profile and code score against separate transforms.
+Signal arrays remain complex-f32; f64 is retained for oscillator phase epochs
+and UTC/sample-index arithmetic to avoid timing/phase precision loss.
+
+KHO PRN readers now wait 10.5 seconds for recorder publication, based on live
+ring-buffer probes that found samples arriving roughly eight seconds late.
+This is a read delay, not a receiver clock correction. The supported grace
+range is 0.25--15 seconds and stale-dwell skipping accounts for this grace.
+Other RF products retain their separately configured publication waits.
 Numerical checks compare every available x86 kernel against scalar results,
 including unaligned inputs/tails, and a 191-tap FIR against a double-precision
 reference. On a receiver, run `cargo test -p iono-core --release

@@ -17,7 +17,7 @@ mv "$HOME/bin/iono-prn.next" "$HOME/bin/iono-prn"
 install -m755 "$plots" "$HOME/bin/iono-plots.next"
 mv "$HOME/bin/iono-plots.next" "$HOME/bin/iono-plots"
 install -m644 "$root/deploy/iono-prn@.service" "$root/deploy/iono-prn.slice" "$HOME/.config/systemd/user/"
-sources=(Kiruna)
+sources=(Kiruna Montelibretti)
 [[ "$station" != DOB ]] || sources+=(Uppsala)
 for source in "${sources[@]}"; do
     install -m644 "$root/deploy/prn/$station-$source.json" "$HOME/.config/iono-prn/$source.json"

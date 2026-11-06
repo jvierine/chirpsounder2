@@ -270,5 +270,5 @@
   "snr_threshold_db": 8,
   "retain_candidate_snr": false,
   "configuration_reference": "irf_prn_kiruna_2min.ini; sha256:1f33aecdb0e608dd5090ebe7abc8652e1003454b908fc0ce083a3f5edbb43092; schedule requires on-air verification",
-  "writer_grace_s": 4.5
+  "writer_grace_s": 10.5
 }

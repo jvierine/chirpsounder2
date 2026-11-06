@@ -44,7 +44,8 @@
     },
     {
       "path": "KHO/iono-prn/Kiruna.json",
-      "sha256": "00f9cafefbcccae06253be73908177c172bcffbe04c6e6ba1322cdf5a799a777"
+      "sha256": "123cc583e0439ef5d897fd659a35867efb160f5faf80d056b81f8bcdc3e85fe7",
+      "deployed_utc": "2026-11-06T21:25:45Z"
     },
     {
       "path": "KHO/verso/receiver.json",
@@ -151,8 +152,18 @@
     },
     {
       "path": "W2NAF/global.json",
-      "sha256": "da0e7dd26be4b59dd8395056a2a0d9fef702bee2f1fca309ca90438d11d90dfe",
-      "deployed_utc": "2026-11-06T21:11:43Z"
+      "sha256": "4f28802baef1eba7064260340bdcaa0fd0697077e4dd8ec70e77e2d73a7ba0cc",
+      "deployed_utc": "2026-11-06T21:25:45Z"
+    },
+    {
+      "path": "KHO/iono-prn/Montelibretti.json",
+      "sha256": "d147bdc2286fc3b8c24ba2041df3b3cf53bfefca194e98353a5709d97fffcff9",
+      "deployed_utc": "2026-11-06T21:25:45Z"
+    },
+    {
+      "path": "TGO/iono-prn/Montelibretti.json",
+      "sha256": "6429b7a8d729b70ae89c02d67dfb17a9510ab010eed160ea1097060af6b8fb8e",
+      "deployed_utc": "2026-11-06T21:25:45Z"
     }
   ],
   "updated_utc": "2026-11-06T17:13:30.044564+00:00",
