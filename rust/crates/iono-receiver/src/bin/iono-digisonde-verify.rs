@@ -15,6 +15,11 @@ struct Config {
     channel: String,
     #[serde(default = "doppler")]
     doppler_search_hz: f64,
+    #[serde(default = "default_ipps")]
+    ipp_candidates_us: Vec<u32>,
+}
+fn default_ipps() -> Vec<u32> {
+    vec![5000, 10000]
 }
 fn doppler() -> f64 {
     100.
@@ -30,6 +35,14 @@ fn main() -> Result<()> {
         "invalid Doppler search extent"
     );
     let grid = a.get(2).is_some_and(|s| s == "--grid");
+    ensure!(
+        !c.ipp_candidates_us.is_empty()
+            && c.ipp_candidates_us.len() <= 8
+            && c.ipp_candidates_us
+                .iter()
+                .all(|p| [5000, 10000, 20000, 40000].contains(p)),
+        "unsupported commissioning pulse-spacing bank"
+    );
     let (samples, freq, contrast) = if grid {
         let epoch: f64 = a
             .get(3)
@@ -150,7 +163,7 @@ fn main() -> Result<()> {
         }
     }
     chosen.sort_by_key(|&i| samples[i]);
-    let mut decoder = CodeSearch::new(16000, 100e3);
+    let mut decoder = CodeSearch::with_ipps(16000, 100e3, &c.ipp_candidates_us);
     let mut time = vec![];
     let mut frequency = vec![];
     let mut ipp = vec![];
@@ -211,6 +224,7 @@ fn main() -> Result<()> {
             out.new_dataset_builder().with_data(&$v).create($name)?;
         };
     }
+    save!("searched_ipp_candidates_us", c.ipp_candidates_us);
     save!("time_unix", time);
     save!("frequency_hz", frequency);
     save!("ipp_us", ipp);

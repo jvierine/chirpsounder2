@@ -62,12 +62,15 @@ pub struct CodeSearch {
 }
 impl CodeSearch {
     pub fn new(samples: usize, sr: f64) -> Self {
+        Self::with_ipps(samples, sr, &[5000, 10000])
+    }
+    pub fn with_ipps(samples: usize, sr: f64, ipps: &[u32]) -> Self {
         let n = samples.next_power_of_two();
         let mut planner = FftPlanner::new();
         let fft = planner.plan_fft_forward(n);
         let ifft = planner.plan_fft_inverse(n);
         let mut kernels = vec![];
-        for ipp in [5000, 10000] {
+        for &ipp in ipps {
             for mode in 0..4 {
                 for all in [false, true] {
                     if all && mode < 3 {
@@ -205,6 +208,18 @@ mod tests {
         assert!((m.carrier_offset_hz - 3000.).abs() < 8., "{m:?}");
         assert!((m.lag_s - 0.00017).abs() < 0.00002, "{m:?}");
         assert!(m.coherence > 0.4);
+    }
+    #[test]
+    fn custom_bank_recovers_multiplexed_carrier_pulse_spacing() {
+        for ipp in [20000, 40000] {
+            let z = template_polarizations(16000, 100e3, ipp, 0, false);
+            let m = CodeSearch::with_ipps(16000, 100e3, &[5000, 10000, 20000, 40000])
+                .seek(&z, 0., 5000.)
+                .unwrap();
+            assert_eq!(m.ipp_us, ipp, "{m:?}");
+            assert!(m.coherence > 0.99, "{m:?}");
+            assert!(m.lag_s.abs() < 0.00002, "{m:?}");
+        }
     }
     #[test]
     fn a_single_impulse_does_not_match_a_code_train() {

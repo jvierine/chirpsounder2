@@ -1,0 +1,506 @@
+{
+  "schema": "chirpsounder2-digisonde-commissioning-v1",
+  "checked_utc": "2026-11-06T12:49:00Z",
+  "metadata_source": "GIRO DIDBase LOCATION, MEASUREMENT and PROGRAM tables, authorized read-only access",
+  "source_url": "https://giro.uml.edu/didbase/",
+  "positions": "Approximate GIRO station coordinates; not surveyed antenna positions",
+  "warning": "Archive timestamps are not proof of live transmission. Registry phase-code numbers must not be interpreted as native decoder mode numbers. No new continuous receiver is enabled by this catalog.",
+  "transmitters": {
+    "Thule": {
+      "ursi": "THJ76",
+      "location_id": 126,
+      "lat": 76.54,
+      "lon": -68.44,
+      "last_record_utc": "2026-11-06T08:37:30Z",
+      "cadence_s": 450,
+      "programs": [
+        {
+          "id": 13415,
+          "pulse_rate_hz": 100,
+          "phase_code": 1,
+          "start_mhz": 2,
+          "stop_mhz": 8,
+          "step_mhz": 0.025,
+          "fine_step_mhz": 0.005,
+          "fine_frequencies": 2,
+          "multiplexed": true,
+          "phase_switched": true,
+          "frequency_search": false
+        },
+        {
+          "id": 16829,
+          "pulse_rate_hz": 100,
+          "phase_code": 1,
+          "start_mhz": 2,
+          "stop_mhz": 20,
+          "step_mhz": 0.025,
+          "fine_step_mhz": 0.005,
+          "fine_frequencies": 2,
+          "multiplexed": true,
+          "phase_switched": true,
+          "frequency_search": false
+        }
+      ],
+      "status": "current_archive_program; over-air commissioning required"
+    },
+    "Dourbes": {
+      "ursi": "DB049",
+      "location_id": 21,
+      "lat": 50.1,
+      "lon": 4.6,
+      "last_record_utc": "2026-11-06T12:40:00Z",
+      "cadence_s": 300,
+      "programs": [
+        {
+          "id": 16600,
+          "pulse_rate_hz": 100,
+          "phase_code": 1,
+          "start_mhz": 1.5,
+          "stop_mhz": 15,
+          "step_mhz": 0.05,
+          "fine_step_mhz": 0.005,
+          "fine_frequencies": 2,
+          "multiplexed": true,
+          "phase_switched": true,
+          "frequency_search": false
+        },
+        {
+          "id": 16882,
+          "pulse_rate_hz": 100,
+          "phase_code": 1,
+          "start_mhz": 1,
+          "stop_mhz": 23,
+          "step_mhz": 0.05,
+          "fine_step_mhz": 0.005,
+          "fine_frequencies": 2,
+          "multiplexed": true,
+          "phase_switched": true,
+          "frequency_search": false
+        },
+        {
+          "id": 16603,
+          "pulse_rate_hz": 100,
+          "phase_code": 1,
+          "start_mhz": 1,
+          "stop_mhz": 12,
+          "step_mhz": 0.05,
+          "fine_step_mhz": 0.005,
+          "fine_frequencies": 2,
+          "multiplexed": true,
+          "phase_switched": true,
+          "frequency_search": false
+        },
+        {
+          "id": 16953,
+          "pulse_rate_hz": 100,
+          "phase_code": 1,
+          "start_mhz": 0.5,
+          "stop_mhz": 12,
+          "step_mhz": 0.05,
+          "fine_step_mhz": 0.005,
+          "fine_frequencies": 2,
+          "multiplexed": true,
+          "phase_switched": true,
+          "frequency_search": false
+        }
+      ],
+      "status": "current_archive_program; interleaving and UTC onset require verification"
+    },
+    "Chilton": {
+      "ursi": "RL052",
+      "location_id": 35,
+      "lat": 51.5,
+      "lon": -0.6,
+      "last_record_utc": "2024-08-22T19:00:00Z",
+      "cadence_s": 600,
+      "programs": [
+        {
+          "id": 7593,
+          "pulse_rate_hz": 200,
+          "phase_code": 1,
+          "start_mhz": 1,
+          "stop_mhz": 15,
+          "step_mhz": 0.05,
+          "fine_step_mhz": 0.005,
+          "fine_frequencies": 1,
+          "multiplexed": true,
+          "phase_switched": true,
+          "frequency_search": true
+        }
+      ],
+      "status": "historical_archive_only; current schedule and carrier search must be measured"
+    },
+    "Millstone": {
+      "ursi": "MHJ45",
+      "location_id": 11,
+      "lat": 42.6,
+      "lon": -71.5,
+      "last_record_utc": "2026-11-06T12:37:30Z",
+      "cadence_s": 450,
+      "programs": [
+        {
+          "id": 14153,
+          "pulse_rate_hz": 100,
+          "phase_code": 1,
+          "start_mhz": 2,
+          "stop_mhz": 16,
+          "step_mhz": 0.025,
+          "fine_step_mhz": 0.005,
+          "fine_frequencies": 2,
+          "multiplexed": true,
+          "phase_switched": true,
+          "frequency_search": false
+        }
+      ],
+      "status": "W2NAF existing receiver verified on air; retain active configuration"
+    },
+    "Wallops": {
+      "ursi": "WP937",
+      "location_id": 14,
+      "lat": 37.9,
+      "lon": -75.5,
+      "last_record_utc": "2024-06-24T18:45:08Z",
+      "cadence_s": 300,
+      "programs": [
+        {
+          "id": 7540,
+          "pulse_rate_hz": 200,
+          "phase_code": 4,
+          "start_mhz": 1,
+          "stop_mhz": 18,
+          "step_mhz": 0.05,
+          "frequency_search": true
+        }
+      ],
+      "status": "historical derived header; phase-code value 4 is not a supported waveform template; require discovery"
+    },
+    "Wallops-WI937": {
+      "ursi": "WI937",
+      "location_id": 106,
+      "lat": 37.936,
+      "lon": -75.578,
+      "last_record_utc": "2021-12-06T22:00:01Z",
+      "cadence_s": 120,
+      "programs": [],
+      "status": "historical derived header; zero pulse-rate metadata unusable for waveform setup; possible same-site alias, not an additional transmitter"
+    },
+    "Eglin": {
+      "ursi": "EG931",
+      "location_id": 30,
+      "lat": 30.5,
+      "lon": -86.5,
+      "last_record_utc": "2026-11-01T08:15:00Z",
+      "cadence_s": 450,
+      "programs": [
+        {
+          "id": 13383,
+          "pulse_rate_hz": 100,
+          "phase_code": 1,
+          "start_mhz": 2,
+          "stop_mhz": 10,
+          "step_mhz": 0.025,
+          "fine_step_mhz": 0.005,
+          "fine_frequencies": 2,
+          "multiplexed": true,
+          "phase_switched": false,
+          "frequency_search": false
+        }
+      ],
+      "status": "recent archive; phase switching differs from Millstone; code-mode verification required"
+    },
+    "Boulder": {
+      "ursi": "BC840",
+      "location_id": 18,
+      "lat": 40,
+      "lon": -105.3,
+      "last_record_utc": "2024-04-16T16:15:05Z",
+      "cadence_s": 300,
+      "programs": [
+        {
+          "id": 16702,
+          "pulse_rate_hz": 200,
+          "phase_code": 4,
+          "start_mhz": 1,
+          "stop_mhz": 19,
+          "step_mhz": 0.05,
+          "frequency_search": true
+        }
+      ],
+      "status": "historical derived header; waveform unsupported/unverified"
+    },
+    "Austin": {
+      "ursi": "AU930",
+      "location_id": 76,
+      "lat": 30.4,
+      "lon": -97.7,
+      "last_record_utc": "2026-07-29T20:25:05Z",
+      "cadence_s": 300,
+      "programs": [
+        {
+          "id": 7517,
+          "pulse_rate_hz": 100,
+          "phase_code": 4,
+          "start_mhz": 1,
+          "stop_mhz": 20,
+          "step_mhz": 0.1,
+          "frequency_search": true
+        }
+      ],
+      "status": "historical derived header; waveform unsupported/unverified"
+    },
+    "Ramey": {
+      "ursi": "PRJ18",
+      "location_id": 9,
+      "lat": 18.5,
+      "lon": -67.1,
+      "last_record_utc": "2022-03-22T18:15:05Z",
+      "cadence_s": 900,
+      "programs": [
+        {
+          "id": 8309,
+          "pulse_rate_hz": 100,
+          "phase_code": 4,
+          "start_mhz": 1,
+          "stop_mhz": 18,
+          "step_mhz": 0.05,
+          "frequency_search": true
+        }
+      ],
+      "status": "historical derived header; waveform unsupported/unverified"
+    }
+  },
+  "links": [
+    {
+      "receiver": "TGO",
+      "transmitter": "Thule",
+      "enabled": false,
+      "great_circle_km": 2636.29,
+      "vacuum_ground_delay_us": 8793.72,
+      "transmitter_delay_calibrated": false,
+      "probe_receiver_config": {
+        "station": "TGO",
+        "data_dir": "/dev/shm/hf25",
+        "output_dir": "/tmp/iono-thule-commission",
+        "channel": "ch0",
+        "sample_rate": 25000000.0,
+        "center_freq": 12500000.0,
+        "transmitter": "THJ76",
+        "interval_s": 450,
+        "start_offset_s": 0,
+        "freq_start_hz": 2000000.0,
+        "freq_stop_hz": 8000000.0,
+        "freq_step_hz": 25000.0,
+        "ipp_us": 10000,
+        "n_ipp": 32,
+        "offset_us": 8700,
+        "transmit_delay_us": 0,
+        "snr_threshold_db": 6,
+        "rfi_clip_ratio": 10,
+        "writer_grace_s": 4.5,
+        "range_reference": "Commissioning only: nominal schedule and approximate ground-delay gate; transmitter delay uncalibrated."
+      },
+      "status": "bounded commissioning profile only; pulse ordering/dwell unverified"
+    },
+    {
+      "receiver": "TGO",
+      "transmitter": "Dourbes",
+      "enabled": false,
+      "great_circle_km": 2303.69,
+      "vacuum_ground_delay_us": 7684.27,
+      "transmitter_delay_calibrated": false,
+      "status": "search program catalogued; production receiver disabled pending waveform/timing verification"
+    },
+    {
+      "receiver": "TGO",
+      "transmitter": "Chilton",
+      "enabled": false,
+      "great_circle_km": 2260.35,
+      "vacuum_ground_delay_us": 7539.7,
+      "transmitter_delay_calibrated": false,
+      "status": "search program catalogued; production receiver disabled pending waveform/timing verification"
+    },
+    {
+      "receiver": "DOB",
+      "transmitter": "Thule",
+      "enabled": false,
+      "great_circle_km": 3115.78,
+      "vacuum_ground_delay_us": 10393.12,
+      "transmitter_delay_calibrated": false,
+      "probe_receiver_config": {
+        "station": "DOB",
+        "data_dir": "/dev/shm/hf25",
+        "output_dir": "/tmp/iono-thule-commission",
+        "channel": "ch0",
+        "sample_rate": 25000000.0,
+        "center_freq": 12500000.0,
+        "transmitter": "THJ76",
+        "interval_s": 450,
+        "start_offset_s": 0,
+        "freq_start_hz": 2000000.0,
+        "freq_stop_hz": 8000000.0,
+        "freq_step_hz": 25000.0,
+        "ipp_us": 10000,
+        "n_ipp": 32,
+        "offset_us": 10300,
+        "transmit_delay_us": 0,
+        "snr_threshold_db": 6,
+        "rfi_clip_ratio": 10,
+        "writer_grace_s": 4.5,
+        "range_reference": "Commissioning only: nominal schedule and approximate ground-delay gate; transmitter delay uncalibrated."
+      },
+      "status": "bounded commissioning profile only; pulse ordering/dwell unverified"
+    },
+    {
+      "receiver": "DOB",
+      "transmitter": "Dourbes",
+      "enabled": false,
+      "great_circle_km": 1359.62,
+      "vacuum_ground_delay_us": 4535.21,
+      "transmitter_delay_calibrated": false,
+      "status": "search program catalogued; production receiver disabled pending waveform/timing verification"
+    },
+    {
+      "receiver": "DOB",
+      "transmitter": "Chilton",
+      "enabled": false,
+      "great_circle_km": 1312.82,
+      "vacuum_ground_delay_us": 4379.1,
+      "transmitter_delay_calibrated": false,
+      "status": "search program catalogued; production receiver disabled pending waveform/timing verification"
+    },
+    {
+      "receiver": "KHO",
+      "transmitter": "Thule",
+      "enabled": false,
+      "great_circle_km": 1888.3,
+      "vacuum_ground_delay_us": 6298.68,
+      "transmitter_delay_calibrated": false,
+      "probe_receiver_config": {
+        "station": "KHO",
+        "data_dir": "/dev/shm/hf25",
+        "output_dir": "/tmp/iono-thule-commission",
+        "channel": "ch0",
+        "sample_rate": 25000000.0,
+        "center_freq": 12500000.0,
+        "transmitter": "THJ76",
+        "interval_s": 450,
+        "start_offset_s": 0,
+        "freq_start_hz": 2000000.0,
+        "freq_stop_hz": 8000000.0,
+        "freq_step_hz": 25000.0,
+        "ipp_us": 10000,
+        "n_ipp": 32,
+        "offset_us": 6200,
+        "transmit_delay_us": 0,
+        "snr_threshold_db": 6,
+        "rfi_clip_ratio": 10,
+        "writer_grace_s": 4.5,
+        "range_reference": "Commissioning only: nominal schedule and approximate ground-delay gate; transmitter delay uncalibrated."
+      },
+      "status": "bounded commissioning profile only; pulse ordering/dwell unverified"
+    },
+    {
+      "receiver": "KHO",
+      "transmitter": "Dourbes",
+      "enabled": false,
+      "great_circle_km": 3154.06,
+      "vacuum_ground_delay_us": 10520.81,
+      "transmitter_delay_calibrated": false,
+      "status": "search program catalogued; production receiver disabled pending waveform/timing verification"
+    },
+    {
+      "receiver": "KHO",
+      "transmitter": "Chilton",
+      "enabled": false,
+      "great_circle_km": 3038.28,
+      "vacuum_ground_delay_us": 10134.62,
+      "transmitter_delay_calibrated": false,
+      "status": "search program catalogued; production receiver disabled pending waveform/timing verification"
+    },
+    {
+      "receiver": "W2NAF",
+      "transmitter": "Thule",
+      "enabled": false,
+      "great_circle_km": 3929.65,
+      "vacuum_ground_delay_us": 13107.91,
+      "transmitter_delay_calibrated": false,
+      "probe_receiver_config": {
+        "station": "W2NAF",
+        "data_dir": "/mnt/ramdisk/hf25",
+        "output_dir": "/tmp/iono-thule-commission",
+        "channel": "ch0",
+        "sample_rate": 25000000.0,
+        "center_freq": 12500000.0,
+        "transmitter": "THJ76",
+        "interval_s": 450,
+        "start_offset_s": 0,
+        "freq_start_hz": 2000000.0,
+        "freq_stop_hz": 8000000.0,
+        "freq_step_hz": 25000.0,
+        "ipp_us": 10000,
+        "n_ipp": 32,
+        "offset_us": 13100,
+        "transmit_delay_us": 0,
+        "snr_threshold_db": 6,
+        "rfi_clip_ratio": 10,
+        "writer_grace_s": 4.5,
+        "range_reference": "Commissioning only: nominal schedule and approximate ground-delay gate; transmitter delay uncalibrated."
+      },
+      "status": "bounded commissioning profile only; pulse ordering/dwell unverified"
+    },
+    {
+      "receiver": "W2NAF",
+      "transmitter": "Millstone",
+      "enabled": false,
+      "great_circle_km": 367.0,
+      "vacuum_ground_delay_us": 1224.19,
+      "transmitter_delay_calibrated": false,
+      "status": "existing active configuration; this catalog does not change it"
+    },
+    {
+      "receiver": "W2NAF",
+      "transmitter": "Wallops",
+      "enabled": false,
+      "great_circle_km": 382.06,
+      "vacuum_ground_delay_us": 1274.42,
+      "transmitter_delay_calibrated": false,
+      "status": "search program catalogued; production receiver disabled pending waveform/timing verification"
+    },
+    {
+      "receiver": "W2NAF",
+      "transmitter": "Eglin",
+      "enabled": false,
+      "great_circle_km": 1551.29,
+      "vacuum_ground_delay_us": 5174.55,
+      "transmitter_delay_calibrated": false,
+      "status": "search program catalogued; production receiver disabled pending waveform/timing verification"
+    },
+    {
+      "receiver": "W2NAF",
+      "transmitter": "Boulder",
+      "enabled": false,
+      "great_circle_km": 2497.04,
+      "vacuum_ground_delay_us": 8329.24,
+      "transmitter_delay_calibrated": false,
+      "status": "search program catalogued; production receiver disabled pending waveform/timing verification"
+    },
+    {
+      "receiver": "W2NAF",
+      "transmitter": "Austin",
+      "enabled": false,
+      "great_circle_km": 2322.91,
+      "vacuum_ground_delay_us": 7748.4,
+      "transmitter_delay_calibrated": false,
+      "status": "search program catalogued; production receiver disabled pending waveform/timing verification"
+    },
+    {
+      "receiver": "W2NAF",
+      "transmitter": "Ramey",
+      "enabled": false,
+      "great_circle_km": 2664.65,
+      "vacuum_ground_delay_us": 8888.31,
+      "transmitter_delay_calibrated": false,
+      "status": "search program catalogued; production receiver disabled pending waveform/timing verification"
+    }
+  ]
+}

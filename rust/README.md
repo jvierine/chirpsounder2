@@ -98,7 +98,11 @@ optional `frequency_range_hz` (default `[700000,24500000]`) and
 `max_candidates` (default 6, maximum 64 per window).
 
 `iono-digisonde-verify CONFIG SEARCH_HDF5 128` checks candidates against
-5/10 ms complementary-code modes. A commissioning grid can instead be read
+5/10 ms complementary-code modes. Optional `ipp_candidates_us` can include
+20000 and 40000 microseconds to test effective per-carrier pulse spacing in
+frequency-multiplexed programs; these are hypotheses, not a change to the
+physical transmitter pulse rate. The searched bank is stored in the HDF5
+diagnostics. A commissioning grid can instead be read
 with `CONFIG --grid UNIX_EPOCH TMIN TMAX DT FMIN FMAX DF`, in seconds and Hz.
 Carrier checks cover ±100 Hz by default (`doppler_search_hz` in the config).
 Recurrence, matched-filter
