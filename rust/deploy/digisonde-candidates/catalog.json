@@ -502,5 +502,16 @@
       "transmitter_delay_calibrated": false,
       "status": "search program catalogued; production receiver disabled pending waveform/timing verification"
     }
-  ]
+  ],
+  "commissioning_results": {
+    "epoch_unix": 1793969550,
+    "utc": "2026-11-06T12:52:30Z",
+    "Thule": {
+      "TGO": "finite sparse probe completed; no continuous independently identified Thule trace",
+      "KHO": "finite sparse probe completed; no continuous independently identified Thule trace",
+      "W2NAF": "finite sparse probe completed; strongest return agrees with simultaneous Millstone echo after two 10 ms pulse periods; not confirmed Thule",
+      "DOB": "finite probe completed with old binary; transmitter metadata correct despite hard-coded Ramfjordmoen progress text; dense payload and unsupported range-reference text; commissioning output quarantined"
+    },
+    "production_changes": "none; existing Millstone remains active"
+  }
 }

@@ -61,3 +61,27 @@ read-only queries of LOCATION, MEASUREMENT and PROGRAM. Credentials are not
 included. Interpret program fields using the official Digisonde documentation
 and validate against actual voltage. GIRO data usage follows its
 [Rules of the Road](https://giro.uml.edu/didbase/RulesOfTheRoad.html).
+
+## First Thule probe outcome
+
+At 12:52:30 UTC on November 6, finite probes completed on TGO, KHO and W2NAF
+with sparse files of roughly 27, 35 and 78 KiB respectively. The Nordic plots
+lack a continuous independently identified Thule trace. W2NAF has a strong
+return, but comparison against its simultaneous Millstone ionogram shows the
+5.5 and 6.0 MHz echoes shifted by exactly 5995.8 km: two 10 ms vacuum pulse
+periods. This is not independent Thule evidence. No new continuous worker or
+public Thule product was enabled.
+
+DOB's old unused receiver binary logged a hard-coded Ramfjordmoen name while
+writing the correct THJ76 transmitter metadata. It also emitted dense SNR and
+ignored the newer commissioning range-reference text. Its test file was kept
+outside the science archive. Use the reviewed native binary and verify its
+metadata/sparse output before commissioning further candidates. The RF/DSP
+replacement binary is from public commit 518b38c (SHA-256
+4521dab51eb4d5a553b7e0a510b25cfd43e41272209086e3f49bc1e575aa08f2).
+
+The initial W2NAF test timed out because its five-minute runtime allowance
+included waiting for the future epoch. A retry against retained local voltage
+completed. For future starts, launch the finite service at the epoch with a
+systemd timer, or set the runtime allowance to include the scheduled wait.
+Do not increase a CPU ceiling to compensate for a scheduling mistake.
