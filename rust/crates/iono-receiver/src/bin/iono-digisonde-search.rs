@@ -22,6 +22,8 @@ struct Config {
     frequency_range_hz: [f64; 2],
     #[serde(default = "candidates")]
     max_candidates: usize,
+    #[serde(default)]
+    stratified_frequency_budget: bool,
 }
 fn search_band() -> [f64; 2] {
     [0.7e6, 24.5e6]
@@ -156,6 +158,7 @@ fn main() -> Result<()> {
     let (result_tx, result_rx) = std::sync::mpsc::sync_channel::<(u64, Result<Vec<Candidate>>)>(4);
     let mut senders = vec![];
     let max_candidates = c.max_candidates;
+    let stratified = c.stratified_frequency_budget;
     for _ in 0..4 {
         let (tx, rx) = std::sync::mpsc::sync_channel::<Job>(1);
         senders.push(tx);
@@ -166,7 +169,11 @@ fn main() -> Result<()> {
                 if tx
                     .send((
                         i,
-                        Ok(search.seek_band(&z, 1.8, max_candidates, min_hz, max_hz)),
+                        Ok(if stratified {
+                            search.seek_stratified(&z, 1.8, max_candidates, min_hz, max_hz)
+                        } else {
+                            search.seek_band(&z, 1.8, max_candidates, min_hz, max_hz)
+                        }),
                     ))
                     .is_err()
                 {

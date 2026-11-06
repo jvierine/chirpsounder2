@@ -1,0 +1,10 @@
+[Unit]
+Description=Frequency-balanced PINS Digisonde discovery and code verification
+[Service]
+Type=oneshot
+ExecStart=%h/.local/lib/chirpsounder2/digisonde-watch.sh %h/.config/chirpsounder2/w2naf-digisonde-watch.json
+Nice=15
+CPUWeight=20
+CPUQuota=600%
+MemoryMax=2G
+TimeoutStartSec=8min

@@ -1,0 +1,8 @@
+[Unit]
+Description=Repeat local Digisonde discovery across changing propagation
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=3min
+AccuracySec=5s
+[Install]
+WantedBy=timers.target

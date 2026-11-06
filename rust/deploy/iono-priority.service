@@ -1,0 +1,6 @@
+[Unit]
+Description=Preserve ionosonde receiver task priorities
+[Service]
+Type=oneshot
+ExecStart=%h/.local/lib/chirpsounder2/station-priority.sh
+Nice=19

@@ -110,6 +110,23 @@ fn main() -> Result<()> {
         .collect();
     // Avoid spending the commissioning budget on a single stationary interferer.
     order.sort_by(|&i, &j| contrast[j].total_cmp(&contrast[i]));
+    if !grid {
+        // Round-robin MHz bands, strongest first within each. Coarse radar
+        // candidates at 17--19 MHz must not starve weak 2--6 MHz sounders.
+        let mut bands = vec![Vec::new(); 25];
+        for i in order {
+            bands[(freq[i] / 1e6).floor() as usize].push(i);
+        }
+        order = Vec::new();
+        let depth = bands.iter().map(Vec::len).max().unwrap_or(0);
+        for n in 0..depth {
+            for b in &bands {
+                if let Some(&i) = b.get(n) {
+                    order.push(i);
+                }
+            }
+        }
+    }
     let max = if grid {
         samples.len()
     } else {
@@ -133,7 +150,7 @@ fn main() -> Result<()> {
         }
     }
     chosen.sort_by_key(|&i| samples[i]);
-    let decoder = CodeSearch::new(16000, 100e3);
+    let mut decoder = CodeSearch::new(16000, 100e3);
     let mut time = vec![];
     let mut frequency = vec![];
     let mut ipp = vec![];

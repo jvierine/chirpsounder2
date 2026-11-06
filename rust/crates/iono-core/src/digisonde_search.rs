@@ -67,6 +67,29 @@ impl PulseSearch {
         min_hz: f64,
         max_hz: f64,
     ) -> Vec<Candidate> {
+        self.seek_inner(raw, threshold, max_candidates, min_hz, max_hz, false)
+    }
+    /// Reserve candidates in each MHz so strong distant radar pulses cannot
+    /// consume the entire nearby-Digisonde verification budget.
+    pub fn seek_stratified(
+        &mut self,
+        raw: &[Z],
+        threshold: f32,
+        max_candidates: usize,
+        min_hz: f64,
+        max_hz: f64,
+    ) -> Vec<Candidate> {
+        self.seek_inner(raw, threshold, max_candidates, min_hz, max_hz, true)
+    }
+    fn seek_inner(
+        &mut self,
+        raw: &[Z],
+        threshold: f32,
+        max_candidates: usize,
+        min_hz: f64,
+        max_hz: f64,
+        stratified: bool,
+    ) -> Vec<Candidate> {
         assert!(
             min_hz.is_finite()
                 && max_hz.is_finite()
@@ -199,11 +222,17 @@ impl PulseSearch {
             ((b.contrast - 1.) * b.mean_power).total_cmp(&((a.contrast - 1.) * a.mean_power))
         });
         let mut selected: Vec<Candidate> = vec![];
+        let mut per_mhz = [0usize; 25];
         for p in points {
+            let band = (p.frequency_hz / 1e6).floor() as usize;
+            if stratified && per_mhz[band] >= 2 {
+                continue;
+            }
             if selected
                 .iter()
                 .all(|q| (p.frequency_hz - q.frequency_hz).abs() > 60e3)
             {
+                per_mhz[band] += 1;
                 selected.push(p);
                 if selected.len() == max_candidates {
                     break;

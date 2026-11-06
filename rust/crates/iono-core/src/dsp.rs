@@ -167,6 +167,17 @@ impl Digisonde {
         if padding > 0 {
             z = z[4..4 + self.n].to_vec();
         }
+        self.decode_baseband_ipp(z, pi, clip_ratio)
+    }
+    /// Decode an already channelized 100 ksample/s IPP. The caller retains
+    /// real overlap, identical FIR bandwidth and phase continuity across IPPs.
+    pub fn decode_baseband_ipp(
+        &self,
+        mut z: Vec<Complex32>,
+        pi: usize,
+        clip_ratio: Option<f32>,
+    ) -> Vec<Complex32> {
+        assert_eq!(z.len(), self.n);
         self.fft.process(&mut z);
         if let Some(ratio) = clip_ratio {
             assert!(ratio.is_finite() && ratio >= 2.);
@@ -216,6 +227,37 @@ impl Digisonde {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn vector_channelizer_preserves_scalar_digisonde_phase_and_range() {
+        for ipp in [5000usize, 10000] {
+            let d = Digisonde::new(ipp);
+            for (offset, pi) in [(-9_391_500., 0usize), (0., 7), (4_123_456., 31)] {
+                let len = ipp * 25 + 2000;
+                let raw: Vec<_> = (0..len)
+                    .map(|i| {
+                        let x = i as f64;
+                        Complex32::new((0.13 * x).sin() as f32, (0.031 * x).cos() as f32)
+                            + Complex32::from_polar(2., (TAU * offset * x / 25e6) as f32)
+                    })
+                    .collect();
+                let old = d.decode_ipp_with_clip(&raw, offset, 25e6, pi, None);
+                let c = crate::prn::Channelizer::new(offset, 30000.).unwrap();
+                let base = c.process(&raw, (pi * ipp * 25) as i64 - 1000);
+                let new = d.decode_baseband_ipp(base[4..4 + ipp / 10].to_vec(), pi, None);
+                let scale = old.iter().map(|z| z.norm()).fold(1e-10, f32::max);
+                let error = old
+                    .iter()
+                    .zip(new)
+                    .map(|(a, b)| (*a - b).norm())
+                    .fold(0., f32::max);
+                assert!(
+                    error / scale < 0.002,
+                    "IPP={ipp} offset={offset} pi={pi} relative error={}",
+                    error / scale
+                );
+            }
+        }
+    }
     #[test]
     fn fir_has_unit_gain_and_symmetry() {
         let h = fir_taps(191, 0.006, 8.6);

@@ -168,3 +168,28 @@ Receiver-local `iono-plots --browser-only` prepares the RTIs and display
 arrays from local HDF5. The web host serves those arrays. The existing
 bandwidth-capped delta publisher can upload the prepared products without
 shipping raw voltage or making the web host scan individual observations.
+
+## Station capacity and receiver priority
+
+`deploy/stations/` records the deployed native DSP JSON configurations and
+checksums. Acquisition keeps its existing priority. Ramfjordmoen Digisonde
+processing is first, scheduled SGO LFM second, and global chirp detection third;
+additional sounders run below these. `scripts/station-priority.sh --install`
+applies cgroup CPU weights and process niceness without restarting acquisition
+or changing receiver timings, existing hard CPU quotas or memory limits. Its
+`iono-priority.timer` retains the ordering when legacy children respawn.
+
+Digisonde reception reuses the runtime-dispatched AVX/FMA, AVX or SSE mixer/FIR
+for each frequency dwell. Its 30 kHz FIR bandwidth and phase convention match
+the historical scalar reference. The complementary-code finder reuses FFT
+scratch storage and computes the reported median only for the winning match;
+it retains the full carrier, Doppler and code-mode search.
+
+W2NAF's `iono-digisonde-watch.timer` repeats a bounded receiver-local PINS scan
+and code verification every three minutes. `w2naf-digisonde-watch.json` reserves
+candidates across MHz bands, and verification also distributes its budget
+across bands. This prevents strong distant radar candidates from monopolizing
+the nearby-Digisonde search. HDF5 diagnostics remain on the receiver, not on
+juha.no. A code-match row is a diagnostic candidate, not a station identity.
+New receivers need consistent stepped-frequency tracks and independent timing
+confirmation; do not guess US station names from isolated correlation peaks.

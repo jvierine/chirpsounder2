@@ -54,6 +54,11 @@ pub struct CodeSearch {
     fft: Arc<dyn Fft<f32>>,
     ifft: Arc<dyn Fft<f32>>,
     kernels: Vec<(u32, u8, bool, f32, Vec<Z>)>,
+    spectrum: Vec<Z>,
+    shifted: Vec<Z>,
+    work: Vec<Z>,
+    scratch: Vec<Z>,
+    best_power: Vec<f32>,
 }
 impl CodeSearch {
     pub fn new(samples: usize, sr: f64) -> Self {
@@ -79,7 +84,17 @@ impl CodeSearch {
                 }
             }
         }
+        let scratch = vec![
+            Z::default();
+            fft.get_inplace_scratch_len()
+                .max(ifft.get_inplace_scratch_len())
+        ];
         Self {
+            spectrum: vec![Z::default(); n],
+            shifted: vec![Z::default(); n],
+            work: vec![Z::default(); n],
+            best_power: vec![0.; n],
+            scratch,
             n,
             sr,
             fft,
@@ -87,11 +102,11 @@ impl CodeSearch {
             kernels,
         }
     }
-    pub fn seek(&self, z: &[Z], span_hz: f64, step_hz: f64) -> Option<CodeMatch> {
+    pub fn seek(&mut self, z: &[Z], span_hz: f64, step_hz: f64) -> Option<CodeMatch> {
         self.seek_with_doppler(z, span_hz, step_hz, 2)
     }
     pub fn seek_with_doppler(
-        &self,
+        &mut self,
         z: &[Z],
         span_hz: f64,
         step_hz: f64,
@@ -99,17 +114,18 @@ impl CodeSearch {
     ) -> Option<CodeMatch> {
         assert!((0..=100).contains(&doppler_bins));
         assert!(z.len() <= self.n && span_hz >= 0. && step_hz > 0.);
-        let mut spectrum = z.to_vec();
-        spectrum.resize(self.n, Z::default());
-        self.fft.process(&mut spectrum);
+        let spectrum = &mut self.spectrum;
+        spectrum.fill(Z::default());
+        spectrum[..z.len()].copy_from_slice(z);
+        self.fft.process_with_scratch(spectrum, &mut self.scratch);
         let mut best: Option<CodeMatch> = None;
-        let mut shifted = vec![Z::default(); self.n];
-        let mut work = shifted.clone();
+        let shifted = &mut self.shifted;
+        let work = &mut self.work;
         let bins = (span_hz / step_hz).ceil() as isize;
         for whiten in [false, true] {
             if whiten {
                 let floor = median(&spectrum.iter().map(|z| z.norm()).collect::<Vec<_>>());
-                for z in &mut spectrum {
+                for z in spectrum.iter_mut() {
                     let a = z.norm();
                     if a > 10. * floor {
                         *z *= floor / a;
@@ -129,25 +145,28 @@ impl CodeSearch {
                         *v = spectrum[(k as isize + shift).rem_euclid(self.n as isize) as usize];
                     }
                     for (ipp, mode, all, energy, kernel) in &self.kernels {
-                        simd::multiply(&shifted, kernel, &mut work);
-                        self.ifft.process(&mut work);
-                        let power: Vec<_> = work.iter().map(|z| z.norm_sqr()).collect();
-                        let (lag, &peak) =
-                            power.iter().enumerate().max_by(|a, b| a.1.total_cmp(b.1))?;
+                        simd::multiply(shifted, kernel, work);
+                        self.ifft.process_with_scratch(work, &mut self.scratch);
+                        let (lag, peak) = work
+                            .iter()
+                            .enumerate()
+                            .map(|(i, z)| (i, z.norm_sqr()))
+                            .max_by(|a, b| a.1.total_cmp(&b.1))?;
                         let coherence =
                             (peak as f64 / (self.n as f64 * *energy as f64 * input_energy)) as f32;
                         if !coherence.is_finite() || coherence < 0.005 {
                             continue;
                         }
-                        let noise = median(&power) / std::f32::consts::LN_2;
-                        let score = 10. * (peak / noise.max(f32::MIN_POSITIVE)).log10();
                         if best.as_ref().is_none_or(|b| coherence > b.coherence) {
+                            for (p, z) in self.best_power.iter_mut().zip(work.iter()) {
+                                *p = z.norm_sqr();
+                            }
                             best = Some(CodeMatch {
                                 ipp_us: *ipp,
                                 mode: *mode,
                                 carrier_offset_hz: shift as f64 * self.sr / self.n as f64,
                                 lag_s: lag as f64 / self.sr,
-                                score_db: score,
+                                score_db: 0.,
                                 coherence,
                                 all_polarizations: *all,
                             });
@@ -155,6 +174,11 @@ impl CodeSearch {
                     }
                 }
             }
+        }
+        if let Some(m) = &mut best {
+            let peak = self.best_power.iter().copied().fold(0., f32::max);
+            let noise = median(&self.best_power) / std::f32::consts::LN_2;
+            m.score_db = 10. * (peak / noise.max(f32::MIN_POSITIVE)).log10();
         }
         best
     }

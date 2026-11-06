@@ -4,7 +4,7 @@ mod lfm;
 mod radar;
 use anyhow::{ensure, Context, Result};
 use hdf5::File;
-use iono_core::{dsp::Digisonde, median, C};
+use iono_core::{dsp::Digisonde, median, prn::Channelizer, C};
 use num_complex::Complex32;
 use rdigital_rf::{CacheOptions, Reader};
 use serde::{Deserialize, Serialize};
@@ -249,15 +249,17 @@ fn digisonde(c: &Config, t: f64) -> Result<()> {
                 .context("FIR overlap before sample zero")?,
             nipp * ipp_samples + 2 * padding,
         )?;
+        // Reuse oscillator and FIR coefficients for the whole frequency dwell.
+        // The 30 kHz total FIR bandwidth matches the historical 0.006 cutoff.
+        let channelizer = Channelizer::new(freq - c.center_freq, 30000.)?;
         for pi in 0..nipp {
             let ipp_raw = &raw[pi * ipp_samples..(pi + 1) * ipp_samples + 2 * padding];
-            decoded.push(dsp.decode_ipp_with_clip(
-                ipp_raw,
-                freq - c.center_freq,
-                c.sample_rate,
-                pi,
-                c.rfi_clip_ratio,
-            ));
+            let mut baseband =
+                channelizer.process(ipp_raw, (pi * ipp_samples) as i64 - padding as i64);
+            if padding > 0 {
+                baseband = baseband[4..4 + nr].to_vec();
+            }
+            decoded.push(dsp.decode_baseband_ipp(baseband, pi, c.rfi_clip_ratio));
         }
         let p = dsp.power(&decoded);
         for mode in 0..2 {
