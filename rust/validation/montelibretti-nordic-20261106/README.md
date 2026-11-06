@@ -66,3 +66,7 @@ one CPU. No quota is applied to acquisition. Lowest priority does not guarantee
 a hard one-core reservation against arbitrary higher-priority contention.
 KREA remains unreachable; its tracked unit has the corrected no-quota policy.
 The older global-background report records the superseded capped policy.
+
+Final checks: the 21:25 UTC observation completed all 240 dwells on both receivers.
+The live TGO and KHO PRN cards were reloaded and inspected after publication.
+Station source and configuration are pushed; KREA remains the deployment exception.
