@@ -1,0 +1,15 @@
+[Unit]
+Description=Finite DOB Digisonde discovery survey
+[Service]
+ExecStart=%h/bin/iono-digisonde-search %h/.config/chirpsounder2/dob-digisonde-survey.json --duration 1800
+Restart=no
+RuntimeMaxSec=2100
+Nice=19
+CPUSchedulingPolicy=idle
+CPUWeight=10
+CPUQuota=100%
+MemoryMax=512M
+MemorySwapMax=0
+IOWeight=10
+NoNewPrivileges=yes
+LimitCORE=0
