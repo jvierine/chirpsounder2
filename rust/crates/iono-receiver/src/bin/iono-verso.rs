@@ -42,6 +42,16 @@ struct Config {
     snr_threshold_db: f32,
     #[serde(default)]
     sites: Vec<String>,
+    #[serde(default = "writer_grace")]
+    writer_grace_s: f64,
+}
+fn writer_grace() -> f64 {
+    0.25
+}
+fn signal_config(c: &Config) -> Result<serde_json::Value> {
+    let mut v = serde_json::to_value(c)?;
+    v.as_object_mut().unwrap().remove("writer_grace_s");
+    Ok(v)
 }
 fn range_max() -> f64 {
     4500.
@@ -139,7 +149,12 @@ impl Observation {
         if path.exists() {
             let h = File::open(&path)?;
             ensure!(
-                iono_core::text(&h, "configuration_json", "") == serde_json::to_string(c)?
+                signal_config(&serde_json::from_str::<Config>(&iono_core::text(
+                    &h,
+                    "configuration_json",
+                    ""
+                ))?)?
+                    == signal_config(c)?
                     && iono_core::text(&h, "program_sha256", "") == p.sha256,
                 "retained observation uses a different configuration; preserve it"
             );
@@ -307,7 +322,7 @@ fn run(c: &Config, p: &Program, cycle: f64, ready_only: bool) -> Result<()> {
         };
         let start = cycle + g.start_samples as f64 / RATE as f64;
         let end = start + g.duration_samples as f64 / RATE as f64 + c.range_max_km * 1000. / C;
-        if ready_only && end + 1. > now() {
+        if ready_only && end.ceil() + c.writer_grace_s > now() {
             continue;
         }
         if epoch_sample(start + c.range_min_km * 1000. / C)?.saturating_sub(1000) < bounds.0 {
@@ -317,7 +332,7 @@ fn run(c: &Config, p: &Program, cycle: f64, ready_only: bool) -> Result<()> {
             );
             continue;
         }
-        wait(end.ceil() + 0.25);
+        wait(end.ceil() + c.writer_grace_s);
         let timer = Instant::now();
         let mut accepted = 0;
         for (slot, &frequency) in g.frequencies.iter().enumerate() {
@@ -400,6 +415,10 @@ fn main() -> Result<()> {
     ensure!(
         c.sites.iter().all(|s| SITES.contains(&s.as_str())),
         "unknown site selection"
+    );
+    ensure!(
+        c.writer_grace_s.is_finite() && (0.25..=6.).contains(&c.writer_grace_s),
+        "writer grace must be 0.25--6 seconds"
     );
     let p = Program::read(Path::new(&c.program_file))?;
     if let Some(i) = a.iter().position(|s| s == "--invalidate-v1-since") {

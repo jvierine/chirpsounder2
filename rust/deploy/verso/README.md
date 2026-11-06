@@ -89,3 +89,9 @@ Absolute transmitter/receiver group delay, station positions and the current
 on-air schedule need physical validation before operational LUF/MUF estimates.
 The GUI keeps these paths in commissioning and withholds automatic usable
 frequency limits while retaining the diagnostic ionograms and RTIs.
+
+At KHO the same measured recorder lag applies to VERSO. Its receiver JSON
+uses `writer_grace_s: 4.5`; other stations retain their established default.
+Only file availability is delayed. Group times, pulse offsets, apparent-range
+calibration and detection thresholds are unchanged. A grace-only change can
+resume the same scientific observation without discarding completed channels.

@@ -358,7 +358,12 @@ fn finished_sounding(path: &Path) -> bool {
         return false;
     };
     let Some(dwell) = cfg.get("dwell_s").and_then(|v| v.as_f64()) else {
-        return false;
+        // VERSO's split TDM sections do not have one constant dwell. Its
+        // explicit per-frequency completion flags identify a finished frame.
+        return h
+            .dataset("frequency_complete")
+            .and_then(|d| d.read_raw::<u8>())
+            .is_ok_and(|v| !v.is_empty() && v.iter().all(|&n| n == 1));
     };
     let Ok(freqs) = h.dataset("freqs") else {
         return false;
