@@ -27,6 +27,7 @@ fn copy_product(source: &Path, destination: &Path) -> Result<()> {
     Ok(())
 }
 const DECODER: &str = "complex64-fft-matched-pulse-doppler-verso-v2";
+const INVERSE_DECODER: &str = "complex64-finite-regularized-inverse-verso-v3";
 #[derive(Serialize, Deserialize)]
 struct Config {
     station: String,
@@ -44,6 +45,15 @@ struct Config {
     sites: Vec<String>,
     #[serde(default = "writer_grace")]
     writer_grace_s: f64,
+    #[serde(default)]
+    inverse_regularization: f32,
+}
+fn decoder(c: &Config) -> &'static str {
+    if c.inverse_regularization > 0. {
+        INVERSE_DECODER
+    } else {
+        DECODER
+    }
 }
 fn writer_grace() -> f64 {
     0.25
@@ -159,7 +169,7 @@ impl Observation {
                 "retained observation uses a different configuration; preserve it"
             );
             // A processing change cannot inherit prior code-validation decisions.
-            if iono_core::text(&h, "decoder", "") != DECODER {
+            if iono_core::text(&h, "decoder", "") != decoder(c) {
                 ensure!(
                     iono_core::text(&h, "decoder", "")
                         == "complex64-fft-matched-pulse-doppler-verso-v1",
@@ -243,14 +253,37 @@ impl Observation {
         scalar(&h, "range_offset_applied", 1.)?;
         scalar(&h, "output_sample_rate_hz", 100000.)?;
         scalar(&h, "last_observation", now())?;
-        scalar(&h, "matched_filter_sidelobes_present", 1.)?;
+        scalar(
+            &h,
+            "matched_filter_sidelobes_present",
+            if c.inverse_regularization > 0. {
+                0.
+            } else {
+                1.
+            },
+        )?;
+        scalar(&h, "residual_compression_sidelobes_present", 1.)?;
+        scalar(
+            &h,
+            "inverse_regularization_peak_fraction",
+            c.inverse_regularization as f64,
+        )?;
+        text(
+            &h,
+            "pulse_compression",
+            if c.inverse_regularization > 0. {
+                "finite two-sided Tikhonov inverse; real guard samples; matched-filter code-identity control"
+            } else {
+                "matched filter"
+            },
+        )?;
         text(&h, "station_name", &c.station)?;
         text(&h, "txname", SITES[self.site as usize])?;
-        text(&h, "decoder", DECODER)?;
+        text(&h, "decoder", decoder(c))?;
         text(&h, "configuration_json", &serde_json::to_string(c)?)?;
         text(&h, "program_sha256", &p.sha256)?;
         text(&h,"timing_quality","supplied SGO TDM schedule; on-air assignment and absolute group delay require verification")?;
-        text(&h,"snr_reference","pulse-Doppler range median / ln(2); matched-filter sidelobes and interference are included")?;
+        text(&h,"snr_reference","pulse-Doppler range median / ln(2); residual compression sidelobes and interference are included")?;
         text(
             &h,
             "code_control",
@@ -274,13 +307,23 @@ fn column(
 ) -> Result<(Vec<f32>, f32)> {
     let f = g.frequencies[slot];
     let mixer = Channelizer::new(f - 12.5e6, 62500.)?;
-    let mut target = PulseDecoder::new(code, nr)?;
+    let mut target = if c.inverse_regularization > 0. {
+        PulseDecoder::regularized(code, nr, c.inverse_regularization)?
+    } else {
+        PulseDecoder::new(code, nr)?
+    };
+    let mut identity = if c.inverse_regularization > 0. {
+        Some(PulseDecoder::new(code, nr)?)
+    } else {
+        None
+    };
     let mut check = PulseDecoder::new(control, nr)?;
+    let guard = target.input_prefix();
     let count = g.duration_samples / g.ipp_samples;
     let shift = (c.range_min_km * 1000. / C * 25e6).round() as i64;
     for pulse in 0..count {
         let native = g.start_samples + slot as u64 * BAUD_SAMPLES + pulse * g.ipp_samples;
-        let relative = (native * 400) as i64 + shift - 1000;
+        let relative = (native * 400) as i64 + shift - 1000 - (guard * 250) as i64;
         let start = cycle_sample
             .checked_add_signed(relative)
             .context("pulse epoch overflow")?;
@@ -288,9 +331,15 @@ fn column(
         let raw = r.read_complex32(start, n, &c.channel, 0)?;
         let z = mixer.process(&raw, relative);
         target.push(&z[4..4 + target.input_len()])?;
-        check.push(&z[4..4 + check.input_len()])?;
+        check.push(&z[4 + guard..4 + guard + check.input_len()])?;
+        if let Some(d) = identity.as_mut() {
+            d.push(&z[4 + guard..4 + guard + d.input_len()])?;
+        }
     }
-    let (snr, peak) = target.finish()?;
+    let (snr, mut peak) = target.finish()?;
+    if let Some(d) = identity {
+        peak = d.finish()?.1;
+    }
     let (_, negative) = check.finish()?;
     let margin = if peak > 0. && negative > 0. {
         10. * (peak / negative).log10()
@@ -298,6 +347,100 @@ fn column(
         f32::NAN
     };
     Ok((snr, margin))
+}
+/// Same-voltage on-air comparison; writes only bounded reduced diagnostics.
+fn compare_recent(c: &Config, p: &Program, path: &Path) -> Result<()> {
+    let mut r = reader(c)?;
+    let current = 235. + ((now() - 235.) / 240.).floor() * 240.;
+    let (cycle, g) = [current, current - 240.]
+        .into_iter()
+        .flat_map(|cycle| p.groups.iter().map(move |g| (cycle, g)))
+        .filter(|(cycle, g)| {
+            let end = cycle + (g.start_samples + g.duration_samples) as f64 / RATE as f64;
+            g.site < 4 && end + c.writer_grace_s < now() && end > now() - 20.
+        })
+        .max_by(|(a, g), (b, h)| {
+            (a + (g.start_samples + g.duration_samples) as f64 / RATE as f64)
+                .total_cmp(&(b + (h.start_samples + h.duration_samples) as f64 / RATE as f64))
+        })
+        .context("no recently complete VERSO group; retry in a few seconds")?;
+    let code = resample_code(&p.code, RATE, 100000)?;
+    let control: Vec<_> = code.iter().rev().map(|z| z.conj()).collect();
+    let nr = ((c.range_max_km - c.range_min_km) * 1000. / C * 100000.).ceil() as usize + 1;
+    let lambda = if c.inverse_regularization > 0. {
+        c.inverse_regularization
+    } else {
+        0.01
+    };
+    let mut inverse = PulseDecoder::regularized(&code, nr, lambda)?;
+    let mut matched = PulseDecoder::new(&code, nr)?;
+    let mut check = PulseDecoder::new(&control, nr)?;
+    let guard = inverse.input_prefix();
+    let slot = g.frequencies.len() / 2;
+    let frequency = g.frequencies[slot];
+    let mixer = Channelizer::new(frequency - 12.5e6, 62500.)?;
+    let cycle_sample = epoch_sample(cycle)?;
+    let shift = (c.range_min_km * 1000. / C * 25e6).round() as i64;
+    let started = Instant::now();
+    for pulse in 0..g.duration_samples / g.ipp_samples {
+        let native = g.start_samples + slot as u64 * BAUD_SAMPLES + pulse * g.ipp_samples;
+        let relative = (native * 400) as i64 + shift - 1000 - (guard * 250) as i64;
+        let raw = r.read_complex32(
+            cycle_sample
+                .checked_add_signed(relative)
+                .context("invalid comparison epoch")?,
+            inverse.input_len() * 250 + 2000,
+            &c.channel,
+            0,
+        )?;
+        let z = mixer.process(&raw, relative);
+        inverse.push(&z[4..4 + inverse.input_len()])?;
+        matched.push(&z[4 + guard..4 + guard + matched.input_len()])?;
+        check.push(&z[4 + guard..4 + guard + check.input_len()])?;
+    }
+    let (old, peak) = matched.finish()?;
+    let (new, _) = inverse.finish()?;
+    let (_, negative) = check.finish()?;
+    let h = File::create(path)?;
+    scalar(&h, "epoch", cycle + g.start_samples as f64 / RATE as f64)?;
+    scalar(&h, "frequency_hz", frequency)?;
+    scalar(&h, "regularization", lambda as f64)?;
+    scalar(&h, "white_noise_penalty_db", inverse.noise_gain_db() as f64)?;
+    scalar(
+        &h,
+        "code_identity_margin_db",
+        (10. * (peak / negative).log10()) as f64,
+    )?;
+    text(&h, "receiver", &c.station)?;
+    text(&h, "transmitter", SITES[g.site as usize])?;
+    text(
+        &h,
+        "comparison",
+        "same recorded pulse windows; matched-filter code-identity gate unchanged",
+    )?;
+    h.new_dataset_builder()
+        .with_data(&old)
+        .create("matched_snr")?;
+    h.new_dataset_builder()
+        .with_data(&new)
+        .create("inverse_snr")?;
+    h.new_dataset_builder()
+        .with_data(
+            &(0..nr)
+                .map(|i| c.range_min_km + i as f64 * C / 100000. / 1000.)
+                .collect::<Vec<_>>(),
+        )
+        .create("range_km")?;
+    println!(
+        "{} {} {:.4} MHz: code margin {:.2} dB, {} pulses, {:.2}s compare compute",
+        c.station,
+        SITES[g.site as usize],
+        frequency / 1e6,
+        10. * (peak / negative).log10(),
+        g.duration_samples / g.ipp_samples,
+        started.elapsed().as_secs_f64()
+    );
+    Ok(())
 }
 fn run(c: &Config, p: &Program, cycle: f64, ready_only: bool) -> Result<()> {
     let mut r = reader(c)?;
@@ -421,6 +564,19 @@ fn main() -> Result<()> {
         "writer grace must be 0.25--6 seconds"
     );
     let p = Program::read(Path::new(&c.program_file))?;
+    if let Some(i) = a.iter().position(|s| s == "--compare-filter") {
+        return compare_recent(
+            &c,
+            &p,
+            Path::new(a.get(i + 1).context("comparison HDF5 path")?),
+        );
+    }
+    ensure!(
+        c.inverse_regularization == 0.
+            || (c.inverse_regularization.is_finite()
+                && (0.0001..=1.).contains(&c.inverse_regularization)),
+        "inverse regularization must be zero or 0.0001..1 times peak reference power"
+    );
     if let Some(i) = a.iter().position(|s| s == "--invalidate-v1-since") {
         let since: f64 = a
             .get(i + 1)

@@ -40,7 +40,7 @@
     },
     {
       "path": "DOB/verso/receiver.json",
-      "sha256": "7376e7de968c718f5c2c4983fefc02d61c57b5e8ea39f8ca031f0f329117b962"
+      "sha256": "662b0c960b40adc495649c6839b5dddd00bbaf4e4bd6705b71ba69b0ec4b6712"
     },
     {
       "path": "KHO/iono-prn/Kiruna.json",
@@ -48,7 +48,7 @@
     },
     {
       "path": "KHO/verso/receiver.json",
-      "sha256": "c1ee0f3648a66aaa34cd28bc9f058f5a1d924c3c78faed339218eeb291d2e74d"
+      "sha256": "4e8b15c840b2bf548a4c914e8b3dfd5a2fb83a2dc54fa2ef5d2ce9130219b86b"
     },
     {
       "path": "TGO/iono-prn/Kiruna.json",
@@ -56,8 +56,9 @@
     },
     {
       "path": "TGO/verso/receiver.json",
-      "sha256": "e5d6c1cfa59e1bf9085400ce75bdff4c11aafeed18b96ef618a7caa18079aaa4"
+      "sha256": "b090624ca8fa523bbcacf8211cfeb81331314e9bb065a9aad34936c0fcd4b453"
     }
   ],
-  "updated_utc": "2026-11-06T09:55:15.114646+00:00"
+  "updated_utc": "2026-11-06T09:55:15.114646+00:00",
+  "verso_inverse_deployed_utc": "2026-11-06T11:31:00Z"
 }
