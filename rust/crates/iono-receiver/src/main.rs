@@ -57,6 +57,14 @@ struct Config {
     upload_url: Option<String>,
     #[serde(default)]
     radar_sources: Vec<radar::Source>,
+    #[serde(default = "writer_grace")]
+    writer_grace_s: f64,
+    /// Zero preserves full integration; otherwise stratified FFT averages/bin.
+    #[serde(default)]
+    spectrum_windows_per_bin: usize,
+}
+fn writer_grace() -> f64 {
+    0.15
 }
 fn channel() -> String {
     "ch0".into()
@@ -144,7 +152,7 @@ fn reader(c: &Config) -> Result<Reader> {
     Ok(r)
 }
 fn read_live(r: &mut Reader, c: &Config, start: u64, n: usize) -> Result<Vec<Complex32>> {
-    wait(((start + n as u64) as f64 / c.sample_rate).ceil() + 0.15);
+    wait(((start + n as u64) as f64 / c.sample_rate).ceil() + c.writer_grace_s);
     let mut error = None;
     for _ in 0..8 {
         match r.read_complex32(start, n, &c.channel, 0) {
@@ -343,8 +351,9 @@ fn spectrum(c: &Config, t: f64) -> Result<()> {
     let mut buf = vec![Complex32::new(0., 0.); nfft];
     for b in 0..nt {
         let start = epoch_sample(t, c.sample_rate as u64)? + b as u64 * per_bin as u64;
-        for first in (0..windows).step_by(32) {
-            let count = 32.min(windows - first);
+        let batches = spectrum_batches(windows, c.spectrum_windows_per_bin, b);
+        let averaged = batches.iter().map(|(_, n)| *n).sum::<usize>();
+        for (first, count) in batches {
             let raw = read_live(&mut r, c, start + (first * nfft) as u64, count * nfft)?;
             for z in raw.chunks_exact(nfft) {
                 for k in 0..nfft {
@@ -352,7 +361,7 @@ fn spectrum(c: &Config, t: f64) -> Result<()> {
                 }
                 fft.process(&mut buf);
                 for k in 0..nfft {
-                    p[b * nfft + (k + nfft / 2) % nfft] += buf[k].norm_sqr() / windows as f32;
+                    p[b * nfft + (k + nfft / 2) % nfft] += buf[k].norm_sqr() / averaged as f32;
                 }
             }
         }
@@ -378,6 +387,24 @@ fn spectrum(c: &Config, t: f64) -> Result<()> {
             .create("time_unix")?;
         dataset(&h, "minute_start_unix", t)?;
         dataset(&h, "minute_end_unix", t + 60.)?;
+        dataset(&h, "available_windows_per_half_second", windows as f64)?;
+        dataset(
+            &h,
+            "averaged_windows_per_half_second",
+            spectrum_batches(windows, c.spectrum_windows_per_bin, 0)
+                .iter()
+                .map(|(_, n)| *n)
+                .sum::<usize>() as f64,
+        )?;
+        text(
+            &h,
+            "sampling_strategy",
+            if c.spectrum_windows_per_bin > 0 && c.spectrum_windows_per_bin < windows {
+                "stratified time blocks with deterministic within-stratum jitter; positive linear power averaged without background removal"
+            } else {
+                "full non-overlapping Hann-windowed FFT integration; no background removal"
+            },
+        )?;
         let station: hdf5::types::VarLenUnicode = c.station.parse()?;
         h.new_attr::<hdf5::types::VarLenUnicode>()
             .create("station")?
@@ -386,6 +413,29 @@ fn spectrum(c: &Config, t: f64) -> Result<()> {
         h.flush()?;
     }
     publish(c, &tmp, &path)
+}
+fn spectrum_batches(windows: usize, limit: usize, bin: usize) -> Vec<(usize, usize)> {
+    if limit == 0 || limit >= windows {
+        return (0..windows)
+            .step_by(32)
+            .map(|i| (i, 32.min(windows - i)))
+            .collect();
+    }
+    let blocks = limit.div_ceil(32);
+    let mut remaining = limit;
+    (0..blocks)
+        .map(|i| {
+            let first = i * windows / blocks;
+            let end = (i + 1) * windows / blocks;
+            let count = 32.min(remaining).min(end - first);
+            remaining -= count;
+            let mix = (bin as u64)
+                .wrapping_mul(0x9e3779b97f4a7c15)
+                .wrapping_add(i as u64 * 131);
+            let jitter = ((mix ^ (mix >> 31)) % ((end - first - count + 1) as u64)) as usize;
+            (first + jitter, count)
+        })
+        .collect()
 }
 fn verify(path: &Path) -> Result<()> {
     let h = File::open(path)?;
@@ -439,6 +489,10 @@ fn main() -> Result<()> {
     let c: Config =
         serde_json::from_slice(&std::fs::read(args.get(2).context("configuration path")?)?)?;
     let once = args.iter().any(|s| s == "--once");
+    ensure!(
+        c.writer_grace_s.is_finite() && (0.15..=10.).contains(&c.writer_grace_s),
+        "invalid recorder writer grace"
+    );
     let start = args
         .iter()
         .position(|s| s == "--start")
@@ -496,6 +550,28 @@ fn main() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn spectrum_sampling_is_bounded_spread_and_normalized_by_actual_count() {
+        for bin in 0..120 {
+            let batches = spectrum_batches(1525, 128, bin);
+            assert_eq!(batches.iter().map(|(_, n)| n).sum::<usize>(), 128);
+            assert!(batches.windows(2).all(|x| x[0].0 + x[0].1 <= x[1].0));
+            assert!(batches.iter().all(|(i, n)| i + n <= 1525 && *n > 0));
+            assert!(batches.first().unwrap().0 < 381 && batches.last().unwrap().0 >= 1143);
+        }
+        assert_ne!(
+            spectrum_batches(1525, 128, 0),
+            spectrum_batches(1525, 128, 1)
+        );
+        assert_eq!(
+            spectrum_batches(1525, 0, 0)
+                .iter()
+                .map(|(_, n)| n)
+                .sum::<usize>(),
+            1525
+        );
+        assert_eq!(spectrum_batches(19, 128, 0), vec![(0, 19)]);
+    }
     #[test]
     fn absolute_indices_are_not_rounded_through_f64() {
         let a = epoch_sample(1792615500., 25_000_000).unwrap();

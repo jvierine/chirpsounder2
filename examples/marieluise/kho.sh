@@ -55,8 +55,8 @@ python3 plot_rtf.py --config $CONF_FILE > logs/plot_rtf.log 2>&1 &
 echo "plot_detectionfiles.py"
 python3 plot_detectionfiles.py --config $CONF_FILE > logs/plot_detectionfiles.log 2>&1 &
 
-echo "plot_rf_spec.py"
-python3 plot_rf_spec.py $CONF_FILE --refresh-sec 60 > logs/plot_rf_spec.log 2>&1 &
+echo "Native RF spectrum"
+systemctl --user start iono-rust-spectrum.service
 
 echo "detect_chirps.py"
 python3 detect_chirps.py --config $CONF_FILE > logs/detect.log 2>&1 &

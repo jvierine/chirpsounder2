@@ -222,3 +222,30 @@ fresh reader three seconds later. At KHO, windows 1–3 seconds old were initial
 unavailable and subsequently present. Its configured grace is therefore 4.5 s.
 Background RF plotting, monitoring and housekeeping have lower scheduling
 priority than acquisition and the three primary receiver processing tasks.
+
+## Native RF monitoring
+
+KHO's RF worker is `iono-receiver spectrum`, installed as the enabled user unit
+`iono-rust-spectrum.service` from `deploy/kho/`. Its configuration is recorded
+in `deploy/stations/KHO/spectrum.json`. The KHO startup script starts this unit
+instead of `plot_rf_spec.py`; no Python RF plotting supervisor is required.
+The existing receiver-local array publisher prepares the HDF5 products for
+browser rendering, without server-side image generation.
+
+The worker averages positive linear FFT power and converts to dB without
+background subtraction. The default integrates all non-overlapping 8192-point
+Hann windows. `spectrum_windows_per_bin` optionally bounds the FFT count for
+each half-second bin. KHO uses 128 windows in stratified time blocks with
+changing deterministic offsets, covering all frequency bins while reducing
+ring-buffer reads and computation. This samples the half-second interval,
+rather than integrating every voltage sample; short transient occupancy can
+therefore vary. HDF5 metadata records the available and averaged window counts
+and sampling strategy. Power normalization uses the actual averaged count.
+`writer_grace_s` allows the DigitalRF recorder to finish its current file before
+reading; KHO uses 4.5 seconds.
+
+The KHO unit runs below acquisition and sounder reception priority, with a
+75%-of-one-core CPU ceiling and a 192 MiB memory ceiling. It restarts on failure
+and starts with the user manager after reboot. Keep the station's existing
+user lingering enabled. No acquisition restart is needed to replace the RF
+worker.

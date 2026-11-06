@@ -1,0 +1,10 @@
+{
+  "station":"KHO",
+  "data_dir":"/dev/shm/hf25",
+  "output_dir":"/data0",
+  "channel":"ch0",
+  "sample_rate":25000000,
+  "center_freq":12500000,
+  "writer_grace_s":4.5,
+  "spectrum_windows_per_bin":128
+}

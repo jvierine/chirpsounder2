@@ -57,6 +57,11 @@
     {
       "path": "TGO/verso/receiver.json",
       "sha256": "b090624ca8fa523bbcacf8211cfeb81331314e9bb065a9aad34936c0fcd4b453"
+    },
+    {
+      "path": "KHO/spectrum.json",
+      "sha256": "71090e8abb08dad1642c6694eb9008d1a446ef165af8f1016174e1b7527d4e33",
+      "verified_utc": "2026-11-06T12:40:00Z"
     }
   ],
   "updated_utc": "2026-11-06T09:55:15.114646+00:00",
