@@ -5,6 +5,9 @@ use sha2::{Digest, Sha256};
 use std::{io::Write, path::Path};
 pub const SCHEMA: &str = "receiver-browser-day-v1";
 pub const MAX_CELLS: usize = 1440 * 512;
+pub const MAX_PRODUCTS: usize = 256;
+// Small ionograms may be numerous; bound aggregate array storage independently.
+pub const MAX_TOTAL_CELLS: usize = 64 * MAX_CELLS;
 pub const RECEIVERS: &[&str] = &["TGO", "DOB", "DMB", "KHO", "W2NAF", "KREA"];
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Product {
@@ -47,9 +50,21 @@ pub fn identify(p: &mut Product) {
     p.grid.id = format!("{:x}", h.finalize())[..24].into();
 }
 pub fn validate(bundle: &Bundle) -> Result<()> {
+    ensure!(bundle.schema == SCHEMA, "unsupported browser bundle schema");
     ensure!(
-        bundle.schema == SCHEMA && bundle.products.len() <= 64,
-        "unsupported bundle"
+        bundle.products.len() <= MAX_PRODUCTS,
+        "browser bundle has {} products; limit is {MAX_PRODUCTS}",
+        bundle.products.len()
+    );
+    let total_cells = bundle.products.iter().try_fold(0usize, |sum, p| {
+        p.grid
+            .nx
+            .checked_mul(p.grid.ny)
+            .and_then(|n| sum.checked_add(n))
+    });
+    ensure!(
+        total_cells.is_some_and(|n| n <= MAX_TOTAL_CELLS),
+        "browser bundle exceeds aggregate display-array budget"
     );
     ensure!(
         RECEIVERS.contains(&bundle.station.as_str()),
@@ -263,6 +278,53 @@ pub fn limits(e: &Evidence, threshold: f32, support: usize) -> serde_json::Value
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn growing_sounder_catalogue_does_not_freeze_daily_publication() {
+        let products = (0..96)
+            .map(|i| Product {
+                grid: iono_core::Grid {
+                    id: format!("{i:024x}"),
+                    station: "DOB".into(),
+                    transmitter: format!("source{i}"),
+                    kind: "prn".into(),
+                    mode: "O".into(),
+                    timestamp: 0.,
+                    nx: 2,
+                    ny: 2,
+                    x: vec![0., 1.],
+                    y: vec![0., 1.],
+                    xlabel: "Frequency".into(),
+                    ylabel: "Range".into(),
+                    color_label: "SNR".into(),
+                    low: 0.,
+                    high: 20.,
+                    values: vec![1.; 4],
+                },
+                quantity: "ionogram".into(),
+                palette: "greys".into(),
+                occupied_minutes: 0,
+            })
+            .collect();
+        let mut b = Bundle {
+            schema: SCHEMA.into(),
+            station: "DOB".into(),
+            day: "2026-11-06".into(),
+            generated_unix: 0.,
+            products,
+            evidence: vec![],
+            assumed_paths: vec![],
+            health: serde_json::json!({}),
+        };
+        validate(&b).unwrap();
+        b.products.resize(MAX_PRODUCTS + 1, b.products[0].clone());
+        assert!(validate(&b).is_err());
+        b.products.truncate(65);
+        for p in &mut b.products {
+            p.grid.nx = 1440;
+            p.grid.ny = 512;
+        }
+        assert!(validate(&b).unwrap_err().to_string().contains("aggregate"));
+    }
     #[test]
     fn bounds_require_adjacent_support_and_do_not_bridge_gaps() {
         let mut e = Evidence {
