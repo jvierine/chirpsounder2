@@ -41,6 +41,7 @@ while read -r pid niceness args; do
     *' calc_ionograms.py '*|*'/calc_ionograms.py '*|*'/iono-receiver lfm '*) target=2;;
     *' detect_chirps.py '*|*'/detect_chirps.py '*|*'/iono-receiver detect '*) target=5;;
     *'/iono-prn '*|*'/iono-verso '*) target=10;;
+    *' iono_housekeeping.py '*|*'/iono_housekeeping.py '*|*' station_monitor.py '*|*' -u station_monitor.py '*|*' plot_rf_spec.py '*|*' -u plot_rf_spec.py '*|*' plot_ionograms.py '*|*' plot_digisonde.py '*|*' plot_rtf.py '*|*' plot_detectionfiles.py '*|*' sync_iono_data.py '*) target=15;;
   esac
   [[ -n "$target" && "$niceness" -lt "$target" ]] || continue
   renice -n "$target" -p "$pid" >/dev/null 2>&1 || true

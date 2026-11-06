@@ -47,6 +47,11 @@ struct Config {
     snr_threshold_db: f32,
     #[serde(default)]
     retain_candidate_snr: bool,
+    #[serde(default = "writer_grace")]
+    writer_grace_s: f64,
+}
+fn writer_grace() -> f64 {
+    0.25
 }
 fn threshold() -> f32 {
     8.
@@ -411,6 +416,33 @@ fn main() -> Result<()> {
             .context("usage: iono-prn CONFIG [--once] [--start EPOCH]")?,
     )?)?;
     validate(&c)?;
+    ensure!(
+        c.writer_grace_s.is_finite() && (0.25..=6.).contains(&c.writer_grace_s),
+        "writer grace must be 0.25--6 seconds"
+    );
+    if args.iter().any(|s| s == "--ring-status") {
+        let inspect = |indices: &[u64]| -> Result<Vec<bool>> {
+            let mut r = reader(&c)?;
+            Ok(indices
+                .iter()
+                .map(|&i| r.read_complex32(i, 2_502_000, &c.channel, 0).is_ok())
+                .collect())
+        };
+        let bounds = reader(&c)?.bounds(&c.channel)?.context("empty ring")?;
+        let clock = now();
+        let second = clock.floor() as u64;
+        let indices: Vec<_> = (1..=8)
+            .map(|lag| (second - lag) * 25_000_000 + 2_500_000)
+            .collect();
+        let initial = inspect(&indices)?;
+        thread::sleep(Duration::from_secs(3));
+        let retried = inspect(&indices)?;
+        println!(
+            "{}",
+            serde_json::json!({"station":c.station,"clock_unix":clock,"newest_sample_age_s":clock-bounds.1 as f64/25e6,"sample_lags_s":[1,2,3,4,5,6,7,8],"present_initial":initial,"present_after_3s_fresh_reader":retried})
+        );
+        return Ok(());
+    }
     let once = args.iter().any(|a| a == "--once");
     let explicit = args
         .iter()
@@ -461,7 +493,7 @@ fn main() -> Result<()> {
             if explicit.is_none() && now() - end > 8. {
                 continue;
             }
-            wait(end.ceil() + 0.25);
+            wait(end.ceil() + c.writer_grace_s);
             let timer = Instant::now();
             let result = (|| {
                 if r.is_none() {

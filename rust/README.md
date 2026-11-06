@@ -209,3 +209,12 @@ time, so a slower bulk arrival cannot erase a newer sounding. DOB's
 `scripts/iono-priority-publish.sh` sends these small bundles first, then gives
 resumable bulk history a 45-second slot. One worker shares the existing
 16 KiB/s cap; it never queues old-day history ahead of current observations.
+
+PRN receiver configs may set `writer_grace_s` (0.25–6 seconds). This delays
+reading until the recorder's files are available; it does not change the
+transmitter schedule or propagation calibration. `iono-prn CONFIG --ring-status`
+checks recent 100 ms sample windows, then rechecks the same windows with a
+fresh reader three seconds later. At KHO, windows 1–3 seconds old were initially
+unavailable and subsequently present. Its configured grace is therefore 4.5 s.
+Background RF plotting, monitoring and housekeeping have lower scheduling
+priority than acquisition and the three primary receiver processing tasks.

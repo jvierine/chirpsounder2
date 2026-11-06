@@ -44,7 +44,7 @@
     },
     {
       "path": "KHO/iono-prn/Kiruna.json",
-      "sha256": "102c160b08f1cf42538ce511a1e597f8c9b77e36f28ebe1a6c318b22d36184dc"
+      "sha256": "00f9cafefbcccae06253be73908177c172bcffbe04c6e6ba1322cdf5a799a777"
     },
     {
       "path": "KHO/verso/receiver.json",
@@ -58,5 +58,6 @@
       "path": "TGO/verso/receiver.json",
       "sha256": "e5d6c1cfa59e1bf9085400ce75bdff4c11aafeed18b96ef618a7caa18079aaa4"
     }
-  ]
+  ],
+  "updated_utc": "2026-11-06T09:55:15.114646+00:00"
 }
