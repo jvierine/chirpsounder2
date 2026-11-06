@@ -1,0 +1,30 @@
+{
+  "station": "DOB",
+  "data_dir": "/dev/shm/hf25",
+  "output_dir": "/data0",
+  "channel": "ch0",
+  "sample_rate": 25000000.0,
+  "center_freq": 12500000.0,
+  "writer_grace_s": 1.0,
+  "lfm_range_min_km": 800.0,
+  "lfm_range_max_km": 1700.0,
+  "transmitter": "DB049",
+  "freq_start_hz": 500000.0,
+  "freq_stop_hz": 12000000.0,
+  "freq_step_hz": 50000.0,
+  "ipp_us": 20000,
+  "n_ipp": 16,
+  "offset_us": 3535.0,
+  "interval_s": 900.0,
+  "transmit_delay_us": 0.0,
+  "start_offset_s": 600.0,
+  "sounding_hours": [
+    18.0,
+    5.5
+  ],
+  "physical_ipp_us": 10000,
+  "multiplex_block_pulses": 2,
+  "rfi_clip_ratio": 6.0,
+  "snr_threshold_db": 3.0,
+  "range_reference": "GIRO programme 16953; first fine frequency, complementary-code pairs before frequency multiplexing; nominal transmit epoch; over-air source/timing validation pending"
+}

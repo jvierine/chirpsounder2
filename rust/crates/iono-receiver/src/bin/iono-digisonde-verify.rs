@@ -17,6 +17,13 @@ struct Config {
     doppler_search_hz: f64,
     #[serde(default = "default_ipps")]
     ipp_candidates_us: Vec<u32>,
+    #[serde(default = "one")]
+    fine_frequency_count: usize,
+    #[serde(default)]
+    multiplex_blocks: Vec<usize>,
+}
+fn one() -> usize {
+    1
 }
 fn default_ipps() -> Vec<u32> {
     vec![5000, 10000]
@@ -33,6 +40,12 @@ fn main() -> Result<()> {
     ensure!(
         c.doppler_search_hz.is_finite() && (0.0..=500.).contains(&c.doppler_search_hz),
         "invalid Doppler search extent"
+    );
+    ensure!(
+        (1..=4).contains(&c.fine_frequency_count)
+            && c.multiplex_blocks.len() <= 16
+            && c.multiplex_blocks.iter().all(|b| (1..=16).contains(b)),
+        "invalid fine-frequency program bank"
     );
     let grid = a.get(2).is_some_and(|s| s == "--grid");
     ensure!(
@@ -163,7 +176,15 @@ fn main() -> Result<()> {
         }
     }
     chosen.sort_by_key(|&i| samples[i]);
-    let mut decoder = CodeSearch::with_ipps(16000, 100e3, &c.ipp_candidates_us);
+    let programs: Vec<_> = if c.multiplex_blocks.is_empty() {
+        vec![(1, 1)]
+    } else {
+        c.multiplex_blocks
+            .iter()
+            .map(|&b| (c.fine_frequency_count, b))
+            .collect()
+    };
+    let mut decoder = CodeSearch::with_programs(16000, 100e3, &c.ipp_candidates_us, &programs);
     let mut time = vec![];
     let mut frequency = vec![];
     let mut ipp = vec![];
@@ -172,6 +193,8 @@ fn main() -> Result<()> {
     let mut score = vec![];
     let mut coherence = vec![];
     let mut all_polarizations = vec![];
+    let mut fine_frequency_count = vec![];
+    let mut multiplex_block_pulses = vec![];
     for (n, &i) in chosen.iter().enumerate() {
         let carrier = if grid {
             freq[i]
@@ -195,6 +218,8 @@ fn main() -> Result<()> {
                     score.push(m.score_db);
                     coherence.push(m.coherence);
                     all_polarizations.push(u8::from(m.all_polarizations));
+                    fine_frequency_count.push(m.fine_frequency_count as u32);
+                    multiplex_block_pulses.push(m.multiplex_block_pulses as u32);
                     println!(
                         "{} {:.6} MHz IPP={} mode={} coherence={:.4} score={:.1} lag={:.6}",
                         samples[i] as f64 / 25e6,
@@ -234,6 +259,8 @@ fn main() -> Result<()> {
     save!("score_db", score);
     save!("coherence", coherence);
     save!("all_polarizations", all_polarizations);
+    save!("fine_frequency_count", fine_frequency_count);
+    save!("multiplex_block_pulses", multiplex_block_pulses);
     out.new_attr::<u64>()
         .create("attempted_windows")?
         .write_scalar(&(chosen.len() as u64))?;

@@ -1,6 +1,6 @@
 [Unit]
 Description=Rust Digisonde receiver (%i)
-After=default.target
+After=network-online.target
 StartLimitIntervalSec=0
 
 [Service]

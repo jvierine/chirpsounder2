@@ -1,0 +1,12 @@
+[Unit]
+Description=Rust receiver-local full-band RF spectrum arrays
+[Service]
+ExecStart=%h/bin/iono-receiver spectrum %h/.config/chirpsounder2/spectrum.json
+Restart=always
+RestartSec=5
+Nice=15
+CPUWeight=20
+CPUQuota=75%
+MemoryMax=192M
+[Install]
+WantedBy=default.target

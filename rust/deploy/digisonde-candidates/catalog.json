@@ -1,6 +1,6 @@
 {
   "schema": "chirpsounder2-digisonde-commissioning-v1",
-  "checked_utc": "2026-11-06T12:49:00Z",
+  "checked_utc": "2026-11-06T17:13:30.044564+00:00",
   "metadata_source": "GIRO DIDBase LOCATION, MEASUREMENT and PROGRAM tables, authorized read-only access",
   "source_url": "https://giro.uml.edu/didbase/",
   "positions": "Approximate GIRO station coordinates; not surveyed antenna positions",
@@ -25,7 +25,12 @@
           "fine_frequencies": 2,
           "multiplexed": true,
           "phase_switched": true,
-          "frequency_search": false
+          "frequency_search": false,
+          "coherent_repeats": 4,
+          "physical_ipp_us": 10000,
+          "effective_carrier_ipp_us": 20000,
+          "carrier_pulses_per_coarse_step": 16,
+          "coarse_dwell_s": 0.32
         },
         {
           "id": 16829,
@@ -38,10 +43,15 @@
           "fine_frequencies": 2,
           "multiplexed": true,
           "phase_switched": true,
-          "frequency_search": false
+          "frequency_search": false,
+          "coherent_repeats": 4,
+          "physical_ipp_us": 10000,
+          "effective_carrier_ipp_us": 20000,
+          "carrier_pulses_per_coarse_step": 16,
+          "coarse_dwell_s": 0.32
         }
       ],
-      "status": "current_archive_program; over-air commissioning required"
+      "status": "Shares active Millstone waveform/program; Norwegian candidate observed but source assignment unresolved; no confirmed Thule link enabled"
     },
     "Dourbes": {
       "ursi": "DB049",
@@ -62,7 +72,12 @@
           "fine_frequencies": 2,
           "multiplexed": true,
           "phase_switched": true,
-          "frequency_search": false
+          "frequency_search": false,
+          "coherent_repeats": 4,
+          "physical_ipp_us": 10000,
+          "effective_carrier_ipp_us": 20000,
+          "carrier_pulses_per_coarse_step": 16,
+          "coarse_dwell_s": 0.32
         },
         {
           "id": 16882,
@@ -75,7 +90,12 @@
           "fine_frequencies": 2,
           "multiplexed": true,
           "phase_switched": true,
-          "frequency_search": false
+          "frequency_search": false,
+          "coherent_repeats": 4,
+          "physical_ipp_us": 10000,
+          "effective_carrier_ipp_us": 20000,
+          "carrier_pulses_per_coarse_step": 16,
+          "coarse_dwell_s": 0.32
         },
         {
           "id": 16603,
@@ -88,7 +108,12 @@
           "fine_frequencies": 2,
           "multiplexed": true,
           "phase_switched": true,
-          "frequency_search": false
+          "frequency_search": false,
+          "coherent_repeats": 4,
+          "physical_ipp_us": 10000,
+          "effective_carrier_ipp_us": 20000,
+          "carrier_pulses_per_coarse_step": 16,
+          "coarse_dwell_s": 0.32
         },
         {
           "id": 16953,
@@ -101,10 +126,15 @@
           "fine_frequencies": 2,
           "multiplexed": true,
           "phase_switched": true,
-          "frequency_search": false
+          "frequency_search": false,
+          "coherent_repeats": 4,
+          "physical_ipp_us": 10000,
+          "effective_carrier_ipp_us": 20000,
+          "carrier_pulses_per_coarse_step": 16,
+          "coarse_dwell_s": 0.32
         }
       ],
-      "status": "current_archive_program; interleaving and UTC onset require verification"
+      "status": "GIRO-backed native configuration active on DOB; on-air source/timing validation remains required"
     },
     "Chilton": {
       "ursi": "RL052",
@@ -128,7 +158,7 @@
           "frequency_search": true
         }
       ],
-      "status": "historical_archive_only; current schedule and carrier search must be measured"
+      "status": "Native DOB receiver updated to historical 200 Hz program; current on-air mode unconfirmed"
     },
     "Millstone": {
       "ursi": "MHJ45",
@@ -290,14 +320,16 @@
         "freq_start_hz": 2000000.0,
         "freq_stop_hz": 8000000.0,
         "freq_step_hz": 25000.0,
-        "ipp_us": 10000,
-        "n_ipp": 32,
+        "ipp_us": 20000,
+        "n_ipp": 16,
         "offset_us": 8700,
         "transmit_delay_us": 0,
         "snr_threshold_db": 6,
         "rfi_clip_ratio": 10,
         "writer_grace_s": 4.5,
-        "range_reference": "Commissioning only: nominal schedule and approximate ground-delay gate; transmitter delay uncalibrated."
+        "range_reference": "Shared Thule/Millstone waveform hypothesis; not an identified Thule product or calibrated source delay",
+        "physical_ipp_us": 10000,
+        "multiplex_block_pulses": 4
       },
       "status": "bounded commissioning profile only; pulse ordering/dwell unverified"
     },
@@ -339,14 +371,16 @@
         "freq_start_hz": 2000000.0,
         "freq_stop_hz": 8000000.0,
         "freq_step_hz": 25000.0,
-        "ipp_us": 10000,
-        "n_ipp": 32,
+        "ipp_us": 20000,
+        "n_ipp": 16,
         "offset_us": 10300,
         "transmit_delay_us": 0,
         "snr_threshold_db": 6,
         "rfi_clip_ratio": 10,
         "writer_grace_s": 4.5,
-        "range_reference": "Commissioning only: nominal schedule and approximate ground-delay gate; transmitter delay uncalibrated."
+        "range_reference": "Shared Thule/Millstone waveform hypothesis; not an identified Thule product or calibrated source delay",
+        "physical_ipp_us": 10000,
+        "multiplex_block_pulses": 4
       },
       "status": "bounded commissioning profile only; pulse ordering/dwell unverified"
     },
@@ -388,14 +422,16 @@
         "freq_start_hz": 2000000.0,
         "freq_stop_hz": 8000000.0,
         "freq_step_hz": 25000.0,
-        "ipp_us": 10000,
-        "n_ipp": 32,
+        "ipp_us": 20000,
+        "n_ipp": 16,
         "offset_us": 6200,
         "transmit_delay_us": 0,
         "snr_threshold_db": 6,
         "rfi_clip_ratio": 10,
         "writer_grace_s": 4.5,
-        "range_reference": "Commissioning only: nominal schedule and approximate ground-delay gate; transmitter delay uncalibrated."
+        "range_reference": "Shared Thule/Millstone waveform hypothesis; not an identified Thule product or calibrated source delay",
+        "physical_ipp_us": 10000,
+        "multiplex_block_pulses": 4
       },
       "status": "bounded commissioning profile only; pulse ordering/dwell unverified"
     },
@@ -437,14 +473,16 @@
         "freq_start_hz": 2000000.0,
         "freq_stop_hz": 8000000.0,
         "freq_step_hz": 25000.0,
-        "ipp_us": 10000,
-        "n_ipp": 32,
+        "ipp_us": 20000,
+        "n_ipp": 16,
         "offset_us": 13100,
         "transmit_delay_us": 0,
         "snr_threshold_db": 6,
         "rfi_clip_ratio": 10,
         "writer_grace_s": 4.5,
-        "range_reference": "Commissioning only: nominal schedule and approximate ground-delay gate; transmitter delay uncalibrated."
+        "range_reference": "Shared Thule/Millstone waveform hypothesis; not an identified Thule product or calibrated source delay",
+        "physical_ipp_us": 10000,
+        "multiplex_block_pulses": 4
       },
       "status": "bounded commissioning profile only; pulse ordering/dwell unverified"
     },
@@ -601,5 +639,16 @@
       "result": "isolated weak matches; no independently identified Thule sequence"
     },
     "conclusion": "Timing NOT confirmed; no continuous identified Thule trace in these hypotheses. No production timing change or continuous receiver enabled."
+  },
+  "latest_multiplex_trial": {
+    "utc": "2026-11-06T16:15:00Z",
+    "receiver": "DOB",
+    "fine_frequency_block_hypotheses": [
+      1,
+      2,
+      4,
+      16
+    ],
+    "result": "clear shared-waveform trace; source identity unresolved; not enabled as confirmed Thule"
   }
 }

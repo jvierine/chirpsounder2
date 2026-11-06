@@ -1,0 +1,13 @@
+[Unit]
+Description=Rust scheduled SGO LFM receiver
+StartLimitIntervalSec=0
+[Service]
+ExecStart=%h/bin/iono-receiver lfm %h/.config/chirpsounder2/receiver.json
+Restart=always
+RestartSec=10
+Nice=2
+CPUWeight=600
+MemoryMax=512M
+LimitCORE=0
+[Install]
+WantedBy=default.target

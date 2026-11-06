@@ -1,9 +1,17 @@
 use super::*;
 use iono_core::chirp::Detector;
 pub fn run(c: &Config, once: bool) -> Result<()> {
-    let n = 5_000_000;
-    // Two bounded FFT workers cover consecutive acquisition blocks. One reader
-    // owns the HDF5 cache; at most two jobs wait and four results can accumulate.
+    let n = c.detector_samples_per_block;
+    ensure!(
+        (1_000_000..=8_388_608).contains(&n),
+        "invalid detector block length"
+    );
+    ensure!(
+        (1..=4).contains(&c.detector_worker_count),
+        "invalid detector worker count"
+    );
+    // Bounded FFT workers cover consecutive acquisition blocks. One reader
+    // owns the HDF5 cache; each worker has one queued job and results are bounded.
     type Job = (u64, u64, u64, Vec<Complex32>);
     let (result_tx, result_rx) = std::sync::mpsc::sync_channel::<
         Result<(
@@ -13,9 +21,9 @@ pub fn run(c: &Config, once: bool) -> Result<()> {
             Vec<iono_core::chirp::Detection>,
             Vec<radar::Column>,
         )>,
-    >(4);
+    >(2 * c.detector_worker_count);
     let mut jobs = Vec::new();
-    for _ in 0..2 {
+    for _ in 0..c.detector_worker_count {
         let (tx, rx) = std::sync::mpsc::sync_channel::<Job>(1);
         jobs.push(tx);
         let result_tx = result_tx.clone();
@@ -51,11 +59,15 @@ pub fn run(c: &Config, once: bool) -> Result<()> {
                 return;
             }
         };
-        let mut block = ((now() - 2.) * c.sample_rate / n as f64).floor() as u64;
+        let mut block = ((now() - c.writer_grace_s - 2.) * c.sample_rate / n as f64).floor() as u64;
         let mut worker = 0;
         let mut sequence = 0;
         loop {
-            let oldest = ((now() - 5.) * c.sample_rate / n as f64).floor() as u64;
+            // Recorder publication latency is not processing backlog. KHO
+            // needs 4.5 s of writer grace; a fixed 5 s age cutoff discarded
+            // valid blocks almost as soon as they became readable.
+            let oldest =
+                ((now() - c.writer_grace_s - 5.) * c.sample_rate / n as f64).floor() as u64;
             let skipped = oldest.saturating_sub(block);
             block = block.max(oldest);
             match read_live(&mut r, &c, block * n as u64, n) {
@@ -92,7 +104,10 @@ pub fn run(c: &Config, once: bool) -> Result<()> {
             let (sequence, block, skipped, found, columns) =
                 result_rx.recv().context("detector workers stopped")??;
             pending.insert(sequence, (block, skipped, found, columns));
-            ensure!(pending.len() <= 8, "detector reorder queue exceeded bound");
+            ensure!(
+                pending.len() <= c.detector_worker_count * 4,
+                "detector reorder queue exceeded bound"
+            );
         };
         expected += 1;
         skipped_total += skipped;
@@ -171,12 +186,48 @@ pub fn run(c: &Config, once: bool) -> Result<()> {
     }
 }
 
+/// Receiver-local throughput measurement; no voltage rereads or science output.
+pub fn benchmark(c: &Config) -> Result<()> {
+    for n in [5_000_000, 4_194_304] {
+        let mut seed = 1u64;
+        let raw: Vec<_> = (0..n)
+            .map(|_| {
+                seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+                let re = (seed >> 32) as u32 as f32 / u32::MAX as f32 - 0.5;
+                seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+                let im = (seed >> 32) as u32 as f32 / u32::MAX as f32 - 0.5;
+                Complex32::new(re, im)
+            })
+            .collect();
+        let mut detector = Detector::new(n, c.sample_rate, c.center_freq, vec![100000., 125000.]);
+        detector.seek(&raw, 13., 5, 200000.);
+        let start = std::time::Instant::now();
+        for _ in 0..3 {
+            detector.seek(&raw, 13., 5, 200000.);
+        }
+        println!(
+            "samples={n} mean_seconds={:.6} voltage_seconds={:.6} backend={}",
+            start.elapsed().as_secs_f64() / 3.,
+            n as f64 / c.sample_rate,
+            iono_core::simd::backend()
+        );
+    }
+    Ok(())
+}
+
 fn save_bucket(c: &Config, bucket: u64, rows: &[f64]) -> Result<()> {
     let path = output(c, &format!("cdetections-{}", c.station), bucket as f64)?;
     let tmp = path.with_extension("h5.partial");
     {
         let h = File::create(&tmp)?;
         iono_core::receiver_timing::write_metadata(&h)?;
+        dataset(
+            &h,
+            "current_worker_block_samples",
+            c.detector_samples_per_block as f64,
+        )?;
+        dataset(&h, "current_worker_count", c.detector_worker_count as f64)?;
+        text(&h, "detector_simd_backend", iono_core::simd::backend())?;
         if rows.is_empty() {
             h.new_dataset::<f64>().shape([0, 5]).create("data")?;
         } else {

@@ -1,0 +1,13 @@
+[Unit]
+Description=Rust primary Ramfjordmoen Digisonde receiver
+StartLimitIntervalSec=0
+[Service]
+ExecStart=%h/bin/iono-receiver digisonde %h/.config/chirpsounder2/ramfjordmoen.json
+Restart=always
+RestartSec=10
+Nice=0
+CPUWeight=1000
+MemoryMax=512M
+LimitCORE=0
+[Install]
+WantedBy=default.target

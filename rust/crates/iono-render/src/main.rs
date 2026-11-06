@@ -197,6 +197,22 @@ fn run(store: &Path, output: &Path, completed: &mut BTreeMap<String, Vec<String>
     Ok(())
 }
 fn main() -> Result<()> {
+    let args: Vec<_> = std::env::args().collect();
+    if args.get(1).is_some_and(|a| a == "--product") {
+        ensure!(
+            args.len() == 4,
+            "usage: iono-render --product INPUT.h5 OUTPUT.png"
+        );
+        let grids = iono_core::read_products(Path::new(&args[2]))?;
+        ensure!(!grids.is_empty(), "no renderable grids");
+        let output = Path::new(&args[3]);
+        let parent = output
+            .parent()
+            .filter(|p| !p.as_os_str().is_empty())
+            .unwrap_or(Path::new("."));
+        fs::create_dir_all(parent)?;
+        return plot(&grids[..1], parent, output);
+    }
     let store = std::env::var("IONO_STORE").unwrap_or_else(|_| "/var/lib/iono2".into());
     let output = std::env::var("IONO_PNG").unwrap_or_else(|_| "/var/www/html/iono".into());
     let once = std::env::args().any(|a| a == "--once");

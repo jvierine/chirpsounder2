@@ -1,0 +1,21 @@
+{
+  "station": "DOB",
+  "data_dir": "/dev/shm/hf25",
+  "output_dir": "/data0",
+  "channel": "ch0",
+  "sample_rate": 25000000.0,
+  "center_freq": 12500000.0,
+  "writer_grace_s": 1.0,
+  "lfm_range_min_km": 800.0,
+  "lfm_range_max_km": 1700.0,
+  "transmitter": "Ramfjordmoen",
+  "freq_start_hz": 1000000,
+  "freq_stop_hz": 18000000,
+  "freq_step_hz": 50000,
+  "ipp_us": 10000,
+  "n_ipp": 64,
+  "offset_us": 1336,
+  "interval_s": 450,
+  "transmit_delay_us": 4688.0,
+  "start_offset_s": 0.0
+}

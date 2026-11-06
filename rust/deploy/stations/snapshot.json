@@ -68,8 +68,88 @@
       "sha256": "392b7fca649fd5da68c11ded1a0c93d74406567a804fc3b66e77b1a905d6e93a",
       "verified_utc": "2026-11-06T14:02:06Z",
       "activation": "manually started finite 30-minute survey; completed successfully, not boot-enabled"
+    },
+    {
+      "path": "DOB/ramfjordmoen.json",
+      "sha256": "a27aa36ca4b7ca5b00c15e2505289eb2ed8d96a78b38d63c0b2447740c743360",
+      "deployed_utc": "2026-11-06T16:39:55.106075+00:00"
+    },
+    {
+      "path": "DOB/receiver.json",
+      "sha256": "8a8a2ec6d3be241e8a67d5bdc1f233331aa9001a708d6a74c73616cf5777e096",
+      "deployed_utc": "2026-11-06T16:39:55.106075+00:00"
+    },
+    {
+      "path": "DOB/spectrum.json",
+      "sha256": "9f827f71f363a1fdbbd1cf2798a024041df931fe53f044c7f179aab1e2de9288",
+      "deployed_utc": "2026-11-06T16:39:55.106075+00:00"
+    },
+    {
+      "path": "DOB/receiver-timing.json",
+      "sha256": "0fabf0ebfa04685f24ef48a14adcc43a684c4a1c2086a492a8485df5ca68bb43",
+      "deployed_utc": "2026-11-06T16:39:55.106075+00:00"
+    },
+    {
+      "path": "KHO/ramfjordmoen.json",
+      "sha256": "30ea0b4e3ef86b9e92ddbd3a92c4f5838d0b0bdddb4695c14bce82cc846dd08c",
+      "deployed_utc": "2026-11-06T16:39:55.106075+00:00"
+    },
+    {
+      "path": "KHO/receiver.json",
+      "sha256": "8443a66bdeee504b802d8db7a84df2a411a0e362d96352670991fa33344917a3",
+      "deployed_utc": "2026-11-06T16:39:55.106075+00:00"
+    },
+    {
+      "path": "KHO/receiver-timing.json",
+      "sha256": "e6c15f3cc9547a9688324468cdae7c8a0f443454707da750357472a78538da4c",
+      "deployed_utc": "2026-11-06T16:39:55.106075+00:00"
+    },
+    {
+      "path": "DOB/dourbes-regular-10.json",
+      "sha256": "b0516ef586201ba8cab97433382e3ebe5341828e2bce5ca557980b6bca1d188d",
+      "deployed_utc": "2026-11-06T17:13:30.044564+00:00"
+    },
+    {
+      "path": "DOB/dourbes-night-regular-05.json",
+      "sha256": "2456e9082f083b966667067970d9ae848a1495c57e70bcfc4680e10205882a1a",
+      "deployed_utc": "2026-11-06T17:13:30.044564+00:00"
+    },
+    {
+      "path": "DOB/dourbes.json",
+      "sha256": "b1ab402e3c026db4971a759215fc2b9574d914cce7fad0b3aa20716c76d27d08",
+      "deployed_utc": "2026-11-06T17:13:30.044564+00:00"
+    },
+    {
+      "path": "DOB/dourbes-night.json",
+      "sha256": "415d2166b55e0a75f81203d7a86aae677c113a58fdd5bda7d98ba75f110e7eba",
+      "deployed_utc": "2026-11-06T17:13:30.044564+00:00"
+    },
+    {
+      "path": "DOB/dourbes-night-regular-10.json",
+      "sha256": "360abe40e89e339cb16f65f1349bace56923f650732d9df7336d0b5855e6ebba",
+      "deployed_utc": "2026-11-06T17:13:30.044564+00:00"
+    },
+    {
+      "path": "DOB/dourbes-regular-05.json",
+      "sha256": "b309512f389bc8815dbf4edf1f056e61d2e01067639a71bcadf184b44fae6c74",
+      "deployed_utc": "2026-11-06T17:13:30.044564+00:00"
+    },
+    {
+      "path": "DOB/chilton.json",
+      "sha256": "9a934b38951d56e5246c58a07ca16c75331cdf3c2600657f2092092881968b01",
+      "deployed_utc": "2026-11-06T17:13:30.044564+00:00"
+    },
+    {
+      "path": "DOB/juliusruh-day.json",
+      "sha256": "ac0738e13a9cdbe409e6611aabe38c46e7340dc62e494532287da5f73d1e2bfd",
+      "deployed_utc": "2026-11-06T17:13:30.044564+00:00"
+    },
+    {
+      "path": "DOB/juliusruh-night.json",
+      "sha256": "ab981006316b9e540217b811d765a555d6dbf270072b3f34423fee59d27c05f4",
+      "deployed_utc": "2026-11-06T17:13:30.044564+00:00"
     }
   ],
-  "updated_utc": "2026-11-06T09:55:15.114646+00:00",
+  "updated_utc": "2026-11-06T17:13:30.044564+00:00",
   "verso_inverse_deployed_utc": "2026-11-06T11:31:00Z"
 }

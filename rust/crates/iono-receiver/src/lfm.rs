@@ -1,5 +1,13 @@
 use super::*;
 pub fn run(c: &Config, t: f64) -> Result<()> {
+    ensure!(
+        c.lfm_range_min_km.is_finite()
+            && c.lfm_range_max_km.is_finite()
+            && c.lfm_range_min_km >= 0.
+            && c.lfm_range_max_km > c.lfm_range_min_km
+            && c.lfm_range_max_km <= 20000.,
+        "invalid LFM propagation range gate"
+    );
     let rate = 500008.4;
     let dec = 625;
     let sr_dec = c.sample_rate / dec as f64;
@@ -36,7 +44,7 @@ pub fn run(c: &Config, t: f64) -> Result<()> {
         .filter(|&k| {
             let f = (k as f64 - nfft as f64 / 2.) * sr_dec / nfft as f64;
             let r = ds * f;
-            r > 200000. && r < 1500000.
+            r > c.lfm_range_min_km * 1000. && r < c.lfm_range_max_km * 1000.
         })
         .collect();
     let mut snr = Vec::with_capacity(indices.len() * ridx.len());

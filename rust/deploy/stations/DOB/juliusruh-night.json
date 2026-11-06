@@ -1,0 +1,25 @@
+{
+  "station": "DOB",
+  "data_dir": "/dev/shm/hf25",
+  "output_dir": "/data0",
+  "channel": "ch0",
+  "sample_rate": 25000000.0,
+  "center_freq": 12500000.0,
+  "writer_grace_s": 1.0,
+  "lfm_range_min_km": 800.0,
+  "lfm_range_max_km": 1700.0,
+  "transmitter": "Juliusruh",
+  "freq_start_hz": 1010000,
+  "freq_stop_hz": 9985000.0,
+  "freq_step_hz": 25000,
+  "ipp_us": 10000,
+  "n_ipp": 16,
+  "offset_us": 2000,
+  "interval_s": 300,
+  "transmit_delay_us": 0.0,
+  "start_offset_s": 196.0,
+  "sounding_hours": [
+    18,
+    5.5
+  ]
+}

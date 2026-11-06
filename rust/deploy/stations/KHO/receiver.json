@@ -1,0 +1,14 @@
+{
+  "station": "KHO",
+  "data_dir": "/dev/shm/hf25",
+  "output_dir": "/data0",
+  "channel": "ch0",
+  "sample_rate": 25000000.0,
+  "center_freq": 12500000.0,
+  "writer_grace_s": 4.5,
+  "lfm_range_min_km": 800.0,
+  "lfm_range_max_km": 1900.0,
+  "radar_sources": [],
+  "detector_samples_per_block": 4194304,
+  "detector_worker_count": 4
+}

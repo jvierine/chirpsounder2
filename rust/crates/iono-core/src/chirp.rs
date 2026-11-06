@@ -18,12 +18,21 @@ pub struct Detector {
     fft: Arc<dyn Fft<f32>>,
     ifft: Arc<dyn Fft<f32>>,
     scratch: Vec<Complex32>,
+    white: Vec<Complex32>,
+    work: Vec<Complex32>,
+    best: Vec<f32>,
+    which: Vec<u8>,
 }
 impl Detector {
     pub fn new(n: usize, sr: f64, cf: f64, rates: Vec<f64>) -> Self {
         let mut planner = FftPlanner::new();
         let fft = planner.plan_fft_forward(n);
         let ifft = planner.plan_fft_inverse(n);
+        let scratch = vec![
+            Complex32::default();
+            fft.get_inplace_scratch_len()
+                .max(ifft.get_inplace_scratch_len())
+        ];
         let window: Vec<_> = (0..n)
             .map(|i| (0.5 - 0.5 * (std::f64::consts::TAU * i as f64 / (n - 1) as f64).cos()) as f32)
             .collect();
@@ -39,11 +48,6 @@ impl Detector {
                     .collect()
             })
             .collect();
-        let scratch = vec![
-            Complex32::new(0., 0.);
-            fft.get_inplace_scratch_len()
-                .max(ifft.get_inplace_scratch_len())
-        ];
         Self {
             n,
             sr,
@@ -54,6 +58,10 @@ impl Detector {
             fft,
             ifft,
             scratch,
+            white: vec![Complex32::default(); n],
+            work: vec![Complex32::default(); n],
+            best: vec![0.; n],
+            which: vec![0; n],
         }
     }
     pub fn seek(
@@ -76,25 +84,26 @@ impl Detector {
         mut project: F,
     ) -> Vec<Detection> {
         assert_eq!(raw.len(), self.n);
-        let mut white: Vec<_> = raw.iter().zip(&self.window).map(|(&z, &w)| z * w).collect();
-        self.fft.process_with_scratch(&mut white, &mut self.scratch);
-        for z in &mut white {
+        let white = &mut self.white;
+        for ((out, &z), &w) in white.iter_mut().zip(raw).zip(&self.window) {
+            *out = z * w;
+        }
+        self.fft.process_with_scratch(white, &mut self.scratch);
+        for z in white.iter_mut() {
             *z /= z.norm() + 1e-9
         }
-        self.ifft
-            .process_with_scratch(&mut white, &mut self.scratch);
-        for z in &mut white {
+        self.ifft.process_with_scratch(white, &mut self.scratch);
+        for z in white.iter_mut() {
             *z /= self.n as f32
         }
-        let mut best = vec![0f32; self.n];
-        let mut which = vec![0u8; self.n];
-        let mut work = vec![Complex32::new(0., 0.); self.n];
+        let best = &mut self.best;
+        let which = &mut self.which;
+        let work = &mut self.work;
+        best.fill(0.);
         for (ri, kernel) in self.kernels.iter().enumerate() {
-            for i in 0..self.n {
-                work[i] = white[i] * kernel[i]
-            }
-            self.fft.process_with_scratch(&mut work, &mut self.scratch);
-            project(self.rates[ri], &work);
+            crate::simd::multiply(white, kernel, work);
+            self.fft.process_with_scratch(work, &mut self.scratch);
+            project(self.rates[ri], work);
             for (i, z) in work.iter().enumerate() {
                 let p = z.norm_sqr();
                 if p > best[i] {
@@ -154,5 +163,13 @@ mod tests {
         assert_eq!(v.len(), 1);
         assert_eq!(v[0].rate_hz_s, rate);
         assert!((v[0].frequency_hz - (125000. + f)).abs() <= sr / n as f64);
+        // Reused peak/work buffers must not carry a detection into a dropout.
+        assert!(d
+            .seek(&vec![Complex32::default(); n], 13., 1, 2000.)
+            .is_empty());
+        let repeated = d.seek(&raw, 13., 1, 2000.);
+        assert_eq!(repeated.len(), 1);
+        assert_eq!(repeated[0].frequency_hz, v[0].frequency_hz);
+        assert_eq!(repeated[0].rate_hz_s, v[0].rate_hz_s);
     }
 }

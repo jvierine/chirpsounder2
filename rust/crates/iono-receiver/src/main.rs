@@ -48,6 +48,10 @@ struct Config {
     /// Physical transmitter PRI; ipp_us may be the effective per-carrier PRI.
     #[serde(default)]
     physical_ipp_us: Option<usize>,
+    /// Commissioning: pulses on a fine frequency before multiplexing away.
+    /// None preserves the established constant effective-PRI decoder.
+    #[serde(default)]
+    multiplex_block_pulses: Option<usize>,
     #[serde(default)]
     start_offset_s: f64,
     #[serde(default = "hours")]
@@ -65,6 +69,26 @@ struct Config {
     /// Zero preserves full integration; otherwise stratified FFT averages/bin.
     #[serde(default)]
     spectrum_windows_per_bin: usize,
+    #[serde(default = "lfm_min")]
+    lfm_range_min_km: f64,
+    #[serde(default = "lfm_max")]
+    lfm_range_max_km: f64,
+    #[serde(default = "detector_samples")]
+    detector_samples_per_block: usize,
+    #[serde(default = "detector_workers")]
+    detector_worker_count: usize,
+}
+fn detector_workers() -> usize {
+    2
+}
+fn detector_samples() -> usize {
+    5_000_000
+}
+fn lfm_min() -> f64 {
+    200.
+}
+fn lfm_max() -> f64 {
+    1500.
 }
 fn writer_grace() -> f64 {
     0.15
@@ -213,6 +237,22 @@ fn publish(c: &Config, tmp: &Path, path: &Path) -> Result<()> {
     println!("published {}", path.display());
     Ok(())
 }
+fn multiplex_pulse_index(pulse: usize, block: usize, fine_frequencies: usize) -> usize {
+    (pulse / block) * (block * fine_frequencies) + pulse % block
+}
+fn digisonde_frequency_count(c: &Config) -> usize {
+    // Preserve legacy stop-exclusive grids, including a partial final step.
+    // Tolerance prevents decimal MHz arithmetic dropping an exact full bin.
+    (((c.freq_stop_hz - c.freq_start_hz) / c.freq_step_hz) + 1e-9).floor() as usize
+}
+fn digisonde_frequency_sample(c: &Config, t: f64, frequency: usize) -> Result<u64> {
+    let dwell = c.n_ipp * (c.sample_rate * c.ipp_us as f64 * 1e-6).round() as usize;
+    let shift = ((c.offset_us + c.delay()) * c.sample_rate / 1e6).round() as i64;
+    epoch_sample(t, c.sample_rate as u64)?
+        .checked_add((frequency * dwell) as u64)
+        .and_then(|v| v.checked_add_signed(shift))
+        .context("sounding sample overflow")
+}
 fn validate_digisonde(c: &Config) -> Result<()> {
     ensure!(
         [5000, 10000, 20000, 40000].contains(&c.ipp_us),
@@ -229,6 +269,12 @@ fn validate_digisonde(c: &Config) -> Result<()> {
         (4..=128).contains(&c.n_ipp) && c.n_ipp % 4 == 0,
         "Digisonde pulse count must be a multiple of four, up to 128"
     );
+    if let Some(block) = c.multiplex_block_pulses {
+        ensure!(
+            block > 0 && block <= c.n_ipp && c.n_ipp % block == 0 && c.physical_ipp_us.is_some(),
+            "invalid fine-frequency multiplex block"
+        );
+    }
     ensure!(
         c.freq_start_hz.is_finite()
             && c.freq_stop_hz.is_finite()
@@ -239,10 +285,10 @@ fn validate_digisonde(c: &Config) -> Result<()> {
             && c.freq_step_hz >= 1000.,
         "invalid Digisonde RF grid"
     );
-    let nf = (c.freq_stop_hz - c.freq_start_hz) / c.freq_step_hz;
+    let nf = digisonde_frequency_count(c);
     ensure!(
-        nf.round() >= 1. && nf.round() < 2000. && (nf - nf.round()).abs() < 1e-6,
-        "Digisonde frequency grid must have integer steps"
+        (1..2000).contains(&nf),
+        "Digisonde frequency extent is empty or too large"
     );
     let n = (c.sample_rate * c.ipp_us as f64 * 1e-6).round() as usize;
     ensure!(
@@ -254,14 +300,21 @@ fn validate_digisonde(c: &Config) -> Result<()> {
 fn digisonde(c: &Config, t: f64) -> Result<()> {
     validate_digisonde(c)?;
     let mut r = reader(c)?;
-    let dsp = Digisonde::new(c.ipp_us);
+    let physical_ipp = c.physical_ipp_us.unwrap_or(c.ipp_us);
+    let decoding_ipp = if c.multiplex_block_pulses.is_some() {
+        physical_ipp
+    } else {
+        c.ipp_us
+    };
+    let dsp = Digisonde::new(decoding_ipp);
     let (nf, nr, nipp) = (
-        ((c.freq_stop_hz - c.freq_start_hz) / c.freq_step_hz).round() as usize,
+        digisonde_frequency_count(c),
         c.physical_ipp_us.unwrap_or(c.ipp_us) / 10,
         c.n_ipp,
     );
-    let effective_nr = c.ipp_us / 10;
-    let ipp_samples = (c.sample_rate * c.ipp_us as f64 * 1e-6).round() as usize;
+    let decoding_nr = decoding_ipp / 10;
+    let ipp_samples = (c.sample_rate * decoding_ipp as f64 * 1e-6).round() as usize;
+    let raw_samples = nipp * (c.sample_rate * c.ipp_us as f64 * 1e-6).round() as usize;
     let frequency_duration = nipp as f64 * c.ipp_us as f64 * 1e-6;
     let threshold = c
         .snr_threshold_db
@@ -280,12 +333,7 @@ fn digisonde(c: &Config, t: f64) -> Result<()> {
     let start_time = now();
     for f in 0..nf {
         let freq = c.freq_start_hz + f as f64 * c.freq_step_hz;
-        let nominal = epoch_sample(t, c.sample_rate as u64)?;
-        let shift = ((c.offset_us + c.delay()) * c.sample_rate / 1e6).round() as i64;
-        let base = nominal
-            .checked_add((f * nipp * ipp_samples) as u64)
-            .and_then(|v| v.checked_add_signed(shift))
-            .context("sounding sample overflow")?;
+        let base = digisonde_frequency_sample(c, t, f)?;
         let mut decoded = Vec::with_capacity(nipp);
         // One contiguous frequency read avoids repeated HDF5 hyperslab setup.
         // The voltage budget is 128 MB, including 128 physical 5 ms IPPs.
@@ -295,17 +343,20 @@ fn digisonde(c: &Config, t: f64) -> Result<()> {
             c,
             base.checked_sub(padding as u64)
                 .context("FIR overlap before sample zero")?,
-            nipp * ipp_samples + 2 * padding,
+            raw_samples + 2 * padding,
         )?;
         // Reuse oscillator and FIR coefficients for the whole frequency dwell.
         // The 30 kHz total FIR bandwidth matches the historical 0.006 cutoff.
         let channelizer = Channelizer::new(freq - c.center_freq, 30000.)?;
         for pi in 0..nipp {
-            let ipp_raw = &raw[pi * ipp_samples..(pi + 1) * ipp_samples + 2 * padding];
+            let ppi = c.multiplex_block_pulses.map_or(pi, |block| {
+                multiplex_pulse_index(pi, block, c.ipp_us / physical_ipp)
+            });
+            let ipp_raw = &raw[ppi * ipp_samples..(ppi + 1) * ipp_samples + 2 * padding];
             let mut baseband =
-                channelizer.process(ipp_raw, (pi * ipp_samples) as i64 - padding as i64);
+                channelizer.process(ipp_raw, (ppi * ipp_samples) as i64 - padding as i64);
             if padding > 0 {
-                baseband = baseband[4..4 + effective_nr].to_vec();
+                baseband = baseband[4..4 + decoding_nr].to_vec();
             }
             decoded.push(dsp.decode_baseband_ipp(baseband, pi, c.rfi_clip_ratio));
         }
@@ -361,6 +412,11 @@ fn digisonde(c: &Config, t: f64) -> Result<()> {
         dataset(&h, "n_ipp", nipp as f64)?;
         dataset(&h, "ipp_us", c.ipp_us as f64)?;
         dataset(&h, "effective_ipp_us", c.ipp_us as f64)?;
+        if let Some(block) = c.multiplex_block_pulses {
+            dataset(&h, "multiplex_block_pulses", block as f64)?;
+            dataset(&h, "fine_frequency_count", (c.ipp_us / physical_ipp) as f64)?;
+            text(&h,"multiplex_channel","first fine frequency only; other fine channels excluded before coherent integration")?;
+        }
         dataset(
             &h,
             "physical_ipp_us",
@@ -554,8 +610,32 @@ fn main() -> Result<()> {
         (c.sample_rate - 25e6).abs() < 1.,
         "only the validated 25 MHz input configuration is supported"
     );
+    if task == "check-config" {
+        validate_digisonde(&c)?;
+        ensure!(
+            c.interval_s.is_finite()
+                && c.interval_s > 0.
+                && c.start_offset_s.is_finite()
+                && c.offset_us.is_finite()
+                && c.delay().is_finite()
+                && c.sounding_hours
+                    .iter()
+                    .all(|h| h.is_finite() && (0. ..=24.).contains(h)),
+            "invalid receiver schedule or timing"
+        );
+        ensure!(
+            (1..=4).contains(&c.detector_worker_count)
+                && (1_000_000..=8_388_608).contains(&c.detector_samples_per_block),
+            "invalid detector capacity configuration"
+        );
+        println!("valid native receiver configuration for {}", c.station);
+        return Ok(());
+    }
     if task == "detect" {
         return detection::run(&c, once);
+    }
+    if task == "detect-bench" {
+        return detection::benchmark(&c);
     }
     let interval = if task == "spectrum" || task == "lfm" {
         60.
@@ -601,6 +681,66 @@ fn main() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn legacy_juliusruh_partial_frequency_step_limits_remain_supported() {
+        let mut c:Config=serde_json::from_str(r#"{"station":"DOB","data_dir":"x","output_dir":"y","transmitter":"Juliusruh","freq_start_hz":1010000,"freq_stop_hz":14000000,"freq_step_hz":50000,"n_ipp":16}"#).unwrap();
+        validate_digisonde(&c).unwrap();
+        assert_eq!(digisonde_frequency_count(&c), 259);
+        c.freq_stop_hz = 10000000.;
+        c.freq_step_hz = 25000.;
+        validate_digisonde(&c).unwrap();
+        assert_eq!(digisonde_frequency_count(&c), 359);
+    }
+    #[test]
+    fn fine_frequency_selection_does_not_advance_the_sweep_twice_as_fast() {
+        let mut c:Config=serde_json::from_str(r#"{"station":"DOB","data_dir":"x","output_dir":"y","transmitter":"DB049","ipp_us":20000,"physical_ipp_us":10000,"n_ipp":16,"offset_us":3535}"#).unwrap();
+        for block in [1, 2, 4, 16] {
+            c.multiplex_block_pulses = Some(block);
+            validate_digisonde(&c).unwrap();
+            // 100 coarse steps at 0.32 s/step = 32 s of physical RF.
+            assert_eq!(
+                digisonde_frequency_sample(&c, 1793980801., 100).unwrap(),
+                44_849_520_825_088_375
+            );
+        }
+    }
+    #[test]
+    fn physical_fine_frequency_demultiplexing_recovers_a_known_echo_delay() {
+        let (nr, nipp, lag) = (1000, 16, 80);
+        let waveform = iono_core::digisonde_match::template(nipp * nr, 100000., 10000, 3);
+        for block in [1, 2, 4, 16] {
+            let mut physical = vec![vec![Complex32::default(); nr]; nipp * 2];
+            let mut selected = 0;
+            // An independent physical time loop alternates blocks between two
+            // RF carriers; the second carrier is outside this synthetic channel.
+            for (p, row) in physical.iter_mut().enumerate() {
+                if (p / block) % 2 == 0 {
+                    for r in lag..nr {
+                        row[r] = waveform[selected * nr + r - lag];
+                    }
+                    selected += 1;
+                }
+            }
+            let d = Digisonde::new(10000);
+            let decoded: Vec<_> = (0..nipp)
+                .map(|p| {
+                    d.decode_baseband_ipp(
+                        physical[multiplex_pulse_index(p, block, 2)].clone(),
+                        p,
+                        None,
+                    )
+                })
+                .collect();
+            let power = d.power(&decoded);
+            let peak = power[0]
+                .iter()
+                .enumerate()
+                .max_by(|a, b| a.1.total_cmp(b.1))
+                .unwrap()
+                .0;
+            assert!(peak.abs_diff(lag) <= 1, "block={block}, peak={peak}");
+        }
+    }
     #[test]
     fn spectrum_sampling_is_bounded_spread_and_normalized_by_actual_count() {
         for bin in 0..120 {

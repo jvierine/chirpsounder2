@@ -1,0 +1,13 @@
+[Unit]
+Description=Rust global 100/125 kHz/s chirp detector and consolidation
+StartLimitIntervalSec=0
+[Service]
+ExecStart=%h/bin/iono-receiver detect %h/.config/chirpsounder2/receiver.json
+Restart=always
+RestartSec=10
+Nice=5
+CPUWeight=300
+MemoryMax=1500M
+LimitCORE=0
+[Install]
+WantedBy=default.target

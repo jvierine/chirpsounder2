@@ -13,7 +13,18 @@ pub fn template(n: usize, sr: f64, ipp_us: u32, mode: u8) -> Vec<Z> {
     template_polarizations(n, sr, ipp_us, mode, false)
 }
 fn template_polarizations(n: usize, sr: f64, ipp_us: u32, mode: u8, all: bool) -> Vec<Z> {
-    assert!(mode < 4);
+    template_program(n, sr, ipp_us, mode, all, 1, 1)
+}
+fn template_program(
+    n: usize,
+    sr: f64,
+    ipp_us: u32,
+    mode: u8,
+    all: bool,
+    fine: usize,
+    block: usize,
+) -> Vec<Z> {
+    assert!(mode < 4 && fine > 0 && block > 0);
     (0..n)
         .map(|i| {
             let t = i as f64 / sr - 16. / 30e3;
@@ -25,6 +36,10 @@ fn template_polarizations(n: usize, sr: f64, ipp_us: u32, mode: u8, all: bool) -
             if p <= 0. || p >= 16. / 30e3 {
                 return Z::default();
             }
+            if (pulse / block) % fine != 0 {
+                return Z::default();
+            }
+            let pulse = (pulse / (block * fine)) * block + pulse % block;
             if !all && mode >= 2 && pulse % 4 >= 2 {
                 return Z::default();
             }
@@ -47,13 +62,15 @@ pub struct CodeMatch {
     pub score_db: f32,
     pub coherence: f32,
     pub all_polarizations: bool,
+    pub fine_frequency_count: usize,
+    pub multiplex_block_pulses: usize,
 }
 pub struct CodeSearch {
     n: usize,
     sr: f64,
     fft: Arc<dyn Fft<f32>>,
     ifft: Arc<dyn Fft<f32>>,
-    kernels: Vec<(u32, u8, bool, f32, Vec<Z>)>,
+    kernels: Vec<(u32, u8, bool, usize, usize, f32, Vec<Z>)>,
     spectrum: Vec<Z>,
     shifted: Vec<Z>,
     work: Vec<Z>,
@@ -65,25 +82,42 @@ impl CodeSearch {
         Self::with_ipps(samples, sr, &[5000, 10000])
     }
     pub fn with_ipps(samples: usize, sr: f64, ipps: &[u32]) -> Self {
+        Self::with_programs(samples, sr, ipps, &[(1, 1)])
+    }
+    pub fn with_programs(
+        samples: usize,
+        sr: f64,
+        ipps: &[u32],
+        programs: &[(usize, usize)],
+    ) -> Self {
+        assert!(
+            !programs.is_empty()
+                && programs.len() <= 16
+                && programs
+                    .iter()
+                    .all(|&(f, b)| (1..=4).contains(&f) && (1..=16).contains(&b))
+        );
         let n = samples.next_power_of_two();
         let mut planner = FftPlanner::new();
         let fft = planner.plan_fft_forward(n);
         let ifft = planner.plan_fft_inverse(n);
         let mut kernels = vec![];
-        for &ipp in ipps {
-            for mode in 0..4 {
-                for all in [false, true] {
-                    if all && mode < 3 {
-                        continue;
+        for &(fine, block) in programs {
+            for &ipp in ipps {
+                for mode in 0..4 {
+                    for all in [false, true] {
+                        if all && mode < 3 {
+                            continue;
+                        }
+                        let mut c = template_program(samples, sr, ipp, mode, all, fine, block);
+                        let energy = c.iter().map(|z| z.norm_sqr()).sum();
+                        c.resize(n, Z::default());
+                        fft.process(&mut c);
+                        for z in &mut c {
+                            *z = z.conj();
+                        }
+                        kernels.push((ipp, mode, all, fine, block, energy, c));
                     }
-                    let mut c = template_polarizations(samples, sr, ipp, mode, all);
-                    let energy = c.iter().map(|z| z.norm_sqr()).sum();
-                    c.resize(n, Z::default());
-                    fft.process(&mut c);
-                    for z in &mut c {
-                        *z = z.conj();
-                    }
-                    kernels.push((ipp, mode, all, energy, c));
                 }
             }
         }
@@ -147,7 +181,7 @@ impl CodeSearch {
                     for (k, v) in shifted.iter_mut().enumerate() {
                         *v = spectrum[(k as isize + shift).rem_euclid(self.n as isize) as usize];
                     }
-                    for (ipp, mode, all, energy, kernel) in &self.kernels {
+                    for (ipp, mode, all, fine, block, energy, kernel) in &self.kernels {
                         simd::multiply(shifted, kernel, work);
                         self.ifft.process_with_scratch(work, &mut self.scratch);
                         let (lag, peak) = work
@@ -172,6 +206,8 @@ impl CodeSearch {
                                 score_db: 0.,
                                 coherence,
                                 all_polarizations: *all,
+                                fine_frequency_count: *fine,
+                                multiplex_block_pulses: *block,
                             });
                         }
                     }
@@ -189,6 +225,23 @@ impl CodeSearch {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn multiplexed_codeword_delay_does_not_fold_at_the_physical_pri() {
+        let n = 16000;
+        let delay = 2441;
+        for block in [1, 2, 4] {
+            let code = template_program(n, 100e3, 10000, 3, false, 2, block);
+            let input: Vec<_> = (0..n).map(|i| code[(i + n - delay) % n]).collect();
+            let m = CodeSearch::with_programs(n, 100e3, &[10000], &[(2, 1), (2, 2), (2, 4)])
+                .seek(&input, 0., 5000.)
+                .unwrap();
+            let error = (m.lag_s - delay as f64 / 100e3 + 0.04).rem_euclid(0.08) - 0.04;
+            assert!(
+                m.coherence > 0.6 && error.abs() < 2e-5,
+                "block={block}: {m:?}"
+            );
+        }
+    }
     #[test]
     fn identifies_known_code_ipp_carrier_and_delay() {
         let c = template(16000, 100e3, 5000, 3);
