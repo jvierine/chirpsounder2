@@ -1,0 +1,57 @@
+--- a/station_monitor.py
++++ b/station_monitor.py
+@@ -10,7 +10,7 @@
+ import shutil
+ import tempfile
+ import time
+-from datetime import datetime, timezone
++from datetime import datetime, timezone, timedelta
+ 
+ import chirp_config as cc
+ import chirpsounder_version as csversion
+@@ -96,12 +96,16 @@
+     return checks
+ 
+ 
+-def newest_matching_file(root: str, patterns: tuple[str, ...]) -> tuple[str | None, float | None]:
++def newest_matching_file(root: str, patterns: tuple[str, ...], max_depth=None) -> tuple[str | None, float | None]:
+     newest_path = None
+     newest_mtime = None
+     if not os.path.isdir(root):
+         return newest_path, newest_mtime
+-    for dirpath, _, filenames in os.walk(root):
++    for dirpath, directories, filenames in os.walk(root):
++        relative = os.path.relpath(dirpath, root)
++        depth = 0 if relative == "." else len(relative.split(os.sep))
++        if max_depth is not None and depth >= max_depth:
++            directories[:] = []
+         for filename in filenames:
+             if not any(fnmatch.fnmatch(filename, pattern) for pattern in patterns):
+                 continue
+@@ -222,12 +226,22 @@
+ 
+ 
+ def output_status(conf, max_age_s: float) -> dict:
++    now = time.time()
++    # Station products use UTC day directories. Health checks only need the
++    # freshness window; never walk months of historical products on NTFS.
++    # Include root-level files for older station layouts.
++    patterns = ("chirp-*.h5", "cdetections-*.h5", "par-*.h5", "lfm_ionogram-*.h5",
++                "digisonde_ionogram-*.h5", "prn_ionogram-*.h5", "spectrum-*.h5", "*.png")
+     newest_path, newest_mtime = newest_matching_file(
+-        conf.output_dir,
+-        ("chirp-*.h5", "cdetections-*.h5", "par-*.h5", "lfm_ionogram-*.h5", "*.png"),
++        conf.output_dir, patterns, max_depth=0,
+     )
+-    # The archive scan can take tens of seconds while writers add new files.
+-    # Measure age after the scan to avoid reporting negative output ages.
++    today = datetime.fromtimestamp(now, timezone.utc).date()
++    oldest = datetime.fromtimestamp(now - max_age_s, timezone.utc).date()
++    for days in range((today - oldest).days + 1):
++        day = (today - timedelta(days=days)).isoformat()
++        path, mtime = newest_matching_file(os.path.join(conf.output_dir, day), patterns)
++        if mtime is not None and (newest_mtime is None or mtime > newest_mtime):
++            newest_path, newest_mtime = path, mtime
+     age_s = None if newest_mtime is None else time.time() - newest_mtime
+     return {
+         "path": conf.output_dir,

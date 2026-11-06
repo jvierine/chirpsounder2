@@ -1,0 +1,26 @@
+--- a/iono_housekeeping.py
++++ b/iono_housekeeping.py
+@@ -227,16 +227,19 @@
+     gpsdo_histories = {}
+     pc_status_period_s = 60
+     next_pc_status_time = 0.0
++    next_parameter_cleanup = 0.0
+     while True:
+         if conf.ringbuffer_cleanup:
+             recover_ringbuffer_properties(conf.data_dir, conf.channel)
+             max_age_s = getattr(conf, "ringbuffer_max_age_sec", conf.ringbuffer_max_age_min * 60)
+             print("cleaning files older than %d seconds" % (max_age_s))
+             cleanup_ringbuffer_files(conf.data_dir, max_age_s)
+-        cleanup_parameter_files(
+-            conf.output_dir,
+-            conf.parameter_file_retention_sec,
+-            conf.parameter_file_lock_timeout_sec)
++        if time.monotonic() >= next_parameter_cleanup:
++            cleanup_parameter_files(
++                conf.output_dir,
++                conf.parameter_file_retention_sec,
++                conf.parameter_file_lock_timeout_sec)
++            next_parameter_cleanup = time.monotonic() + 300.0
+         now = time.time()
+ #        try:
+  #           if now >= next_pc_status_time:

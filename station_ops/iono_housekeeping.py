@@ -43,15 +43,20 @@ def cleanup_parameter_files(output_dir, max_age_s, lock_max_age_s):
 
 
 def housekeeping(conf):
+    # Archive traversal is costly on NTFS/FUSE. Ring cleanup must remain fast,
+    # but expired parameter artifacts do not need a full scan every second.
+    next_parameter_cleanup = 0.0
     while True:
         if conf.ringbuffer_cleanup:
             max_age_s = getattr(conf, "ringbuffer_max_age_sec", conf.ringbuffer_max_age_min * 60)
             print("cleaning files older than %d seconds" % (max_age_s))
             cleanup_ringbuffer_files(conf.data_dir, max_age_s)
-        cleanup_parameter_files(
-            conf.output_dir,
-            conf.parameter_file_retention_sec,
-            conf.parameter_file_lock_timeout_sec)
+        if time.monotonic() >= next_parameter_cleanup:
+            cleanup_parameter_files(
+                conf.output_dir,
+                conf.parameter_file_retention_sec,
+                conf.parameter_file_lock_timeout_sec)
+            next_parameter_cleanup = time.monotonic() + 300.0
         time.sleep(1)
 
 
