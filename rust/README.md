@@ -199,8 +199,12 @@ confirmation; do not guess US station names from isolated correlation peaks.
 All native sounder products store accepted cells as sparse HDF5 index/value
 arrays, including both Digisonde modes. This changes storage, not detection
 thresholds. RF background spectra remain full average-power products.
-Browser transport omits the duplicate raw display grid and carries its gzip
-numeric array once. Original scientific files retain the measured precision.
+Browser transport retains one chunked numeric HDF5 representation, without
+a duplicate HTTP encoding. The thin host caches standard gzip serialization
+of these already computed cells; it performs no scientific reduction or image
+rendering. Stable UTC-aligned time bins permit efficient delta transfers while
+the browser displays the requested sliding 48-hour interval. Original
+scientific files retain the measured precision.
 
 `browser_latest` bundles contain only current ionograms and their reduced
 frequency evidence. They update independently of full-day RTIs and 48-hour

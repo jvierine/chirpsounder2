@@ -107,14 +107,15 @@ pub fn validate(bundle: &Bundle) -> Result<()> {
     Ok(())
 }
 pub fn write(path: &Path, bundle: &mut Bundle) -> Result<()> {
-    write_impl(path, bundle, true)
+    write_impl(path, bundle, true, true)
 }
-/// Numeric transport retains the gzip arrays once, without a second raw copy.
+/// Numeric transport retains one chunked HDF5 array. Stable compressed chunks
+/// permit delta transfers; HTTP gzip serialization is cached by product hash.
 /// Authoritative scientific observations remain in their own HDF5 products.
 pub fn write_transport(path: &Path, bundle: &mut Bundle) -> Result<()> {
-    write_impl(path, bundle, false)
+    write_impl(path, bundle, true, false)
 }
-fn write_impl(path: &Path, bundle: &mut Bundle, raw_copy: bool) -> Result<()> {
+fn write_impl(path: &Path, bundle: &mut Bundle, raw_copy: bool, gzip_copy: bool) -> Result<()> {
     // Display precision is finer than the 256-level color scale and native
     // sampling. Original scientific products retain their full precision.
     for p in &mut bundle.products {
@@ -197,14 +198,16 @@ fn write_impl(path: &Path, bundle: &mut Bundle, raw_copy: bool) -> Result<()> {
                     .create(p.grid.id.as_str())?
                     .write_raw(&p.grid.values)?;
             }
-            let mut gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
-            for value in &p.grid.values {
-                gz.write_all(&value.to_le_bytes())?;
+            if gzip_copy {
+                let mut gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+                for value in &p.grid.values {
+                    gz.write_all(&value.to_le_bytes())?;
+                }
+                let bytes = gz.finish()?;
+                h.new_dataset_builder()
+                    .with_data(&bytes)
+                    .create(format!("{}_gzip", p.grid.id).as_str())?;
             }
-            let bytes = gz.finish()?;
-            h.new_dataset_builder()
-                .with_data(&bytes)
-                .create(format!("{}_gzip", p.grid.id).as_str())?;
         }
     }
     std::fs::rename(temporary, path)?;
@@ -339,11 +342,12 @@ mod tests {
             for p in &b.products {
                 let id = &p.grid.id;
                 assert!(a.link_exists(id));
-                assert!(!c.link_exists(id));
+                assert!(c.link_exists(id));
                 let key = format!("{id}_gzip");
+                assert!(!c.link_exists(&key));
                 assert_eq!(
-                    a.dataset(&key).unwrap().read_raw::<u8>().unwrap(),
-                    c.dataset(&key).unwrap().read_raw::<u8>().unwrap()
+                    a.dataset(id).unwrap().read_raw::<f32>().unwrap(),
+                    c.dataset(id).unwrap().read_raw::<f32>().unwrap()
                 );
             }
         }

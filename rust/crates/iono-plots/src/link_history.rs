@@ -3,7 +3,13 @@ use crate::{assumed, browser::grid, catalog::Catalog};
 use anyhow::Result;
 use iono_browser::Product;
 use std::collections::BTreeMap;
-const NX: usize = 1440;
+// Stable three-day storage grid; the browser clips the requested last 48 h.
+// Avoid shifting every cell (and defeating rsync) on every five-minute export.
+const NX: usize = 2160;
+const WINDOW: f64 = 259200.;
+fn window_start(end: f64) -> f64 {
+    (end / 86400.).floor() * 86400. - 172800.
+}
 const NY: usize = 256;
 struct Panels {
     gate: [f64; 2],
@@ -26,7 +32,7 @@ impl Panels {
         if ![t, r, f].iter().all(|v| v.is_finite())
             || !snr.is_finite()
             || t < start
-            || t >= start + 172800.
+            || t >= start + WINDOW
             || r < self.gate[0]
             || r > self.gate[1]
             || !(0.0..25.).contains(&f)
@@ -79,13 +85,17 @@ impl Panels {
             ),
         ];
         for p in &mut p {
+            p.grid.nx = NX;
+            p.occupied_minutes = (0..NX)
+                .filter(|&x| (0..NY).any(|y| p.grid.values[y * NX + x].is_finite()))
+                .count();
             p.grid.x = (0..NX).map(|i| start + (i as f64 + 0.5) * 120.).collect();
         }
         p
     }
 }
 pub fn prepare(catalog: &Catalog, station: &str, end: f64) -> Result<Vec<Product>> {
-    let start = end - 172800.;
+    let start = window_start(end);
     let mut products = vec![];
     for tx in catalog.transmitters()? {
         let rows = catalog.profiles(&tx, start)?;
@@ -182,6 +192,17 @@ pub fn prepare(catalog: &Catalog, station: &str, end: f64) -> Result<Vec<Product
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn stable_storage_still_covers_the_requested_sliding_48_hours() {
+        let morning = 1793923200. + 9. * 3600.;
+        let evening = 1793923200. + 21. * 3600.;
+        assert_eq!(window_start(morning), window_start(evening));
+        for end in [morning, evening] {
+            let start = window_start(end);
+            assert!(start <= end - 172800. && start + WINDOW >= end);
+        }
+        assert!(NX * NY <= iono_browser::MAX_CELLS);
+    }
     #[test]
     fn bounded_window_filters_ranges_and_uses_strongest_measured_frequency() {
         let mut p = Panels::new([4000., 5000.]);
