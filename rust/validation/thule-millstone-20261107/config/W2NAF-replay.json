@@ -1,0 +1,22 @@
+{
+  "data_dir": "/mnt/ramdisk/hf25",
+  "output_dir": "/home/hamsci/data/digisonde-commission/thule-millstone-20261107-9mhz/replay-bank1530",
+  "channel": "ch0",
+  "doppler_search_hz": 30,
+  "ipp_candidates_us": [
+    10000
+  ],
+  "fine_frequency_count": 2,
+  "multiplex_blocks": [
+    1,
+    2,
+    4,
+    8,
+    16
+  ],
+  "polarization_orders": [
+    false,
+    true
+  ],
+  "save_iq": false
+}
