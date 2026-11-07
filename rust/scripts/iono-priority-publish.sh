@@ -8,7 +8,10 @@ mkdir -p "$pending"
 exec 9>"$pending/publish.lock"
 flock -n 9 || exit 0
 transfer() {
-    timeout --signal=INT --kill-after=10 "$1" rsync -z --times --partial-dir=.rsync-partial --bwlimit=16 --timeout=90 --stats \
+    # Most compressed display chunks are smaller than rsync's automatically
+    # selected block size. Match inside those stable chunks after HDF5 offsets
+    # move, rather than retransmitting almost the complete daily bundle.
+    timeout --signal=INT --kill-after=10 "$1" rsync -z --times --block-size=1024 --partial-dir=.rsync-partial --bwlimit=16 --timeout=90 --stats \
       -e 'ssh -oBatchMode=yes -oStrictHostKeyChecking=yes -oConnectTimeout=15 -oServerAliveInterval=15 -oServerAliveCountMax=4' \
       "$2" "$destination:${2##*/}"
 }
