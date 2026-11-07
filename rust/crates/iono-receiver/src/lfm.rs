@@ -1,5 +1,5 @@
 use super::*;
-pub fn run(c: &Config, t: f64) -> Result<()> {
+pub fn run(c: &Config, t: f64, capacity: &mut iono_core::processing_health::Monitor) -> Result<()> {
     ensure!(
         c.lfm_range_min_km.is_finite()
             && c.lfm_range_max_km.is_finite()
@@ -29,6 +29,8 @@ pub fn run(c: &Config, t: f64) -> Result<()> {
     for b in 0..n_windows {
         let offset = (b * block * dec) as u64;
         let raw = read_live(&mut r, c, i0 + offset, block * dec + 2 * dec)?;
+        let cpu = iono_core::processing_health::Sample::capture();
+        let processing = std::time::Instant::now();
         z.extend(iono_core::lfm::dechirp(
             &raw,
             offset,
@@ -38,6 +40,11 @@ pub fn run(c: &Config, t: f64) -> Result<()> {
             c.center_freq,
             rate,
         ));
+        capacity.finished(
+            cpu,
+            processing.elapsed().as_secs_f64(),
+            (block * dec) as f64 / c.sample_rate,
+        );
     }
     let p = iono_core::lfm::spectra(&z, nfft, hop, &indices);
     let ridx: Vec<_> = (0..nfft)

@@ -187,6 +187,14 @@ fn reader(c: &Config) -> Result<Reader> {
     r.set_cache_byte_limit(16 * 1024 * 1024)?;
     Ok(r)
 }
+#[derive(Debug)]
+struct InputExpired;
+impl std::fmt::Display for InputExpired {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "processing fell behind the retained voltage window")
+    }
+}
+impl std::error::Error for InputExpired {}
 fn read_live(r: &mut Reader, c: &Config, start: u64, n: usize) -> Result<Vec<Complex32>> {
     wait(((start + n as u64) as f64 / c.sample_rate).ceil() + c.writer_grace_s);
     let mut error = None;
@@ -196,6 +204,15 @@ fn read_live(r: &mut Reader, c: &Config, start: u64, n: usize) -> Result<Vec<Com
             Err(e) => error = Some(e),
         }
         thread::sleep(Duration::from_millis(250));
+    }
+    // Inspect fresh RAM-ring metadata only after a failed read. A gap inside
+    // retained voltage remains an acquisition/input error, not a CPU loss.
+    if reader(c)
+        .ok()
+        .and_then(|mut r| r.bounds(&c.channel).ok().flatten())
+        .is_some_and(|bounds| start < bounds.0)
+    {
+        return Err(InputExpired.into());
     }
     Err(error.unwrap())
 }
@@ -319,7 +336,11 @@ fn validate_digisonde(c: &Config) -> Result<()> {
     );
     Ok(())
 }
-fn digisonde(c: &Config, t: f64) -> Result<()> {
+fn digisonde(
+    c: &Config,
+    t: f64,
+    capacity: &mut iono_core::processing_health::Monitor,
+) -> Result<()> {
     validate_digisonde(c)?;
     let mut r = reader(c)?;
     let physical_ipp = c.physical_ipp_us.unwrap_or(c.ipp_us);
@@ -384,6 +405,8 @@ fn digisonde(c: &Config, t: f64) -> Result<()> {
                 .context("FIR overlap before sample zero")?,
             raw_samples + 2 * padding,
         )?;
+        let cpu = iono_core::processing_health::Sample::capture();
+        let processing = std::time::Instant::now();
         // Reuse oscillator and FIR coefficients for the whole frequency dwell.
         // The 30 kHz total FIR bandwidth matches the historical 0.006 cutoff.
         let mut carrier = freq;
@@ -431,6 +454,7 @@ fn digisonde(c: &Config, t: f64) -> Result<()> {
                 power[(mode * nf + f) * nr + k] = if snr >= threshold { snr } else { f32::NAN }
             }
         }
+        capacity.finished(cpu, processing.elapsed().as_secs_f64(), frequency_duration);
         if f % 20 == 0 {
             println!(
                 "{} {} frequency {}/{} elapsed {:.2}s observation {:.2}s",
@@ -742,12 +766,20 @@ fn main() -> Result<()> {
         let cpu = iono_core::processing_health::Sample::capture();
         let processing = std::time::Instant::now();
         let result = match task {
-            "digisonde" if c.sounding_active(t) => digisonde(&c, t),
+            "digisonde" if c.sounding_active(t) => digisonde(&c, t, &mut capacity),
             "digisonde" => Ok(()),
             "spectrum" => spectrum(&c, t),
-            "lfm" => lfm::run(&c, t),
+            "lfm" => lfm::run(&c, t, &mut capacity),
             _ => anyhow::bail!("unknown task {task}"),
         };
+        if task != "spectrum"
+            && result
+                .as_ref()
+                .err()
+                .is_some_and(|e| e.is::<InputExpired>())
+        {
+            capacity.missed(1, 0);
+        }
         capacity.finished(cpu, processing.elapsed().as_secs_f64(), interval);
         if once {
             return result;
