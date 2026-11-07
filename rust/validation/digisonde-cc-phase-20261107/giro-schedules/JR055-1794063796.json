@@ -1,0 +1,14 @@
+{
+  "transmitter": "JR055",
+  "freq_start_hz": 1010000.0,
+  "freq_stop_hz": 10000000.0,
+  "freq_step_hz": 50000.0,
+  "n_ipp": 32,
+  "ipp_us": 10000.0,
+  "interval_s": 86400,
+  "start_offset_s": 54196.0,
+  "sounding_hours": [
+    0,
+    24
+  ]
+}

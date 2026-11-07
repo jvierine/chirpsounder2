@@ -1,0 +1,14 @@
+{
+  "transmitter": "PQ052",
+  "freq_start_hz": 1000000.0,
+  "freq_stop_hz": 11000000.0,
+  "freq_step_hz": 50000.0,
+  "n_ipp": 32.0,
+  "ipp_us": 10000.0,
+  "interval_s": 86400,
+  "start_offset_s": 54000.0,
+  "sounding_hours": [
+    0,
+    24
+  ]
+}

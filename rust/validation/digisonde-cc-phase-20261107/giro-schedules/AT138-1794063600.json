@@ -1,0 +1,14 @@
+{
+  "transmitter": "AT138",
+  "freq_start_hz": 1000000.0,
+  "freq_stop_hz": 15000000.0,
+  "freq_step_hz": 35000.0,
+  "n_ipp": 64,
+  "ipp_us": 10000.0,
+  "interval_s": 86400,
+  "start_offset_s": 54000.0,
+  "sounding_hours": [
+    0,
+    24
+  ]
+}

@@ -14,11 +14,12 @@
   "ipp_us": 20000,
   "physical_ipp_us": 10000,
   "n_ipp": 16,
-  "multiplex_block_pulses": 2,
+  "multiplex_block_pulses": 4,
   "offset_us": 10006.923,
   "transmit_delay_us": 0,
   "snr_threshold_db": 3,
   "rfi_clip_ratio": 6,
   "writer_grace_s": 1,
-  "range_reference": "Pituffik/Thule THJ76 GIRO 16829/13415 nominal 450 s epoch; 3115.8 km great-circle path; geometric/virtual-height proxy 3000..4700 km sets read-window start. Fixed station clock; transmitter delay uncalibrated; Millstone shares program, source association provisional."
+  "range_reference": "Pituffik/Thule THJ76 GIRO 16829/13415 nominal 450 s epoch; 3115.8 km great-circle path; geometric/virtual-height proxy 3000..4700 km sets read-window start. Fixed station clock; transmitter delay uncalibrated; Millstone shares program, source association provisional. Code/fine sequence phase measured at the fixed read origin: four-pulse fine blocks, phase 1; complementary cancellation validated against the same 2026-11-07 16:37:30 UTC DOB voltage. Source identity remains provisional.",
+  "multiplex_phase_pulses": 1
 }

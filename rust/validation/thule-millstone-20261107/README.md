@@ -1,5 +1,11 @@
 # Millstone / Pituffik discrimination — 7 November 2026
 
+**Follow-up:** the subsequent [code-phase investigation](../digisonde-cc-phase-20261107/README.md)
+confirmed and corrected DOB's complementary-code decoding fault at 16:44 UTC.
+The earlier trials below did not reproduce the production window's starting
+phase. This report records the initial source-discrimination work; its source
+identification remains unresolved, but the decoder is no longer unchanged.
+
 ## Result
 
 **Pituffik is not identified securely by these captures. Do not promote THJ76
