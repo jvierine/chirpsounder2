@@ -166,6 +166,7 @@
     "ursi": "THJ76",
     "quantitative_eligible": false,
     "association_quality": "GIRO-program association; shared Millstone waveform and pulse-period ambiguity; timing uncalibrated",
-    "position_quality": "GIRO approximate station coordinate"
+    "position_quality": "GIRO approximate station coordinate",
+    "source_label": "Pituffik (Thule; provisional)"
   }
 }

@@ -528,6 +528,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "hdf5-metno",
+ "libloading",
  "num-complex",
  "rustfft",
  "serde",

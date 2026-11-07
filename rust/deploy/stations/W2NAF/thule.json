@@ -1,6 +1,6 @@
 {
   "station": "W2NAF",
-  "data_dir": "/dev/shm/hf25",
+  "data_dir": "/mnt/ramdisk/hf25",
   "output_dir": "/home/hamsci/data/chirpsounder2",
   "channel": "ch0",
   "sample_rate": 25000000.0,

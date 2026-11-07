@@ -4,7 +4,9 @@ set -euo pipefail
 config=${1:?absolute path to reviewed station thule.json}
 unit=${2:?absolute path to iono-digisonde@.service}
 [[ "$config" = /* && "$unit" = /* ]]
-"$HOME/bin/iono-receiver" check-config "$config"
+binary=${3:-"$HOME/bin/iono-receiver"}
+[[ "$binary" = /* && -x "$binary" ]]
+"$binary" check-config "$config"
 mkdir -p "$HOME/.config/chirpsounder2" "$HOME/.config/systemd/user" "$HOME/.local/state/chirpsounder2-rollout/pituffik-20261107"
 backup="$HOME/.local/state/chirpsounder2-rollout/pituffik-20261107"
 for file in "$HOME/.config/chirpsounder2/thule.json" "$HOME/.config/systemd/user/iono-digisonde@.service"; do
@@ -21,6 +23,11 @@ CPUWeight=50
 CPUQuota=100%
 MemoryMax=384M
 EOF
+# Some stations still use an older executable for established sounders. Give
+# only this new instance a reviewed native executable without replacing theirs.
+if [[ "$binary" != "$HOME/bin/iono-receiver" ]]; then
+  printf '[Service]\nExecStart=\nExecStart=%s digisonde %s/.config/chirpsounder2/thule.json\n' "$binary" "$HOME" > "$HOME/.config/systemd/user/iono-digisonde@thule.service.d/executable.conf"
+fi
 systemctl --user daemon-reload
 systemctl --user enable --now iono-digisonde@thule.service
 systemctl --user show iono-digisonde@thule.service -p ActiveState -p MainPID -p CPUQuotaPerSecUSec
