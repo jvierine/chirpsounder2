@@ -281,3 +281,10 @@ from transmitter emission timing and propagation range gates. See
 sign convention, nominal station profiles, HDF5 metadata and `iono-delay`
 diagnostics. Nominal profiles preserve existing timing and do not claim a
 measured hardware calibration.
+
+### Inspect one stored ionogram
+
+`iono-plots ionogram INPUT.h5 OUTPUT.png` renders the ordinary-mode ionogram
+with the station's Rustplotlib renderer, without scanning directories or
+uploading. It accepts sparse or dense native HDF5 observations. Missing cells
+remain blank and the SNR display is 0–20 dB.

@@ -137,6 +137,19 @@ fn export(profiles: &[Profile], start: f64, end: f64, path: &Path) -> Result<()>
 }
 fn main() -> Result<()> {
     let args: Vec<_> = std::env::args().collect();
+    // Bounded offline inspection of one stored observation, with the same
+    // scientific renderer used by the station pipeline. No scan or upload.
+    if args.get(1).is_some_and(|s| s == "ionogram") {
+        ensure!(args.len() == 4, "usage: iono-plots ionogram INPUT.h5 OUTPUT.png");
+        let grids = iono_core::read_products(Path::new(&args[2]))?;
+        let g = grids.iter().find(|g| g.mode != "X")
+            .context("observation has no ordinary-mode ionogram")?;
+        ensure!(["digisonde", "prn", "lfm"].contains(&g.kind.as_str()), "input is not an ionogram");
+        let output = Path::new(&args[3]);
+        let parent = output.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new("."));
+        fs::create_dir_all(parent)?;
+        return render::ionogram(g, &g.station, &parent.join(".iono-plot-cache"), output);
+    }
     let config = args
         .get(1)
         .context("usage: iono-plots CONFIG.json [--once] [--no-upload] [--only-rti]")?;

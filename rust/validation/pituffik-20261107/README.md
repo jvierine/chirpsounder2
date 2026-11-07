@@ -32,3 +32,44 @@ withheld. A running worker or a geometric range gate does not establish source
 identity. Further coordinated timing observations can refine the source epoch.
 
 Deployment and live reception checks follow below.
+
+The offline `iono-plots ionogram INPUT.h5 OUTPUT.png` command renders one
+retained ordinary-mode observation using the production Rustplotlib renderer.
+It performs no directory scan, upload or receiver configuration change.
+The initial DOB, TGO and W2NAF figures are included here. DOB shows clear
+curved traces around 4.4–4.8 Mm; TGO is weaker, near the low gate edge. These
+are evidence of decoded ionospheric signals, not proof that every echo belongs
+to THJ76. Some secondary traces are one physical PRI apart.
+
+First sounding: 15:07:30 UTC; completed at 15:11:22 UTC. DOB's compressed
+sparse HDF5 is 330993 bytes (58274 retained cells of 1440000); its added
+single-mode browser publication was approximately 109 KiB. W2NAF's source
+HDF5 is 816822 bytes. Raw wideband data stayed on the receiver PCs.
+
+KHO's first two attempts tried to read ahead of its recorder flush, so its
+profile was corrected to the same 10 s grace as its established Ramfjordmoen
+receiver. The 15:15 observation was resumed from the retained ringbuffer.
+Only the added Thule instance was restarted. Existing receiver timing profiles
+and acquisition processes were unchanged by this deployment.
+
+All four added services are enabled at boot, restart on failure, have a
+one-core ceiling, Nice=10 and low CPU weight. W2NAF uses a dedicated
+`iono-receiver-thule` executable (source revision 883c762, SHA-256
+5ae10a621bba63afdb0545b3af612f3099223df702a02ccfb699879005835d8e),
+preserving the established Millstone and global workers. Native configs pass
+validation and the delay helper tests pass. GUI server tests also verify that
+THJ76 diagnostics remain available while quantitative limits are withheld.
+
+The public API exposes THJ76 with the Pituffik/Thule provisional name and its
+position, enabling the great-circle map and diagnostic click-through. Source
+identity, source transmit delay and physical-PRI unwrapping remain provisional.
+
+KHO completed the recovered 15:15:00 UTC observation at 15:19:01 UTC and
+published a 607304-byte sparse HDF5 product. Its permanent worker is running
+with the corrected grace; the temporary duplicate replay unit was stopped.
+The standalone Rustplotlib KHO rendering is included with the observation.
+
+The Mac was locked during delivery, preventing actual Chrome render/click
+inspection. Server/API delivery, commissioning flags, native product content
+and the exact offline Rustplotlib images were checked separately. This is not
+a claim of completed browser visual acceptance.

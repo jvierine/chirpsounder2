@@ -164,6 +164,30 @@
       "path": "TGO/iono-prn/Montelibretti.json",
       "sha256": "6429b7a8d729b70ae89c02d67dfb17a9510ab010eed160ea1097060af6b8fb8e",
       "deployed_utc": "2026-11-06T21:25:45Z"
+    },
+    {
+      "path": "TGO/thule.json",
+      "sha256": "5bfd1044d074e1653a9ba45ce86b450e55f94e5b4465d91300b7ffa3b27a1890",
+      "deployed_utc": "2026-11-07T15:11:34.143039+00:00",
+      "activation": "reboot-persistent iono-digisonde@thule.service; provisional THJ76 association"
+    },
+    {
+      "path": "DOB/thule.json",
+      "sha256": "877c2bc3187afe589ad7fa3ef47e411d62e529eb001af290dbc16ea627ec1c08",
+      "deployed_utc": "2026-11-07T15:11:34.143763+00:00",
+      "activation": "reboot-persistent iono-digisonde@thule.service; provisional THJ76 association"
+    },
+    {
+      "path": "KHO/thule.json",
+      "sha256": "cac81008ea76dc5d49aba453d2c489b0628cee02df866c2fba50a2fec9be399d",
+      "deployed_utc": "2026-11-07T15:11:34.144191+00:00",
+      "activation": "reboot-persistent iono-digisonde@thule.service; provisional THJ76 association"
+    },
+    {
+      "path": "W2NAF/thule.json",
+      "sha256": "0c3d6ebd935cce6ca099a716ab5fd2984257b4c9501c5672d0a4948ee4399594",
+      "deployed_utc": "2026-11-07T15:11:34.144398+00:00",
+      "activation": "reboot-persistent iono-digisonde@thule.service; provisional THJ76 association"
     }
   ],
   "updated_utc": "2026-11-06T17:13:30.044564+00:00",
