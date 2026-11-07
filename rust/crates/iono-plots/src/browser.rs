@@ -185,7 +185,7 @@ fn rti(
             start,
             256,
             [0., 25.],
-            [lo as f32, hi as f32],
+            [yr[0] as f32, yr[1] as f32],
             "Virtual range (km)",
             by_freq,
         ),
