@@ -11,6 +11,13 @@ ambiguity. Its median range residual was about 1.6 km. This establishes a
 Millstone alias in that view; it does not identify the separate weak branch or
 the DOB screenshot's source.
 
+The retained simultaneous 15:15 UTC products are in `millstone-alias/`.
+Comparing independently strongest O-channel peaks below 9 MHz with both SNRs
+at least 13 dB gives 74 frequency pairs: 63 agree within 15 km after integer
+10 ms unwrapping, with median absolute residual 1.63 km. Range is the stored
+`ranges` axis plus `offset_us` times the speed of light. This comparison uses
+decoded echoes, not a fitted correction to receiver clocks.
+
 Four receivers (DOB, TGO, KHO and W2NAF) recorded coordinated, bounded 100 ksample/s
 complex32 IQ. No acquisition or receiver-clock correction was changed. The
 production decoder and provisional source labels remain unchanged.
