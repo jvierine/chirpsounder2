@@ -19,6 +19,6 @@
   "transmit_delay_us": 0,
   "snr_threshold_db": 3,
   "rfi_clip_ratio": 6,
-  "writer_grace_s": 1,
+  "writer_grace_s": 10.0,
   "range_reference": "Pituffik/Thule THJ76 GIRO 16829/13415 nominal 450 s epoch; 1888.3 km great-circle path; geometric/virtual-height proxy 1700..2900 km sets read-window start. Fixed station clock; transmitter delay uncalibrated; Millstone shares program, source association provisional."
 }
