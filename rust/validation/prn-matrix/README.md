@@ -60,3 +60,24 @@ voltage was transferred. The original receiver clock and five-sample shift
 are unchanged. Range-Doppler follows the complex least-squares solution
 across complete code repetitions; sparse ionograms retain maximum Doppler
 SNR, rather than publishing a dense range-Doppler cube.
+
+## Rollout checks
+
+On 2026-11-07 all seven long-code PRN units were restarted and observed
+active: Kiruna/Montelibretti at TGO and KHO, and Kiruna/Uppsala/Montelibretti
+at DOB. New TGO/KHO HDF5 records identify `cached-inverse` explicitly;
+DOB logs show newly completed sweeps and the public catalogue shows its
+revised Swedish ranges. Montelibretti's first new DOB sweep completed at
+07:29 UTC. Live memory snapshots were approximately 50–62 MB per observed
+Montelibretti process, one thread, with station-local OpenBLAS loaded.
+The actual TGO RTI and KHO ionogram were inspected in the deployed browser;
+the latter contained very few accepted echoes at that time. Successful
+numerical validation is not evidence of a detectable propagation path.
+
+OpenBLAS was installed on TGO, KHO, DOB and W2NAF. KREA's administrative
+reverse tunnel was unavailable, so installation there remains pending.
+W2NAF has no configured long-code PRN units. DOB manual deployment traffic
+was limited to 16 KiB/s, and its browser worker retained `--no-upload` with
+the existing independent delta publisher. No recorder or UHD service was
+restarted. Both source/configuration changes and the GUI reader pin were
+pushed to their existing branches; chirpsounder2 master was updated too.
