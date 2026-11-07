@@ -2,7 +2,8 @@
 use anyhow::{ensure, Context, Result};
 use hdf5::File;
 use rustplotlib::{
-    Axes, Figure, IntendedUse, Layer, Legend, LegendEntry, LegendPosition, Line, Panel, Rect,
+    ArticleLayout, Axes, Figure, IntendedUse, Layer, Legend, LegendEntry, LegendPosition, Line,
+    Panel, Rect,
 };
 fn main() -> Result<()> {
     let a: Vec<_> = std::env::args().collect();
@@ -26,11 +27,20 @@ fn main() -> Result<()> {
         .iter()
         .copied()
         .fold(0f32, f32::max);
-    let mut fig = Figure::new(IntendedUse::Custom {
-        width_mm: 200.,
-        font_pt: 13.,
-    });
-    fig.height_mm = 105.;
+    let article = std::path::Path::new(&a[2])
+        .extension()
+        .is_some_and(|e| e == "pdf");
+    let mut fig = if article {
+        ArticleLayout::new(179.324, 10.95)?.figure(1., 82.)?
+    } else {
+        Figure::new(IntendedUse::Custom {
+            width_mm: 200.,
+            font_pt: 13.,
+        })
+    };
+    if !article {
+        fig.height_mm = 105.;
+    }
     fig.raster_dpi = 150.;
     fig.latex.cache = std::path::Path::new(&a[2])
         .parent()
@@ -44,7 +54,14 @@ fn main() -> Result<()> {
     );
     ax.xticks = vec![-80., -40., 0., 40., 80.];
     ax.yticks = vec![-30., -20., -10., 0.];
-    let mut panel = Panel::new(Rect::new(23., 6., 169., 77.), ax);
+    let mut panel = Panel::new(
+        if article {
+            Rect::new(22., 3., 150., 60.)
+        } else {
+            Rect::new(23., 6., 169., 77.)
+        },
+        ax,
+    );
     for (m, color) in [(wrong, "#b34a35"), (right, "#16718b")] {
         let points: Vec<_> = (0..1000)
             .map(|i| {
@@ -63,6 +80,14 @@ fn main() -> Result<()> {
     legend.position = LegendPosition::LowerRight;
     panel.legend = Some(legend);
     fig.panels.push(panel);
-    fig.save(&a[2])?;
+    if article {
+        let name = std::path::Path::new(&a[2])
+            .file_name()
+            .unwrap()
+            .to_string_lossy();
+        fig.save_for_article(&a[2], &format!("figures/{name}"))?;
+    } else {
+        fig.save(&a[2])?;
+    }
     Ok(())
 }

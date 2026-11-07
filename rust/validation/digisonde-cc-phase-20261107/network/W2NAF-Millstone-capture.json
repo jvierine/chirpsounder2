@@ -1,0 +1,17 @@
+{
+  "data_dir": "/mnt/ramdisk/hf25",
+  "output_dir": "/home/hamsci/data/digisonde-commission/cc-origin-W2NAF-Millstone",
+  "channel": "ch0",
+  "doppler_search_hz": 0,
+  "ipp_candidates_us": [
+    10000
+  ],
+  "fine_frequency_count": 2,
+  "multiplex_blocks": [
+    4
+  ],
+  "polarization_orders": [
+    false
+  ],
+  "save_iq": true
+}
