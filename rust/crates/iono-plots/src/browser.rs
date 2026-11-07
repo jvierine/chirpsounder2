@@ -492,6 +492,120 @@ pub fn export_latest(
     iono_browser::write_transport(path, &mut bundle)?;
     Ok(n)
 }
+/// Keep every sounder within the transport budget. Reduce only paired RTI
+/// range pixels; the frequency of each merged cell follows its strongest SNR.
+/// Native observations, time sampling and frequency coverage remain untouched.
+fn fit_range_budget(products: &mut [Product], budget: usize) -> Result<usize> {
+    let cells = |p: &Product| {
+        p.grid
+            .nx
+            .checked_mul(p.grid.ny)
+            .ok_or_else(|| anyhow::anyhow!("display shape overflow"))
+    };
+    let total = products.iter().try_fold(0usize, |n, p| {
+        n.checked_add(cells(p)?)
+            .ok_or_else(|| anyhow::anyhow!("display budget overflow"))
+    })?;
+    if total <= budget {
+        return Ok(0);
+    }
+    let mut pairs = Vec::new();
+    let mut adjustable = 0usize;
+    let mut minimum = 0usize;
+    for (i, p) in products
+        .iter()
+        .enumerate()
+        .filter(|(_, p)| p.grid.kind == "rti" && p.quantity == "snr")
+    {
+        let g = &p.grid;
+        let j = products
+            .iter()
+            .position(|q| {
+                q.grid.kind == "rti"
+                    && q.quantity == "peak-frequency"
+                    && q.grid.station == g.station
+                    && q.grid.transmitter == g.transmitter
+                    && q.grid.mode == g.mode
+                    && q.grid.timestamp == g.timestamp
+            })
+            .ok_or_else(|| anyhow::anyhow!("missing paired RTI frequency raster"))?;
+        let q = &products[j].grid;
+        anyhow::ensure!(
+            g.nx == q.nx
+                && g.ny == q.ny
+                && g.x == q.x
+                && g.y == q.y
+                && g.values.len() == cells(p)?
+                && q.values.len() == cells(&products[j])?,
+            "inconsistent RTI pair"
+        );
+        adjustable += 2 * cells(p)?;
+        minimum += 4 * g.nx;
+        pairs.push((i, j));
+    }
+    let fixed = total - adjustable;
+    let available = budget
+        .checked_sub(fixed)
+        .ok_or_else(|| anyhow::anyhow!("non-RTI arrays exceed display budget"))?;
+    anyhow::ensure!(
+        available >= minimum,
+        "insufficient display budget for all sounders"
+    );
+    let mut changed = 0;
+    for (i, j) in pairs {
+        let old_ny = products[i].grid.ny;
+        let ny =
+            ((old_ny as u128 * available as u128 / adjustable as u128) as usize).clamp(2, old_ny);
+        if ny == old_ny {
+            continue;
+        }
+        let (snr, freq) = if i < j {
+            let (a, b) = products.split_at_mut(j);
+            (&mut a[i], &mut b[0])
+        } else {
+            let (a, b) = products.split_at_mut(i);
+            (&mut b[0], &mut a[j])
+        };
+        let nx = snr.grid.nx;
+        let old_snr = std::mem::take(&mut snr.grid.values);
+        let old_freq = std::mem::take(&mut freq.grid.values);
+        let mut values = vec![f32::NAN; nx * ny];
+        let mut frequencies = values.clone();
+        let mut y = Vec::with_capacity(ny);
+        for row in 0..ny {
+            let first = row * old_ny / ny;
+            let end = (row + 1) * old_ny / ny;
+            y.push((snr.grid.y[first] + snr.grid.y[end - 1]) / 2.);
+            for x in 0..nx {
+                let k = row * nx + x;
+                for source in first..end {
+                    let index = source * nx + x;
+                    let v = old_snr[index];
+                    if v.is_finite() && (!values[k].is_finite() || v > values[k]) {
+                        values[k] = v;
+                        frequencies[k] = old_freq[index];
+                    }
+                }
+            }
+        }
+        snr.grid.ny = ny;
+        freq.grid.ny = ny;
+        snr.grid.y = y.clone();
+        freq.grid.y = y;
+        snr.grid.values = values;
+        freq.grid.values = frequencies;
+        changed += 1;
+    }
+    let reduced = products
+        .iter()
+        .map(|p| p.grid.nx * p.grid.ny)
+        .sum::<usize>();
+    anyhow::ensure!(
+        reduced <= budget,
+        "display reduction did not meet aggregate budget"
+    );
+    Ok(changed)
+}
 pub fn export(
     catalog: &Catalog,
     station: &str,
@@ -537,6 +651,10 @@ pub fn export(
     let now = chrono::Utc::now().timestamp() as f64;
     if (now / 86400.).floor() * 86400. == start {
         products.extend(crate::link_history::prepare(catalog, station, now)?);
+    }
+    let reduced = fit_range_budget(&mut products, iono_browser::MAX_TOTAL_CELLS)?;
+    if reduced > 0 {
+        eprintln!("adapted range display resolution for {reduced} sounders; all products retained");
     }
     let mut bundle = Bundle {
         schema: SCHEMA.into(),
@@ -697,6 +815,87 @@ pub fn acquisition_health(
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn budget_pair(tx: &str) -> Vec<Product> {
+        vec![
+            grid(
+                "DOB",
+                tx,
+                "rti",
+                "snr",
+                "greys",
+                0.,
+                8,
+                [0., 800.],
+                [0., 20.],
+                "SNR",
+                vec![f32::NAN; NT * 8],
+            ),
+            grid(
+                "DOB",
+                tx,
+                "rti",
+                "peak-frequency",
+                "turbo",
+                0.,
+                8,
+                [0., 800.],
+                [0., 25.],
+                "Frequency",
+                vec![f32::NAN; NT * 8],
+            ),
+        ]
+    }
+    #[test]
+    fn display_reduction_keeps_strong_echo_frequency_and_true_gaps() {
+        let mut p = budget_pair("test");
+        p[0].grid.values[0] = 10.;
+        p[1].grid.values[0] = 5.;
+        p[0].grid.values[NT] = 9.;
+        p[1].grid.values[NT] = 20.;
+        p[0].grid.values[5 * NT + 2] = 12.;
+        p[1].grid.values[5 * NT + 2] = 9.;
+        assert_eq!(fit_range_budget(&mut p, NT * 8).unwrap(), 1);
+        assert_eq!(p[0].grid.ny, 4);
+        assert_eq!(p[1].grid.ny, 4);
+        assert_eq!(p[0].grid.values[0], 10.);
+        assert_eq!(p[1].grid.values[0], 5.);
+        assert_eq!(p[0].grid.values[2 * NT + 2], 12.);
+        assert_eq!(p[1].grid.values[2 * NT + 2], 9.);
+        assert!((0..4).all(
+            |y| p[0].grid.values[y * NT + 1].is_nan() && p[1].grid.values[y * NT + 1].is_nan()
+        ));
+        assert!(p[0].grid.y.windows(2).all(|y| y[1] > y[0]));
+    }
+    #[test]
+    fn adding_a_thirteenth_sounder_reduces_display_rows_without_dropping_paths() {
+        let mut p: Vec<_> = (0..13)
+            .flat_map(|n| budget_pair(&format!("source{n}")))
+            .collect();
+        // Twelve full-sized paired rasters fit; the thirteenth used to fail.
+        let limit = 12 * 2 * NT * 8;
+        assert_eq!(fit_range_budget(&mut p, limit).unwrap(), 13);
+        assert_eq!(p.len(), 26);
+        assert_eq!(
+            p.iter().map(|p| p.grid.nx * p.grid.ny).sum::<usize>() <= limit,
+            true
+        );
+        for n in 0..13 {
+            assert_eq!(
+                p.iter()
+                    .filter(|p| p.grid.transmitter == format!("source{n}"))
+                    .count(),
+                2
+            );
+        }
+        assert!(p.iter().all(|p| p.grid.nx == NT));
+    }
+    #[test]
+    fn impossible_budget_is_explicit_and_small_bundles_keep_native_display_resolution() {
+        let mut p = budget_pair("test");
+        assert_eq!(fit_range_budget(&mut p, NT * 16).unwrap(), 0);
+        assert_eq!(p[0].grid.ny, 8);
+        assert!(fit_range_budget(&mut p, NT * 3).is_err());
+    }
     #[test]
     fn interference_spectrum_preserves_persistent_power_and_averages_linearly() {
         let rows = [Profile {
