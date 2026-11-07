@@ -37,9 +37,10 @@ while true; do
       fingerprint=$(stat -c '%s:%Y:%i' "$source")
       if [[ -f "$snapshot" || "$fingerprint" != "$last_bulk" ]]; then
         if [[ ! -f "$snapshot" ]]; then ln "$source" "$snapshot" 2>/dev/null || cp "$source" "$snapshot"; fi
-        # Allow useful progress through reconnects on constrained station links,
-        # while returning to priority ionograms at least every two minutes.
-        if transfer 120 "$snapshot"; then
+        # Ordinary deltas finish quickly. Allow a large changed range grid to
+        # finish too: repeatedly interrupting it wastes the limited link.
+        # Latest ionograms retain first priority at every slot boundary.
+        if transfer 600 "$snapshot"; then
           last_bulk=$(stat -c '%s:%Y:%i' "$snapshot");rm -f "$snapshot"
           echo "Bulk history published for $station" >&2
         fi
