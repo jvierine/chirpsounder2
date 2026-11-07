@@ -19,6 +19,7 @@ pub mod receiver_timing;
 pub mod simd;
 pub const C: f64 = 299_792_458.;
 pub mod lfm_geolocation;
+pub mod processing_health;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Grid {
     pub id: String,

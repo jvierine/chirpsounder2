@@ -448,7 +448,13 @@ fn compare_recent(c: &Config, p: &Program, path: &Path) -> Result<()> {
     );
     Ok(())
 }
-fn run(c: &Config, p: &Program, cycle: f64, ready_only: bool) -> Result<()> {
+fn run(
+    c: &Config,
+    p: &Program,
+    cycle: f64,
+    ready_only: bool,
+    capacity: &mut iono_core::processing_health::Monitor,
+) -> Result<()> {
     let mut r = reader(c)?;
     let bounds = r.bounds(&c.channel)?.context("no recorded voltage")?;
     let nr = ((c.range_max_km - c.range_min_km) * 1000. / C * 100000.).ceil() as usize + 1;
@@ -475,6 +481,9 @@ fn run(c: &Config, p: &Program, cycle: f64, ready_only: bool) -> Result<()> {
             continue;
         }
         if epoch_sample(start + c.range_min_km * 1000. / C)?.saturating_sub(1000) < bounds.0 {
+            if !ready_only {
+                capacity.missed(0, g.frequencies.len() as u64);
+            }
             eprintln!(
                 "{} group {gi}: voltage no longer retained",
                 SITES[g.site as usize]
@@ -483,6 +492,7 @@ fn run(c: &Config, p: &Program, cycle: f64, ready_only: bool) -> Result<()> {
         }
         wait(end.ceil() + c.writer_grace_s);
         let timer = Instant::now();
+        let cpu = iono_core::processing_health::Sample::capture();
         let mut accepted = 0;
         for (slot, &frequency) in g.frequencies.iter().enumerate() {
             let j = o
@@ -521,6 +531,11 @@ fn run(c: &Config, p: &Program, cycle: f64, ready_only: bool) -> Result<()> {
                 }
             }
         }
+        capacity.finished(
+            cpu,
+            timer.elapsed().as_secs_f64(),
+            g.duration_samples as f64 / RATE as f64,
+        );
         if o.complete.iter().any(|x| *x != 0) {
             let path = o.save(c, p, cycle)?;
             eprintln!(
@@ -672,8 +687,10 @@ fn main() -> Result<()> {
         simd::backend(),
         p.sha256
     );
+    let mut capacity =
+        iono_core::processing_health::Monitor::new("verso", explicit.is_none() && !once && !ready);
     loop {
-        if let Err(e) = run(&c, &p, cycle, ready) {
+        if let Err(e) = run(&c, &p, cycle, ready, &mut capacity) {
             if once {
                 return Err(e);
             }
@@ -684,7 +701,10 @@ fn main() -> Result<()> {
         }
         cycle += 240.;
         if cycle + 240. < now() {
-            cycle = 235. + ((now() - 235.) / 240.).floor() * 240.;
+            let next = 235. + ((now() - 235.) / 240.).floor() * 240.;
+            let sites = if c.sites.is_empty() { 4 } else { c.sites.len() };
+            capacity.missed(((next - cycle) / 240.) as u64 * sites as u64, 0);
+            cycle = next;
         }
         wait(cycle + 0.1);
     }

@@ -545,6 +545,10 @@ fn main() -> Result<()> {
     let mut epoch = explicit.unwrap_or_else(|| {
         c.start_offset_s + ((now() - c.start_offset_s) / c.period_s).floor() * c.period_s
     });
+    let mut capacity = iono_core::processing_health::Monitor::new(
+        &format!("prn-{}", c.transmitter),
+        explicit.is_none() && !once,
+    );
     loop {
         let mut snr = vec![f32::NAN; nr * c.frequencies_hz.len()];
         let mut completed = vec![0u8; c.frequencies_hz.len()];
@@ -563,18 +567,24 @@ fn main() -> Result<()> {
         }
         let mut r = None;
         for f in 0..c.frequencies_hz.len() {
+            if completed[f] != 0 {
+                continue;
+            }
             let end = epoch + (f + 1) as f64 * c.dwell_s;
             if explicit.is_none() && now() - end > c.writer_grace_s + 8. {
+                capacity.missed(0, 1);
                 continue;
             }
             wait(end.ceil() + c.writer_grace_s);
             let timer = Instant::now();
+            let cpu = iono_core::processing_health::Sample::capture();
             let result = (|| {
                 if r.is_none() {
                     r = Some(reader(&c)?);
                 }
                 column(&c, r.as_mut().unwrap(), epoch, f, &mut bank)
             })();
+            capacity.finished(cpu, timer.elapsed().as_secs_f64(), c.dwell_s);
             match result {
                 Ok((v, margin)) => {
                     snr[f * nr..(f + 1) * nr].copy_from_slice(&v);
@@ -611,8 +621,10 @@ fn main() -> Result<()> {
         }
         epoch += c.period_s;
         if now() > epoch + c.period_s {
-            epoch =
+            let next =
                 c.start_offset_s + ((now() - c.start_offset_s) / c.period_s).floor() * c.period_s;
+            capacity.missed(((next - epoch) / c.period_s) as u64, 0);
+            epoch = next;
         }
         wait(epoch + 0.25);
     }

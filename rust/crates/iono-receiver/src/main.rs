@@ -729,7 +729,18 @@ fn main() -> Result<()> {
             current + interval
         }
     });
+    let key = format!(
+        "{}-{}",
+        task,
+        Path::new(&args[2])
+            .file_stem()
+            .unwrap_or_default()
+            .to_string_lossy()
+    );
+    let mut capacity = iono_core::processing_health::Monitor::new(&key, start.is_none() && !once);
     loop {
+        let cpu = iono_core::processing_health::Sample::capture();
+        let processing = std::time::Instant::now();
         let result = match task {
             "digisonde" if c.sounding_active(t) => digisonde(&c, t),
             "digisonde" => Ok(()),
@@ -737,6 +748,7 @@ fn main() -> Result<()> {
             "lfm" => lfm::run(&c, t),
             _ => anyhow::bail!("unknown task {task}"),
         };
+        capacity.finished(cpu, processing.elapsed().as_secs_f64(), interval);
         if once {
             return result;
         }
@@ -745,7 +757,14 @@ fn main() -> Result<()> {
         };
         t += interval;
         if t + interval < now() {
-            t = schedule_offset + ((now() - schedule_offset) / interval).floor() * interval;
+            let next = schedule_offset + ((now() - schedule_offset) / interval).floor() * interval;
+            if task != "spectrum" {
+                let missed = (0..((next - t) / interval) as usize)
+                    .filter(|n| task != "digisonde" || c.sounding_active(t + *n as f64 * interval))
+                    .count();
+                capacity.missed(missed as u64, 0);
+            }
+            t = next;
         }
         // Missing recorder metadata can fail before spectrum() reaches its
         // first read. Every task must still wait for the next scheduled epoch;

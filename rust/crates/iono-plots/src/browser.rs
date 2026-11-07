@@ -631,7 +631,7 @@ pub fn health(previous: &mut Option<(u64, u64)>) -> serde_json::Value {
             }
         }
     }
-    serde_json::json!({"time":chrono::Utc::now().timestamp(),"cpu_percent":percent,"load_average":load,"logical_cpus":logical_cpus,"memory":memory,"temperatures":temperatures})
+    serde_json::json!({"time":chrono::Utc::now().timestamp(),"cpu_percent":percent,"load_average":load,"logical_cpus":logical_cpus,"memory":memory,"temperatures":temperatures,"processing":iono_core::processing_health::summary()})
 }
 pub fn acquisition_health(
     health: &mut serde_json::Value,
