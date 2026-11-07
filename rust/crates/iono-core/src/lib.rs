@@ -617,3 +617,6 @@ mod sparse_tests {
         std::fs::remove_file(path).unwrap();
     }
 }
+
+#[cfg(feature = "dsp")]
+pub mod digisonde_iq;
