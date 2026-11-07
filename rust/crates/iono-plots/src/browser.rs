@@ -571,20 +571,22 @@ fn fit_range_budget(products: &mut [Product], budget: usize) -> Result<usize> {
         let old_freq = std::mem::take(&mut freq.grid.values);
         let mut values = vec![f32::NAN; nx * ny];
         let mut frequencies = values.clone();
-        let mut y = Vec::with_capacity(ny);
-        for row in 0..ny {
-            let first = row * old_ny / ny;
-            let end = (row + 1) * old_ny / ny;
-            y.push((snr.grid.y[first] + snr.grid.y[end - 1]) / 2.);
+        // Renderers use a uniform raster spacing. Preserve the original cell
+        // edges, rather than introducing alternating row widths when the
+        // reduction ratio is not an integer.
+        let old_step = (snr.grid.y[old_ny - 1] - snr.grid.y[0]) / (old_ny - 1) as f64;
+        let origin = snr.grid.y[0] - old_step / 2.;
+        let step = old_step * old_ny as f64 / ny as f64;
+        let y: Vec<_> = (0..ny).map(|row| origin + (row as f64 + 0.5) * step).collect();
+        for source in 0..old_ny {
+            let row = (((snr.grid.y[source] - origin) / step).floor() as usize).min(ny - 1);
             for x in 0..nx {
                 let k = row * nx + x;
-                for source in first..end {
-                    let index = source * nx + x;
-                    let v = old_snr[index];
-                    if v.is_finite() && (!values[k].is_finite() || v > values[k]) {
-                        values[k] = v;
-                        frequencies[k] = old_freq[index];
-                    }
+                let index = source * nx + x;
+                let v = old_snr[index];
+                if v.is_finite() && (!values[k].is_finite() || v > values[k]) {
+                    values[k] = v;
+                    frequencies[k] = old_freq[index];
                 }
             }
         }
@@ -865,6 +867,19 @@ mod tests {
             |y| p[0].grid.values[y * NT + 1].is_nan() && p[1].grid.values[y * NT + 1].is_nan()
         ));
         assert!(p[0].grid.y.windows(2).all(|y| y[1] > y[0]));
+    }
+    #[test]
+    fn noninteger_reduction_keeps_uniform_cell_edges() {
+        let mut p = budget_pair("test");
+        let original = p[0].grid.y.clone();
+        assert_eq!(fit_range_budget(&mut p, NT * 14).unwrap(), 1);
+        let g = &p[0].grid;
+        assert_eq!(g.ny, 7);
+        let dy = g.y[1] - g.y[0];
+        assert!(g.y.windows(2).all(|v| ((v[1] - v[0]) - dy).abs() < 1e-10));
+        let old_dy = original[1] - original[0];
+        assert!((g.y[0] - dy / 2. - (original[0] - old_dy / 2.)).abs() < 1e-10);
+        assert!((g.y[g.ny - 1] + dy / 2. - (original[7] + old_dy / 2.)).abs() < 1e-10);
     }
     #[test]
     fn adding_a_thirteenth_sounder_reduces_display_rows_without_dropping_paths() {
