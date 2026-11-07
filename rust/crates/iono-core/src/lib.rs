@@ -10,6 +10,8 @@ pub mod digisonde_search;
 #[cfg(feature = "dsp")]
 pub mod prn;
 #[cfg(feature = "dsp")]
+pub mod prn_matrix;
+#[cfg(feature = "dsp")]
 pub mod pulsed;
 #[cfg(feature = "dsp")]
 pub mod receiver_timing;
@@ -221,6 +223,8 @@ pub fn read_products(path: &Path) -> Result<Vec<Grid>> {
     );
     let decoder = text(&h, "decoder", "");
     let prn = decoder.starts_with("complex64-fft-matched")
+        || decoder.starts_with("complex64-fft-inverse-normal-matrix-")
+        || decoder.starts_with("complex64-fft-factor-normal-matrix-")
         || decoder.starts_with("complex64-finite-regularized-inverse-verso-");
     if prn && !h.link_exists("code_identity_margin_db") {
         // Early commissioning products lack the seed-discrimination control.
@@ -516,6 +520,8 @@ mod sparse_tests {
     fn prn_cross_code_rejection_changes_display_but_preserves_source() {
         for tag in [
             "complex64-fft-matched-filter-doppler-v1",
+            "complex64-fft-inverse-normal-matrix-least-squares-doppler-v1",
+            "complex64-fft-factor-normal-matrix-least-squares-doppler-v1",
             "complex64-finite-regularized-inverse-verso-v3",
         ] {
             let path = std::env::temp_dir().join(format!("iono-prn-{}.h5", std::process::id()));

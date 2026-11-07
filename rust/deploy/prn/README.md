@@ -101,10 +101,24 @@ these kernel timings are not an end-to-end receiver speedup measurement.
 The channelizer mixes/averages by ten, then applies a centered 191-tap FIR
 and decimates by 25. Reads include actual overlap; missing voltage rejects
 the frequency dwell. First/last code periods are transition guards and are
-not read from incomplete future recorder files. FFT matched filtering and
-a slow-time Doppler FFT replace the old dense estimation matrix. This is a
-matched filter, **not** a claim of least-squares equivalence; it retains code
-sidelobes. The per-Doppler power-median floor includes noise and interference.
+not read from incomplete future recorder files. Production configurations select `estimator: least-squares` and
+`least_squares_solver: cached-inverse`. At startup, form the finite-range
+normal matrix and cache its complex64 inverse using OpenBLAS LAPACK.
+For each code repetition, FFT correlation computes A^H z; the cached inverse
+multiplies the selected range interval. Multiple repetitions use one BLAS
+matrix multiply. This computes the original finite-range least-squares x,
+without storing the much larger inverse-normal-matrix times A^H operator.
+Caches and FFT plans persist across frequency dwells, with explicit bounds
+of 160 MiB and 2048 range bins. No matched-filter fallback hides a singular
+normal matrix. `matched-filter` remains available for explicit comparisons.
+
+After solving each full code repetition, the complex range samples undergo
+a slow-time Doppler FFT at each range. The sampling interval is the full code
+period (0.1 s for these programs), not the internal transmit pulse IPP.
+The published sparse ionogram retains maximum Doppler SNR at each cell;
+it is not a saved complete range–Doppler cube. The per-Doppler power-median
+floor includes noise and interference. See `../../validation/prn-matrix/`
+for numerical parity fixtures, receiver benchmarks and reproduction commands.
 
 Each dwell also correlates the same narrowband samples with the other known
 seeds. HDF5 retains the target-to-strongest-control peak-power
@@ -155,3 +169,25 @@ Useful follow-on experiments are regularized frequency-domain deconvolution
 for code sidelobes, robust narrowband interference weighting, joint fitting
 of simultaneous known codes, and measured group-delay calibration. Validate
 these against saved real HDF5 and negative controls before enabling them.
+
+## Physical range windows and fixed timing
+
+`iono-delay range-window POSITIONS.json TX RX OUTPUT.h5 [IONOGRAM.h5 ...]`
+combines great-circle distance, simple virtual-height path proxies and recent
+strong retained echoes to propose a range interval. It is a window diagnostic,
+not ray tracing or a hardware delay calibration. Inspect its HDF5 evidence
+before applying a proposal. Receiver clock corrections and the inherited
+five-sample range shift remain fixed; do not align individual observations
+by changing them. Receiver-local RTIs crop old profiles to the installed
+range window while preserving their original source arrays.
+
+Reviewed 2026-11-07 windows (km): TGO Kiruna 100–1100, Montelibretti
+2900–4700; KHO Kiruna 1000–2000, Montelibretti 3900–6100; DOB Kiruna
+700–1600, Uppsala 400–1300, Montelibretti 2100–3400. These are configurable
+reception gates, not measured limits of possible propagation.
+
+`deploy/openblas/install.sh` installs an official Ubuntu package into the
+receiver user's local prefix and selects one BLAS thread per worker. It does
+not replace system libraries. DOB must receive a prefetched package under
+its 16 KiB/s cap. W2NAF has the library ready but no long-code PRN workers;
+Finnish VERSO uses its separate aperiodic-code inverse receiver.

@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 [features]
 default = ["dsp"]
-dsp = ["dep:num-complex", "dep:rustfft"]
+dsp = ["dep:num-complex", "dep:rustfft", "dep:libloading"]
 
 [dependencies]
 anyhow.workspace = true
@@ -14,3 +14,4 @@ hdf5.workspace = true
 num-complex = { workspace = true, optional = true }
 rustfft = { workspace = true, optional = true }
 chrono.workspace = true
+libloading = { version = "0.8.9", optional = true }

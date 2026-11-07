@@ -6,6 +6,14 @@ receiver=${2:?path to built iono-prn}
 plots=${3:?path to built iono-plots}
 case "$station" in DOB|TGO|KHO) ;; *) exit 64;; esac
 root=$(cd -- "$(dirname -- "$0")/../.." && pwd)
+if [[ -n "${IONO_OPENBLAS_DEB:-}" ]]; then
+    bash "$root/deploy/openblas/install.sh" "$IONO_OPENBLAS_DEB"
+elif [[ -d "$HOME/.local/lib/iono-openblas/usr/lib" ]]; then
+    bash "$root/deploy/openblas/install.sh" --existing
+else
+    [[ "$station" != DOB ]] || { echo 'Prefetch OpenBLAS for DOB at <=16 KiB/s and set IONO_OPENBLAS_DEB.' >&2; exit 1; }
+    bash "$root/deploy/openblas/install.sh"
+fi
 for binary in "$receiver" "$plots"; do
     test -x "$binary"
     if ldd "$binary" | grep -q 'not found'; then echo "Missing runtime libraries: $binary" >&2; exit 1; fi

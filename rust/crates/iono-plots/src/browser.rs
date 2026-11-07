@@ -63,6 +63,21 @@ fn bin(v: f64, range: [f64; 2], n: usize) -> Option<usize> {
     let y = ((v - range[0]) / (range[1] - range[0]) * n as f64).floor();
     (y >= 0. && y < n as f64).then_some(y as usize)
 }
+fn configured_prn_window(station: &str, tx: &str) -> Option<[f64; 2]> {
+    if !tx.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') {
+        return None;
+    }
+    let path = std::path::PathBuf::from(std::env::var_os("HOME")?)
+        .join(".config/iono-prn")
+        .join(format!("{tx}.json"));
+    let c: serde_json::Value = serde_json::from_slice(&fs::read(path).ok()?).ok()?;
+    if c["station"] != station || c["transmitter"] != tx {
+        return None;
+    }
+    let lo = c["range_min_km"].as_f64()?;
+    let hi = c["range_max_km"].as_f64()?;
+    (lo.is_finite() && hi.is_finite() && lo >= 0. && hi > lo && hi <= 10000.).then_some([lo, hi])
+}
 fn rti(
     rows: &[Profile],
     frequency_rows: &[FrequencyProfile],
@@ -87,7 +102,9 @@ fn rti(
         / 100.)
         .ceil()
         * 100.;
-    let yr = [lo, hi.max(lo + 100.)];
+    // A new receiver window also applies to older displayed profiles. Preserve
+    // the original source arrays; do not let old broad axes expand this view.
+    let yr = configured_prn_window(station, tx).unwrap_or([lo, hi.max(lo + 100.)]);
     let ny = 512;
     let mut peak = vec![f32::NAN; NT * ny];
     let mut frequency = peak.clone();
@@ -120,7 +137,8 @@ fn rti(
             continue;
         };
         for (f, &v) in p.snr.iter().enumerate() {
-            if v.is_finite() && v >= iono_core::db(20.) {
+            if v.is_finite() && v >= iono_core::db(20.) && bin(p.range[f] as f64, yr, ny).is_some()
+            {
                 if let Some(y) = bin(p.frequency[f] as f64, [0., 25.], 256) {
                     let k = y * NT + x;
                     if !strength[k].is_finite() || v > strength[k] {

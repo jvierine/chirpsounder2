@@ -142,9 +142,9 @@ impl Channelizer {
     }
 }
 
-/// FFT matched correlation, then Doppler FFT across code periods. A bounded
-/// matched filter replaces the old gigabyte-scale dense estimation matrix.
-/// It retains PRN sidelobes; this is deliberately not labelled least squares.
+/// FFT correlation supplies A^H z. The matrix constructor applies the cached
+/// finite-window inverse normal matrix before Doppler estimation. The original
+/// `new` constructor remains explicitly matched filtering for comparison.
 pub struct Decoder {
     n: usize,
     kernel: Vec<Z>,
@@ -156,6 +156,12 @@ pub struct Decoder {
     filtered: Vec<Z>,
     decoded: Vec<Vec<Z>>,
     nr: usize,
+    first_lag: usize,
+    matrix: Option<MatrixEstimator>,
+}
+enum MatrixEstimator {
+    Inverse(crate::prn_matrix::Matrix),
+    Factor(crate::prn_matrix::Factor),
 }
 impl Decoder {
     pub fn new(code: &[Z], nr: usize) -> Result<Self> {
@@ -186,11 +192,41 @@ impl Decoder {
             filtered: vec![Z::default(); code.len()],
             decoded: vec![],
             nr,
+            first_lag: 0,
+            matrix: None,
         })
+    }
+    pub fn new_matrix(code: &[Z], first_lag: usize, nr: usize) -> Result<Self> {
+        let mut d = Self::new_window(code, first_lag, nr)?;
+        d.matrix = Some(MatrixEstimator::Inverse(
+            crate::prn_matrix::Factor::new(code, nr)?.inverse()?,
+        ));
+        Ok(d)
+    }
+    pub fn new_matrix_factor(code: &[Z], first_lag: usize, nr: usize) -> Result<Self> {
+        let mut d = Self::new_window(code, first_lag, nr)?;
+        d.matrix = Some(MatrixEstimator::Factor(crate::prn_matrix::Factor::new(
+            code, nr,
+        )?));
+        Ok(d)
+    }
+    pub fn new_window(code: &[Z], first_lag: usize, nr: usize) -> Result<Self> {
+        let mut d = Self::new(
+            code,
+            first_lag
+                .checked_add(nr)
+                .ok_or_else(|| anyhow::anyhow!("range overflow"))?,
+        )?;
+        d.nr = nr;
+        d.first_lag = first_lag;
+        Ok(d)
+    }
+    pub fn reset(&mut self) {
+        self.decoded.clear();
     }
     pub fn push(&mut self, input: &[Z]) -> Result<()> {
         self.prepare(input)?;
-        self.filter_work();
+        self.filter_work()?;
         Ok(())
     }
     /// Transform the received samples once for the target and all control codes.
@@ -206,9 +242,9 @@ impl Decoder {
         first.prepare(input)?;
         for control in controls {
             simd::multiply(&first.work, &control.kernel, &mut control.filtered);
-            control.save_filtered();
+            control.save_filtered()?;
         }
-        first.filter_work();
+        first.filter_work()?;
         Ok(())
     }
     /// Transition guards are exactly zero and discarded by the Doppler stage.
@@ -232,20 +268,20 @@ impl Decoder {
             .process_with_scratch(&mut self.work, &mut self.scratch);
         Ok(())
     }
-    fn filter_work(&mut self) {
+    fn filter_work(&mut self) -> Result<()> {
         simd::multiply(&self.work, &self.kernel, &mut self.filtered);
-        self.save_filtered();
+        self.save_filtered()
     }
-    fn save_filtered(&mut self) {
+    fn save_filtered(&mut self) -> Result<()> {
         self.ifft
             .process_with_scratch(&mut self.filtered, &mut self.scratch);
         let scale = 1. / (self.n as f32 * self.energy);
-        self.decoded.push(
-            self.filtered[..self.nr]
-                .iter()
-                .map(|z| *z * scale)
-                .collect(),
-        );
+        let profile: Vec<_> = self.filtered[self.first_lag..self.first_lag + self.nr]
+            .iter()
+            .map(|z| *z * scale)
+            .collect();
+        self.decoded.push(profile);
+        Ok(())
     }
     pub fn finish(&self) -> Result<Vec<f32>> {
         Ok(self.finish_with_score()?.0)
@@ -253,7 +289,49 @@ impl Decoder {
     /// Same energy normalization for every seed. Range-median-normalized SNR
     /// alone is unsuitable for code identification with sparse pulse trains.
     pub fn finish_with_score(&self) -> Result<(Vec<f32>, f32)> {
-        let nt = self.decoded.len();
+        let (matched_snr, score) = self.finish_profiles(&self.decoded)?;
+        // Code discrimination remains an equal-energy matched-code test. Do
+        // not compare different inverse-filter noise gains as code identity.
+        let snr = if self.matrix.is_some() {
+            self.finish_profiles(&self.range_estimates()?)?.0
+        } else {
+            matched_snr
+        };
+        Ok((snr, score))
+    }
+    /// Estimate all code periods together so BLAS can use GEMM. Transition
+    /// guards remain exactly zero and do not consume matrix multiplications.
+    pub fn range_estimates(&self) -> Result<Vec<Vec<Z>>> {
+        let Some(matrix) = &self.matrix else {
+            return Ok(self.decoded.clone());
+        };
+        let mut output = vec![vec![Z::default(); self.nr]; self.decoded.len()];
+        let first = self
+            .decoded
+            .iter()
+            .position(|v| v.iter().any(|z| *z != Z::default()));
+        let last = self
+            .decoded
+            .iter()
+            .rposition(|v| v.iter().any(|z| *z != Z::default()));
+        if let (Some(first), Some(last)) = (first, last) {
+            let rhs: Vec<_> = self.decoded[first..=last].concat();
+            let mut x = vec![Z::default(); rhs.len()];
+            match matrix {
+                MatrixEstimator::Inverse(m) => m.multiply(&rhs, &mut x)?,
+                MatrixEstimator::Factor(m) => {
+                    x.copy_from_slice(&rhs);
+                    m.solve_batch(&mut x)?;
+                }
+            }
+            for (to, from) in output[first..=last].iter_mut().zip(x.chunks_exact(self.nr)) {
+                to.copy_from_slice(from);
+            }
+        }
+        Ok(output)
+    }
+    fn finish_profiles(&self, profiles: &[Vec<Z>]) -> Result<(Vec<f32>, f32)> {
+        let nt = profiles.len();
         ensure!(nt >= 4, "at least four complete periods required");
         let fft = FftPlanner::new().plan_fft_forward(nt);
         let mut scratch = vec![Z::default(); fft.get_inplace_scratch_len()];
@@ -264,7 +342,7 @@ impl Decoder {
                 *v = if t == 0 || t == nt - 1 {
                     Z::default()
                 } else {
-                    self.decoded[t][r]
+                    profiles[t][r]
                 };
             }
             fft.process_with_scratch(&mut bins, &mut scratch);
@@ -290,6 +368,40 @@ impl Decoder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn finite_window_matches_original_python_cached_matrix() {
+        let h = hdf5::File::open(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/data/prn_matrix_parity.h5"),
+        )
+        .unwrap();
+        for name in h.member_names().unwrap() {
+            let g = h.group(&name).unwrap();
+            let read = |key: &str| {
+                g.dataset(key)
+                    .unwrap()
+                    .read_raw::<f32>()
+                    .unwrap()
+                    .chunks_exact(2)
+                    .map(|v| Z::new(v[0], v[1]))
+                    .collect::<Vec<_>>()
+            };
+            let code = read("code");
+            let input = read("input");
+            let expected = read("expected");
+            let first = g.dataset("first").unwrap().read_scalar::<i64>().unwrap() as usize;
+            let mut d = Decoder::new_matrix(&code, first, expected.len()).unwrap();
+            d.push(&input).unwrap();
+            let max = d.range_estimates().unwrap()[0]
+                .iter()
+                .zip(expected)
+                .map(|(a, b)| (*a - b).norm())
+                .fold(0f32, f32::max);
+            assert!(max < 3e-5, "Python matrix parity error {max}");
+            d.reset();
+            assert!(d.decoded.is_empty());
+        }
+    }
     #[test]
     fn shared_fft_preserves_delays_controls_and_transition_guards() {
         for pulse in [10, 400] {

@@ -266,8 +266,11 @@
   "period_s": 240.0,
   "start_offset_s": 0,
   "range_shift_samples": 5,
-  "range_max_km": 4500,
+  "range_max_km": 1300,
   "snr_threshold_db": 8,
   "retain_candidate_snr": false,
-  "configuration_reference": "irf_prn3_uppsala.ini; sha256:49b723d04bfb6adc3e6a1b9ccd13fc7c997944b6fd0059e2e57f8de610b2ab4f; schedule requires on-air verification"
+  "configuration_reference": "irf_prn3_uppsala.ini; sha256:49b723d04bfb6adc3e6a1b9ccd13fc7c997944b6fd0059e2e57f8de610b2ab4f; schedule requires on-air verification",
+  "estimator": "least-squares",
+  "least_squares_solver": "cached-inverse",
+  "range_min_km": 400.0
 }

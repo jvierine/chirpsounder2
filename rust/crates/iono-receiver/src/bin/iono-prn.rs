@@ -8,6 +8,7 @@ use iono_core::{
 use rdigital_rf::{CacheOptions, Reader};
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::BTreeMap,
     fs,
     path::{Path, PathBuf},
     thread,
@@ -42,6 +43,12 @@ struct Config {
     range_shift_samples: i64,
     range_max_km: f64,
     #[serde(default)]
+    range_min_km: f64,
+    #[serde(default = "matched_estimator")]
+    estimator: String,
+    #[serde(default = "default_solver")]
+    least_squares_solver: String,
+    #[serde(default)]
     configuration_reference: String,
     #[serde(default = "threshold")]
     snr_threshold_db: f32,
@@ -49,6 +56,20 @@ struct Config {
     retain_candidate_snr: bool,
     #[serde(default = "writer_grace")]
     writer_grace_s: f64,
+}
+fn matched_estimator() -> String {
+    "matched-filter".into()
+}
+fn default_solver() -> String {
+    "cached-inverse".into()
+}
+fn first_lag(c: &Config) -> usize {
+    if c.range_min_km == 0. {
+        0
+    } else {
+        ((c.range_min_km * 1000. / C * 100000.).ceil() as i64 + c.range_shift_samples).max(0)
+            as usize
+    }
 }
 fn writer_grace() -> f64 {
     0.25
@@ -136,6 +157,11 @@ fn validate(c: &Config) -> Result<()> {
     );
     ensure!(
         c.range_max_km.is_finite()
+            && c.range_min_km.is_finite()
+            && c.range_min_km >= 0.
+            && c.range_min_km < c.range_max_km
+            && ["matched-filter", "least-squares"].contains(&c.estimator.as_str())
+            && ["cached-inverse", "factor"].contains(&c.least_squares_solver.as_str())
             && c.range_max_km > 100.
             && c.range_max_km <= 10000.
             && c.range_shift_samples.abs() < 1000,
@@ -172,9 +198,33 @@ fn reader(c: &Config) -> Result<Reader> {
     r.set_cache_byte_limit(16 * 1024 * 1024)?;
     Ok(r)
 }
-fn column(c: &Config, r: &mut Reader, epoch: f64, f: usize, nr: usize) -> Result<(Vec<f32>, f32)> {
+fn make_decoders(c: &Config, index: usize, first: usize, nr: usize) -> Result<Vec<Decoder>> {
+    let code = &c.codes[index];
+    std::iter::once(code.seed)
+        .chain(code.control_seeds.iter().copied())
+        .enumerate()
+        .map(|(which, seed)| {
+            let waveform = prn::code(seed, code.length, code.pulse_length, code.ipp)?;
+            if c.estimator == "least-squares" && which == 0 {
+                if c.least_squares_solver == "factor" {
+                    Decoder::new_matrix_factor(&waveform, first, nr)
+                } else {
+                    Decoder::new_matrix(&waveform, first, nr)
+                }
+            } else {
+                Decoder::new_window(&waveform, first, nr)
+            }
+        })
+        .collect()
+}
+fn column(
+    c: &Config,
+    r: &mut Reader,
+    epoch: f64,
+    f: usize,
+    bank: &mut BTreeMap<usize, Vec<Decoder>>,
+) -> Result<(Vec<f32>, f32)> {
     let code = &c.codes[c.code_indices[f]];
-    let template = prn::code(code.seed, code.length, code.pulse_length, code.ipp)?;
     let frequency = c.frequencies_hz[f];
     // Do not label aliases outside the actual digitized RF band as measurements.
     ensure!(
@@ -182,17 +232,12 @@ fn column(c: &Config, r: &mut Reader, epoch: f64, f: usize, nr: usize) -> Result
         "frequency outside recorded RF band"
     );
     let channel = Channelizer::new(frequency - 12.5e6, code.bandwidth_hz)?;
-    let mut decoders: Vec<_> = code
-        .control_seeds
-        .iter()
-        .map(|&seed| {
-            Decoder::new(
-                &prn::code(seed, code.length, code.pulse_length, code.ipp)?,
-                nr,
-            )
-        })
-        .collect::<Result<_>>()?;
-    decoders.insert(0, Decoder::new(&template, nr)?);
+    let decoders = bank
+        .get_mut(&c.code_indices[f])
+        .context("missing cached decoder bank")?;
+    for d in decoders.iter_mut() {
+        d.reset();
+    }
     let base = epoch_sample(epoch + f as f64 * c.dwell_s)?;
     let n = code.length * 250;
     let periods = (c.dwell_s * 100000. / code.length as f64).round() as usize;
@@ -200,7 +245,7 @@ fn column(c: &Config, r: &mut Reader, epoch: f64, f: usize, nr: usize) -> Result
         // The Doppler estimator discards these transition periods. Do not read
         // padding into a future, still-open recorder file just to discard it.
         if p == 0 || p + 1 == periods {
-            for decoder in &mut decoders {
+            for decoder in decoders.iter_mut() {
                 decoder.push_zero()?;
             }
             continue;
@@ -223,7 +268,7 @@ fn column(c: &Config, r: &mut Reader, epoch: f64, f: usize, nr: usize) -> Result
         }
         let raw = raw.ok_or_else(|| anyhow::anyhow!("missing voltage at {start}: {:?}", last))?;
         let z = channel.process(&raw, p as i64 * n as i64 - 1000);
-        Decoder::push_shared(&z[4..4 + code.length], &mut decoders)?;
+        Decoder::push_shared(&z[4..4 + code.length], decoders)?;
     }
     let (snr, peak) = decoders[0].finish_with_score()?;
     let mut control_peak = 0f32;
@@ -277,6 +322,12 @@ fn resume(
             && previous.range_shift_samples == c.range_shift_samples
             && previous.range_max_km == c.range_max_km,
         "existing sweep has a different signal/timing configuration; preserving it"
+    );
+    ensure!(
+        previous.range_min_km == c.range_min_km
+            && previous.estimator == c.estimator
+            && previous.least_squares_solver == c.least_squares_solver,
+        "existing sweep has a different estimator/range window; preserving it"
     );
     ensure!(
         h.dataset("ranges")?.size() == nr,
@@ -371,7 +422,7 @@ fn save(
             .with_data(&c.frequencies_hz)
             .create("freqs")?;
         let ranges: Vec<_> = (0..nr)
-            .map(|r| (r as i64 - c.range_shift_samples) as f64 * C / 100000.)
+            .map(|r| (r as i64 + first_lag(c) as i64 - c.range_shift_samples) as f64 * C / 100000.)
             .collect();
         h.new_dataset_builder()
             .with_data(&ranges)
@@ -396,7 +447,16 @@ fn save(
         scalar(&h, "last_observation", now())?;
         text(&h, "station_name", &c.station)?;
         text(&h, "txname", &c.transmitter)?;
-        text(&h, "decoder", "complex64-fft-matched-filter-doppler-v1")?;
+        text(
+            &h,
+            "decoder",
+            if c.estimator == "least-squares" {
+                "complex64-fft-inverse-normal-matrix-least-squares-doppler-v1"
+            } else {
+                "complex64-fft-matched-filter-doppler-v1"
+            },
+        )?;
+        text(&h, "least_squares_solver", &c.least_squares_solver)?;
         text(&h,"snr_reference","per-Doppler exponential-power median across delay; interference and code sidelobes included")?;
         text(&h, "configuration_reference", &c.configuration_reference)?;
         text(
@@ -456,12 +516,24 @@ fn main() -> Result<()> {
                 .context("start epoch")
         })
         .transpose()?;
-    let nr = ((c.range_max_km * 1000. / C * 100000.).ceil() as i64 + c.range_shift_samples + 1)
+    let first = first_lag(&c);
+    let end = ((c.range_max_km * 1000. / C * 100000.).ceil() as i64 + c.range_shift_samples + 1)
         .max(2) as usize;
+    ensure!(end > first + 1, "empty range window");
+    let nr = end - first;
     ensure!(
-        c.codes.iter().all(|s| nr <= s.length),
+        c.codes.iter().all(|s| end <= s.length),
         "range exceeds unambiguous code period"
     );
+    let bytes: usize = c.codes.iter().map(|_| nr * nr * 8).sum();
+    ensure!(
+        c.estimator != "least-squares" || (nr <= 2048 && bytes <= 160 * 1024 * 1024),
+        "matrix bank exceeds bounded memory budget"
+    );
+    let mut bank = BTreeMap::new();
+    for index in 0..c.codes.len() {
+        bank.insert(index, make_decoders(&c, index, first, nr)?);
+    }
     eprintln!(
         "{} -> {} PRN: {} complex64, {} frequencies, period {} s",
         c.transmitter,
@@ -501,7 +573,7 @@ fn main() -> Result<()> {
                 if r.is_none() {
                     r = Some(reader(&c)?);
                 }
-                column(&c, r.as_mut().unwrap(), epoch, f, nr)
+                column(&c, r.as_mut().unwrap(), epoch, f, &mut bank)
             })();
             match result {
                 Ok((v, margin)) => {

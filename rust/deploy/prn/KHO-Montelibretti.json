@@ -507,9 +507,12 @@
   "period_s": 300.0,
   "start_offset_s": 0,
   "range_shift_samples": 5,
-  "range_max_km": 4500,
+  "range_max_km": 6100.0,
   "snr_threshold_db": 8,
   "retain_candidate_snr": false,
   "configuration_reference": "irf_prn_MTB.INI; sha256:71b31c9409825f1c10ad0d009e363ffe9570b222a363ac39ab0e90a1a4dc5c6d; frequency_program:ingv-generated; schedule requires on-air verification",
-  "writer_grace_s": 10.5
+  "writer_grace_s": 10.5,
+  "estimator": "least-squares",
+  "least_squares_solver": "cached-inverse",
+  "range_min_km": 3900.0
 }

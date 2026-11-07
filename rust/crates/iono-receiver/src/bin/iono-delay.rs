@@ -180,6 +180,7 @@ fn main() -> Result<()> {
         .context("usage: iono-delay peaks|calibrate ...")?
         .as_str()
     {
+        "range-window" => range_window(&a),
         "peaks" => peaks(&a),
         "calibrate" => {
             ensure!(
@@ -190,6 +191,108 @@ fn main() -> Result<()> {
         }
         _ => anyhow::bail!("unknown delay diagnostic"),
     }
+}
+fn range_window(a: &[String]) -> Result<()> {
+    ensure!(
+        (6..=38).contains(&a.len()),
+        "usage: iono-delay range-window POSITIONS.json TX RX OUTPUT.h5 [IONOGRAM.h5 ...]"
+    );
+    let p: serde_json::Value = serde_json::from_slice(&std::fs::read(&a[2])?)?;
+    let tx = &p[&a[3]];
+    let rx = &p[&a[4]];
+    let coord = |v: &serde_json::Value, k: &str| -> Result<f64> {
+        let n = v[k].as_f64().context("missing coordinate")?;
+        ensure!(
+            n.is_finite() && n.abs() <= if k == "lat" { 90. } else { 180. },
+            "invalid coordinate"
+        );
+        Ok(n)
+    };
+    let receiver = iono_core::lfm_geolocation::Receiver {
+        station: a[4].clone(),
+        latitude: coord(rx, "lat")?,
+        longitude: coord(rx, "lon")?,
+        quantitative: false,
+        files: vec![],
+    };
+    let distance =
+        iono_core::lfm_geolocation::distance_km(coord(tx, "lat")?, coord(tx, "lon")?, &receiver);
+    ensure!(
+        distance > 100. && distance < 8000.,
+        "range-window helper supports regional oblique paths of 100..8000 km"
+    );
+    let heights = [110., 200., 300., 400., 500.];
+    let paths: Vec<_> = heights
+        .iter()
+        .map(|&h| iono_core::lfm_geolocation::path_km(distance, h))
+        .collect();
+    let mut measured = vec![];
+    let mut clipped = 0u64;
+    for file in &a[6..] {
+        for g in read_products(Path::new(file))? {
+            ensure!(
+                g.station == a[4] && g.transmitter == a[3],
+                "ionogram belongs to another path"
+            );
+            for f in 0..g.nx {
+                let peak = (0..g.ny)
+                    .filter(|&i| {
+                        g.y[i] >= distance - 100.
+                            && g.y[i] <= 2. * distance
+                            && g.values[i * g.nx + f].is_finite()
+                            && g.values[i * g.nx + f] >= 13.
+                    })
+                    .max_by(|&i, &j| g.values[i * g.nx + f].total_cmp(&g.values[j * g.nx + f]));
+                if let Some(i) = peak {
+                    measured.push(g.y[i]);
+                    if i + 3 >= g.ny {
+                        clipped += 1;
+                    }
+                }
+            }
+        }
+    }
+    measured.sort_by(f64::total_cmp);
+    let observed = if measured.len() >= 3 {
+        measured[(measured.len() - 1) * 95 / 100] + 500.
+    } else {
+        0.
+    };
+    let lo = ((distance - 100.) / 100.).floor() * 100.;
+    let hi = (paths
+        .iter()
+        .copied()
+        .fold(distance * 1.5, f64::max)
+        .max(observed)
+        / 100.)
+        .ceil()
+        * 100.;
+    let h = File::create_excl(&a[5])?;
+    for (key, value) in [
+        ("geometric_distance_km", distance),
+        ("minimum_geometric_delay_ms", distance * 1000. / C * 1000.),
+        ("recommended_min_km", lo),
+        ("recommended_max_km", hi),
+        ("retained_peak_count", measured.len() as f64),
+        ("peaks_near_old_upper_edge", clipped as f64),
+    ] {
+        scalar_out(&h, key, value)?;
+    }
+    h.new_dataset_builder()
+        .with_data(&heights)
+        .create("proxy_virtual_height_km")?;
+    h.new_dataset_builder()
+        .with_data(&paths)
+        .create("proxy_path_km")?;
+    h.new_dataset_builder()
+        .with_data(&measured)
+        .create("observed_strongest_range_km")?;
+    text(&h, "transmitter", &a[3])?;
+    text(&h, "receiver", &a[4])?;
+    text(&h, "inputs", &serde_json::to_string(&a[6..])?)?;
+    text(&h,"interpretation","Display/inversion window proposal only. Lower edge is geometric path minus 100 km guard, rounded down; upper edge is at least 1.5 times geometric path, tested 110..500 km minimum-hop proxies, or retained 95th-percentile strong-echo range plus 500 km. Not ray tracing, a physical maximum, independent timing calibration or automatic delay adjustment. Echo peaks may be interference or sidelobes; missing/cropped echoes cannot constrain the upper edge.")?;
+    println!("{} -> {}: geometric {:.1} km / {:.3} ms; proposed {:.0}..{:.0} km; {} retained strong peaks, {clipped} near old upper edge; receiver delay unchanged",a[3],a[4],distance,distance/C*1e6,lo,hi,measured.len());
+    Ok(())
 }
 #[cfg(test)]
 mod tests {
