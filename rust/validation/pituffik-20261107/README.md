@@ -73,3 +73,9 @@ The Mac was locked during delivery, preventing actual Chrome render/click
 inspection. Server/API delivery, commissioning flags, native product content
 and the exact offline Rustplotlib images were checked separately. This is not
 a claim of completed browser visual acceptance.
+
+Visual inspection of KHO's first product did not establish a clear ionospheric
+trace; its upper-edge stripes are not evidence of a supported band. W2NAF also
+contains strong vertical interference/ambiguous-period features. The public
+commissioning flag is retained for every new THJ76 link, including DOB's
+recognizable traces. No claim of unambiguous Thule reception is made.
