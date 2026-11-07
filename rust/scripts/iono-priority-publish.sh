@@ -34,7 +34,9 @@ while true; do
       fingerprint=$(stat -c '%s:%Y:%i' "$source")
       if [[ -f "$snapshot" || "$fingerprint" != "$last_bulk" ]]; then
         if [[ ! -f "$snapshot" ]]; then ln "$source" "$snapshot" 2>/dev/null || cp "$source" "$snapshot"; fi
-        if transfer 45 "$snapshot"; then
+        # Allow useful progress through reconnects on constrained station links,
+        # while returning to priority ionograms at least every two minutes.
+        if transfer 120 "$snapshot"; then
           last_bulk=$(stat -c '%s:%Y:%i' "$snapshot");rm -f "$snapshot"
           echo "Bulk history published for $station" >&2
         fi
