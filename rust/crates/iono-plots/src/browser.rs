@@ -105,7 +105,18 @@ fn rti(
     // A new receiver window also applies to older displayed profiles. Preserve
     // the original source arrays; do not let old broad axes expand this view.
     let yr = configured_prn_window(station, tx).unwrap_or([lo, hi.max(lo + 100.)]);
-    let ny = 512;
+    // Do not upsample coarse native gates into isolated display rows: that
+    // invents blank stripes, consumes the bundle budget and wastes bandwidth.
+    let native_step = rows
+        .iter()
+        .map(|p| p.dy)
+        .filter(|d| d.is_finite() && *d > 0.)
+        .fold(f64::INFINITY, f64::min);
+    let ny = if native_step.is_finite() {
+        (((yr[1] - yr[0]) / native_step + 1e-9).floor() as usize).clamp(2, 512)
+    } else {
+        512
+    };
     let mut peak = vec![f32::NAN; NT * ny];
     let mut frequency = peak.clone();
     let mut by_freq = vec![f32::NAN; NT * 256];
@@ -577,7 +588,9 @@ fn fit_range_budget(products: &mut [Product], budget: usize) -> Result<usize> {
         let old_step = (snr.grid.y[old_ny - 1] - snr.grid.y[0]) / (old_ny - 1) as f64;
         let origin = snr.grid.y[0] - old_step / 2.;
         let step = old_step * old_ny as f64 / ny as f64;
-        let y: Vec<_> = (0..ny).map(|row| origin + (row as f64 + 0.5) * step).collect();
+        let y: Vec<_> = (0..ny)
+            .map(|row| origin + (row as f64 + 0.5) * step)
+            .collect();
         for source in 0..old_ny {
             let row = (((snr.grid.y[source] - origin) / step).floor() as usize).min(ny - 1);
             for x in 0..nx {
@@ -977,6 +990,24 @@ mod tests {
         assert_eq!(g.x[10], 12.);
         assert!(g.values[11 + 7..11 + 10].iter().all(|v| v.is_nan()));
         assert_eq!(g.values[11 + 10], 12.);
+    }
+    #[test]
+    fn native_range_gates_do_not_expand_into_empty_display_stripes() {
+        let p = Profile {
+            t: 86430.,
+            tx: "Test".into(),
+            y0: 5.,
+            dy: 10.,
+            snr: vec![20.; 10],
+            freq: vec![7.; 10],
+        };
+        let a = rti(&[p], &[], "TGO", "Test", 86400.);
+        assert_eq!(a[0].grid.ny, 10);
+        for y in 0..10 {
+            assert_eq!(a[0].grid.values[y * NT], 20.);
+            assert_eq!(a[1].grid.values[y * NT], 7.);
+            assert!(a[0].grid.values[y * NT + 1].is_nan());
+        }
     }
     #[test]
     fn rti_keeps_ranges_and_real_gaps() {
