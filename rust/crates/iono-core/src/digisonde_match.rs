@@ -23,6 +23,32 @@ pub fn logical_pulse_index(pulse: usize, polarization_interleaved: bool) -> usiz
         pulse
     }
 }
+/// Complete code/O-X quartets within a physically shifted read window.
+/// Phase indexes the transmitter sequence at the read origin; no clock shift.
+pub fn multiplex_quartets(
+    physical_count: usize,
+    block: usize,
+    fine_count: usize,
+    phase: usize,
+    pol_first: bool,
+) -> Vec<[(usize, usize); 4]> {
+    assert!(block > 0 && fine_count > 0);
+    let mut groups = std::collections::BTreeMap::<usize, [Option<(usize, usize)>; 4]>::new();
+    for physical in 0..physical_count {
+        let sequence = physical + phase;
+        if sequence / block % fine_count != 0 {
+            continue;
+        }
+        let selected = sequence / (block * fine_count) * block + sequence % block;
+        let logical = logical_pulse_index(selected, pol_first);
+        groups.entry(logical / 4).or_insert([None; 4])[logical % 4] = Some((physical, logical));
+    }
+    groups
+        .into_values()
+        .filter(|g| g.iter().all(Option::is_some))
+        .map(|g| g.map(Option::unwrap))
+        .collect()
+}
 fn template_program(
     n: usize,
     sr: f64,

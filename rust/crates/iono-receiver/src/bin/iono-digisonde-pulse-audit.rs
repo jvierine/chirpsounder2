@@ -1,9 +1,8 @@
 //! Offline pulse-pair audit of bounded 100 ksample/s IQ caches. No clock edits.
 use anyhow::{ensure, Result};
 use hdf5::File;
-use iono_core::{digisonde_match::logical_pulse_index, dsp::Digisonde, median};
+use iono_core::{dsp::Digisonde, median};
 use num_complex::Complex32 as Z;
-use std::collections::BTreeMap;
 #[derive(Clone, Debug)]
 struct Model {
     block: usize,
@@ -38,27 +37,15 @@ fn audit_pairs(
     order: bool,
     phase: usize,
 ) -> Option<Model> {
-    let mut groups = BTreeMap::<usize, [Option<(usize, usize)>; 4]>::new();
-    for p in 0..pairs.len() {
-        let physical = p + phase;
-        if physical / block % 2 != 0 {
-            continue;
-        }
-        let selected = physical / (2 * block) * block + physical % block;
-        let logical = logical_pulse_index(selected, order);
-        groups.entry(logical / 4).or_insert([None; 4])[logical % 4] = Some((p, logical));
-    }
-    let complete: Vec<_> = groups
-        .values()
-        .filter(|a| a.iter().all(Option::is_some))
-        .collect();
+    let complete =
+        iono_core::digisonde_match::multiplex_quartets(pairs.len(), block, 2, phase, order);
     if complete.len() < 2 {
         return None;
     }
     let mut decoded = vec![];
     for group in &complete {
         for item in group.iter() {
-            let (p, logical) = item.unwrap();
+            let (p, logical) = *item;
             let sign = if logical % 8 >= 4 { -1. } else { 1. };
             decoded.push(pairs[p][logical % 2].iter().map(|v| *v * sign).collect());
         }
@@ -95,20 +82,37 @@ fn audit_pairs(
 fn main() -> Result<()> {
     let args: Vec<_> = std::env::args().collect();
     ensure!(
-        args.len() == 4,
-        "usage: iono-digisonde-pulse-audit IQ.h5 CARRIER_HZ OUTPUT.h5"
+        (4..=6).contains(&args.len())
+            && args[4..]
+                .iter()
+                .all(|s| s == "--no-clip" || s.starts_with("--skip-ipps=")),
+        "usage: iono-digisonde-pulse-audit IQ.h5 CARRIER_HZ OUTPUT.h5 [--no-clip] [--skip-ipps=N]"
     );
     let carrier: f64 = args[2].parse()?;
     let channel = iono_core::digisonde_iq::read(std::path::Path::new(&args[1]), carrier)?;
-    let first = channel.first_sample;
-    let z = channel.data;
+    let skip: usize = args
+        .iter()
+        .find_map(|s| s.strip_prefix("--skip-ipps="))
+        .unwrap_or("0")
+        .parse()?;
+    ensure!(
+        skip < 32 && skip * 1000 < channel.data.len(),
+        "invalid IPP skip"
+    );
+    let first = channel.first_sample + skip as u64 * 250000;
+    let z = &channel.data[skip * 1000..];
     let dsp = Digisonde::new(10000);
+    let clip = if args.iter().any(|s| s == "--no-clip") {
+        None
+    } else {
+        Some(6.)
+    };
     let pairs: Vec<_> = z
         .chunks_exact(1000)
         .map(|a| {
             [
-                dsp.decode_baseband_ipp(a.to_vec(), 0, Some(6.)),
-                dsp.decode_baseband_ipp(a.to_vec(), 1, Some(6.)),
+                dsp.decode_baseband_ipp(a.to_vec(), 0, clip),
+                dsp.decode_baseband_ipp(a.to_vec(), 1, clip),
             ]
         })
         .collect();
@@ -124,6 +128,18 @@ fn main() -> Result<()> {
     }
     models.sort_by(|a, b| b.peak.total_cmp(&a.peak));
     let out = File::create_excl(&args[3])?;
+    for (code, name) in [(0, "pulse_a_complex32"), (1, "pulse_b_complex32")] {
+        let z: Vec<[f32; 2]> = pairs
+            .iter()
+            .flat_map(|p| p[code].iter().map(|z| [z.re, z.im]))
+            .collect();
+        out.new_dataset::<[f32; 2]>()
+            .shape([pairs.len(), 1000])
+            .chunk([1, 1000])
+            .deflate(4)
+            .create(name)?
+            .write_raw(&z)?;
+    }
     let parameters: Vec<f64> = models
         .iter()
         .flat_map(|m| {
@@ -224,5 +240,27 @@ mod tests {
         let m = audit(&z, 4, false, 0).unwrap();
         let second = m.profile[458..463].iter().copied().fold(0., f32::max);
         assert!(second > m.peak * 0.25);
+    }
+    #[test]
+    fn shifted_window_keeps_code_identity_and_complete_polarization_pairs() {
+        for order in [false, true] {
+            let z = target(order, &[(230, 1.)]);
+            // Keep the range origin fixed within each IPP, but begin the dwell
+            // one physical pulse later, as happens after a geometric read shift.
+            let shifted = &z[1000..];
+            let right = audit(shifted, 4, order, 1).unwrap();
+            let wrong = audit(shifted, 4, order, 0).unwrap();
+            assert!(right.delay.abs_diff(230) <= 2);
+            if !order {
+                assert!(right.peak > wrong.peak * 2.);
+            }
+            assert!(right.pslr > 20.);
+            assert!(
+                right.pslr > wrong.pslr + 10.,
+                "order={order} right={} wrong={}",
+                right.pslr,
+                wrong.pslr
+            );
+        }
     }
 }

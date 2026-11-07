@@ -60,6 +60,9 @@ struct Config {
     /// None preserves the established constant effective-PRI decoder.
     #[serde(default)]
     multiplex_block_pulses: Option<usize>,
+    /// Transmitted sequence phase at the read origin; does not shift its UTC.
+    #[serde(default)]
+    multiplex_phase_pulses: Option<usize>,
     #[serde(default)]
     start_offset_s: f64,
     #[serde(default = "hours")]
@@ -314,6 +317,24 @@ fn validate_digisonde(c: &Config) -> Result<()> {
             "invalid fine-frequency multiplex block"
         );
     }
+    if let Some(phase) = c.multiplex_phase_pulses {
+        ensure!(phase <= 256, "invalid physical code phase");
+        let block = c
+            .multiplex_block_pulses
+            .context("code phase requires fine-frequency multiplexing")?;
+        ensure!(
+            iono_core::digisonde_match::multiplex_quartets(
+                c.n_ipp * c.ipp_us / physical,
+                block,
+                c.ipp_us / physical,
+                phase,
+                c.polarization_interleaved
+            )
+            .len()
+                >= 2,
+            "read window contains fewer than two complete code quartets"
+        );
+    }
     ensure!(
         c.freq_start_hz.is_finite()
             && c.freq_stop_hz.is_finite()
@@ -386,6 +407,34 @@ fn digisonde(
     } else {
         None
     };
+    let pulse_plan: Vec<(usize, usize)> = if let Some(phase) = c.multiplex_phase_pulses {
+        iono_core::digisonde_match::multiplex_quartets(
+            raw_samples / ipp_samples,
+            c.multiplex_block_pulses
+                .context("code phase requires multiplex block")?,
+            c.ipp_us / physical_ipp,
+            phase,
+            c.polarization_interleaved,
+        )
+        .into_iter()
+        .flatten()
+        .collect()
+    } else {
+        (0..nipp)
+            .map(|pi| {
+                (
+                    c.multiplex_block_pulses.map_or(pi, |block| {
+                        multiplex_pulse_index(pi, block, c.ipp_us / physical_ipp)
+                    }),
+                    iono_core::digisonde_match::logical_pulse_index(pi, c.polarization_interleaved),
+                )
+            })
+            .collect()
+    };
+    ensure!(
+        pulse_plan.len() >= 4,
+        "read window contains no complete code quartet"
+    );
     let start_time = now();
     for f in 0..nf {
         let freq = c.freq_start_hz + f as f64 * c.freq_step_hz;
@@ -424,21 +473,16 @@ fn digisonde(
         }
         actual_carriers[f] = carrier;
         let channelizer = Channelizer::new(carrier - c.center_freq, 30000.)?;
-        for pi in 0..nipp {
-            let ppi = c.multiplex_block_pulses.map_or(pi, |block| {
-                multiplex_pulse_index(pi, block, c.ipp_us / physical_ipp)
-            });
+        for (ppi, logical) in pulse_plan.iter().copied() {
             let ipp_raw = &raw[ppi * ipp_samples..(ppi + 1) * ipp_samples + 2 * padding];
             let mut baseband =
                 channelizer.process(ipp_raw, (ppi * ipp_samples) as i64 - padding as i64);
             if padding > 0 {
                 baseband = baseband[4..4 + decoding_nr].to_vec();
             }
-            let logical =
-                iono_core::digisonde_match::logical_pulse_index(pi, c.polarization_interleaved);
             decoded.push(dsp.decode_baseband_ipp(baseband, logical, c.rfi_clip_ratio));
         }
-        if c.polarization_interleaved {
+        if c.polarization_interleaved && c.multiplex_phase_pulses.is_none() {
             for group in decoded.chunks_exact_mut(4) {
                 group.swap(1, 2);
             }
@@ -494,8 +538,12 @@ fn digisonde(
         dataset(&h, "transmit_delay_us", c.delay())?;
         dataset(&h, "sample_rate_hz", c.sample_rate)?;
         dataset(&h, "n_ipp", nipp as f64)?;
+        dataset(&h, "decoded_pulses_per_frequency", pulse_plan.len() as f64)?;
         dataset(&h, "ipp_us", c.ipp_us as f64)?;
         dataset(&h, "effective_ipp_us", c.ipp_us as f64)?;
+        if let Some(phase) = c.multiplex_phase_pulses {
+            dataset(&h, "multiplex_phase_pulses", phase as f64)?;
+        }
         if let Some(block) = c.multiplex_block_pulses {
             dataset(&h, "multiplex_block_pulses", block as f64)?;
             dataset(&h, "fine_frequency_count", (c.ipp_us / physical_ipp) as f64)?;
@@ -843,6 +891,25 @@ mod tests {
                 44_849_520_825_088_375
             );
         }
+    }
+    #[test]
+    fn explicit_code_phase_leaves_receiver_delay_and_frequency_times_fixed() {
+        let mut c:Config=serde_json::from_str(r#"{"station":"DOB","data_dir":"x","output_dir":"y","ipp_us":20000,"physical_ipp_us":10000,"n_ipp":16,"offset_us":10006.923,"multiplex_block_pulses":4}"#).unwrap();
+        let before = digisonde_frequency_sample(&c, 1794064050., 280).unwrap();
+        c.multiplex_phase_pulses = Some(1);
+        validate_digisonde(&c).unwrap();
+        assert_eq!(
+            before,
+            digisonde_frequency_sample(&c, 1794064050., 280).unwrap()
+        );
+        let groups = iono_core::digisonde_match::multiplex_quartets(32, 4, 2, 1, false);
+        assert_eq!(groups.len(), 3);
+        assert_eq!(groups[0], [(7, 4), (8, 5), (9, 6), (10, 7)]);
+        c.multiplex_phase_pulses = Some(257);
+        assert!(validate_digisonde(&c).is_err());
+        c.multiplex_phase_pulses = Some(1);
+        c.multiplex_block_pulses = None;
+        assert!(validate_digisonde(&c).is_err());
     }
     #[test]
     fn physical_fine_frequency_demultiplexing_recovers_a_known_echo_delay() {
