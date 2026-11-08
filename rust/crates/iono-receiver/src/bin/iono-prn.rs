@@ -163,7 +163,9 @@ fn validate(c: &Config) -> Result<()> {
             && ["matched-filter", "least-squares"].contains(&c.estimator.as_str())
             && ["cached-inverse", "factor"].contains(&c.least_squares_solver.as_str())
             && c.range_max_km > 100.
-            && c.range_max_km <= 10000.
+            // Long oblique paths are limited by the actual code period, not
+            // an arbitrary regional 10,000 km ceiling.
+            && c.codes.iter().all(|code| c.range_max_km <= code.length as f64 * C / 100_000_000.)
             && c.range_shift_samples.abs() < 1000,
         "invalid range geometry"
     );
@@ -645,6 +647,13 @@ mod tests {
         })).unwrap();
         c.station = "MTB".into();
         validate(&c).unwrap();
+        c.range_min_km = 6800.;
+        c.range_max_km = 10500.;
+        validate(&c).unwrap();
+        c.range_max_km = 30000.;
+        assert!(validate(&c).is_err());
+        c.range_min_km = 0.;
+        c.range_max_km = 4500.;
         c.station = "../outside".into();
         assert!(validate(&c).is_err());
         c.station = "DOB".into();

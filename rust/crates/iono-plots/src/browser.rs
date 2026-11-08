@@ -76,7 +76,7 @@ fn configured_prn_window(station: &str, tx: &str) -> Option<[f64; 2]> {
     }
     let lo = c["range_min_km"].as_f64()?;
     let hi = c["range_max_km"].as_f64()?;
-    (lo.is_finite() && hi.is_finite() && lo >= 0. && hi > lo && hi <= 10000.).then_some([lo, hi])
+    (lo.is_finite() && hi.is_finite() && lo >= 0. && hi > lo && hi <= 60000.).then_some([lo, hi])
 }
 fn rti(
     rows: &[Profile],
