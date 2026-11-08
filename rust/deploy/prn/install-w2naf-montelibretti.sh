@@ -10,8 +10,10 @@ for binary in "$receiver" "$delay"; do
   if ldd "$binary" | grep -q 'not found'; then echo "Missing libraries: $binary" >&2; exit 1; fi
 done
 mkdir -p "$HOME/bin" "$HOME/.config/iono-prn" "$HOME/.config/systemd/user/iono-prn@Montelibretti.service.d"
-install -m755 "$receiver" "$HOME/bin/iono-prn-w2naf-montelibretti"
-install -m755 "$delay" "$HOME/bin/iono-delay"
+install -m755 "$receiver" "$HOME/bin/iono-prn-w2naf-montelibretti.next"
+mv "$HOME/bin/iono-prn-w2naf-montelibretti.next" "$HOME/bin/iono-prn-w2naf-montelibretti"
+install -m755 "$delay" "$HOME/bin/iono-delay.next"
+mv "$HOME/bin/iono-delay.next" "$HOME/bin/iono-delay"
 install -m644 "$config" "$HOME/.config/iono-prn/Montelibretti.json"
 install -m644 "$root/deploy/iono-prn@.service" "$root/deploy/iono-prn.slice" "$HOME/.config/systemd/user/"
 cat > "$HOME/.config/systemd/user/iono-prn@Montelibretti.service.d/native.conf" <<'UNIT'
@@ -23,5 +25,6 @@ Environment=OMP_NUM_THREADS=1
 Environment=IONO_PRN_LAPACK=/usr/lib/x86_64-linux-gnu/libopenblas.so
 UNIT
 systemctl --user daemon-reload
-systemctl --user enable --now iono-prn@Montelibretti.service
+systemctl --user enable iono-prn@Montelibretti.service
+systemctl --user restart iono-prn@Montelibretti.service
 systemctl --user --no-pager status iono-prn@Montelibretti.service
