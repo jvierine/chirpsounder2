@@ -1,0 +1,25 @@
+[package]
+name = "iono-server"
+version = "0.1.0"
+edition = "2021"
+autobins = false
+[dependencies]
+iono-core.workspace = true
+iono-browser.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+hdf5.workspace = true
+axum = "0.8"
+tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7", features = ["io"] }
+rusqlite = { version = "0.37", features = ["bundled"] }
+tower-http = { version = "0.6", features = ["fs", "compression-gzip"] }
+sha2 = "0.10"
+flate2 = "1"
+[dev-dependencies]
+tempfile = "3"
+[[bin]]
+name = "iono-browser-server"
+path = "src/browser_server.rs"

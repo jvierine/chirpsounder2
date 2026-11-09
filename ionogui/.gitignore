@@ -1,0 +1,9 @@
+/target/
+/runtime/
+/repairs/
+/validation/*.h5
+/validation/*.png
+/web/pkg/
+/.deps/
+*.sqlite*
+__pycache__/

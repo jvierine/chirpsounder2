@@ -3,7 +3,7 @@
 Rust reception and signal processing for **Digisonde**, **LFM/chirp**, and
 **PRN/coded** ionosondes, including the Finnish VERSO network.
 
-[Live dashboard](https://juha.no/iono/) · [Rust build and deployment instructions](rust/README.md)
+[Live dashboard](https://juha.no/iono/) · [Rust build and deployment instructions](rust/README.md) · [Public IonoGUI code](ionogui/README.md)
 
 ## Current pipeline
 

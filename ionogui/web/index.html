@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <link rel="canonical" href="https://juha.no/iono/" />
+    <script>
+      if (/^\/iono2\/(?:index\.html)?$/.test(location.pathname)) {
+        const saved = document.cookie.split(";").map(s => s.trim()).find(s => s.startsWith("iono2_plot_order="));
+        if (saved) {
+          document.cookie = saved + "; Path=/; Max-Age=31536000; SameSite=Lax; Secure";
+          document.cookie = "iono2_plot_order=; Path=/iono2/; Max-Age=0; SameSite=Lax; Secure";
+        }
+        location.replace("/iono/" + location.search + location.hash);
+      }
+    </script>
+    <title>Ionosonde observatory</title>
+    <link rel="stylesheet" href="style.css?v=20261107-mobile-map" />
+  </head>
+  <body>
+    <header>
+      <div>
+        <p class="eyebrow">Tromsø Geophysical Observatory</p>
+        <h1>Oblique soundings</h1>
+      </div>
+      <div class="logos">
+        <a href="https://uit.no/" aria-label="UiT"
+          ><img src="assets/uit-logo.png" alt="UiT" /></a
+        ><a href="https://www.unis.no/" aria-label="UNIS"
+          ><img src="assets/unis-logo-liggende.svg" alt="UNIS" /></a
+        ><a href="https://www.scranton.edu/" aria-label="University of Scranton"
+          ><img
+            src="assets/university-of-scranton-logo.png"
+            alt="University of Scranton"
+        /></a>
+      </div>
+    </header>
+    <nav aria-label="Observation selection">
+      <div class="date-control">
+        <span>Day</span><input id="day" type="hidden" />
+        <button id="day-open" popovertarget="day-calendar" aria-label="Choose UTC day" aria-haspopup="dialog" aria-expanded="false" aria-controls="day-calendar"></button>
+        <div id="day-calendar" popover role="dialog" aria-label="Choose UTC day">
+          <div class="calendar-heading"><button data-step="-1" aria-label="Previous month">‹</button><strong data-month></strong><button data-step="1" aria-label="Next month">›</button></div>
+          <div class="calendar-week" aria-hidden="true"><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span></div>
+          <div class="calendar-days" data-days></div>
+          <div class="calendar-footer"><span><i></i> Data available</span><button data-today>Today / Now</button></div>
+        </div>
+      </div>
+      <label class="time-control">Time <input id="utc-time" type="time" step="60" aria-label="UTC time" required /></label>
+      <span id="context">UTC</span><button id="time-now" aria-pressed="true" title="Return to today and live UTC time">Now</button>
+      <select id="station" hidden aria-hidden="true">
+          <option>TGO</option>
+          <option value="DOB">Dombås (DOB)</option>
+          <option>KHO</option>
+          <option>W2NAF</option>
+          <option>KREA</option>
+        </select>
+      <div class="nav-end">
+        <button id="attention-open" class="attention-button" aria-haspopup="dialog" hidden>Needs attention</button>
+        <button id="help-open" aria-label="Help" title="Help">?</button
+        ><button id="settings-open" aria-label="Settings" title="Settings">
+          ⚙
+        </button>
+      </div>
+    </nav>
+    <div id="station-tabs" class="station-tabs" role="tablist" aria-label="Receiver views">
+      <button class="station-tab" role="tab" draggable="true" data-view="TGO"><strong>TGO</strong><span>CPU …</span></button>
+      <button class="station-tab" role="tab" draggable="true" data-view="DOB"><strong>Dombås</strong><span>CPU …</span></button>
+      <button class="station-tab" role="tab" draggable="true" data-view="KHO"><strong>KHO</strong><span>CPU …</span></button>
+      <button class="station-tab" role="tab" draggable="true" data-view="W2NAF"><strong>W2NAF</strong><span>CPU …</span></button>
+      <button class="station-tab" role="tab" draggable="true" data-view="KREA"><strong>KREA</strong><span>Krea University · CPU …</span></button>
+      <button class="station-tab propagation-tab" role="tab" draggable="true" data-view="propagation"><strong>Propagation</strong><span>all monitored links</span></button>
+      <span class="tab-hint">Drag tabs to reorder</span>
+    </div>
+    <div id="progress-wrap" role="status">
+      <span id="progress-label">Loading plots</span
+      ><progress id="progress" max="1"></progress>
+    </div>
+    <main id="plots" aria-label="Rearrangeable observation plots"></main>
+    <p id="empty" hidden>No archived plot data for this day and receiver.</p>
+    <section id="station-limits" class="card diagnostic" aria-label="Radio path frequency limits">
+      <h2>Detected echo-band limits · experimental</h2>
+      <p>
+        Sounder estimates require three adjacent frequency bins above 13 dB SNR.
+        Assumed radar ranges use clustered sweeps in expected propagation gates.
+        Select a path for its full-day history.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Radio path</th>
+            <th>Detected lower–upper frequency</th>
+            <th>UTC</th>
+            <th>Range gate</th>
+            <th>Support / freshness</th>
+          </tr>
+        </thead>
+        <tbody id="path-rows"></tbody>
+      </table>
+      <div class="figure-panel" id="map-panel">
+      <div class="panel-toolbar" id="map-toolbar" aria-label="Map controls">
+        <button id="map-zoom-in" aria-label="Zoom in on propagation map">+</button>
+        <button id="map-zoom-out" aria-label="Zoom out of propagation map">−</button>
+        <button id="map-reset">Reset view</button>
+      </div>
+      <canvas
+        id="path-map"
+        hidden
+        aria-label="Radio paths colored by upper usable frequency in MHz. Legend: dark gray no band, light gray stale or unverified. Click the colorbar to adjust limits."
+      ></canvas>
+      </div>
+      <div id="history-wrap" class="figure-panel" hidden>
+        <h3 id="history-title"></h3>
+        <div class="panel-toolbar" id="history-toolbar"></div>
+        <canvas id="frequency-history" aria-label="Detected echo-band history: blue lower limit, red upper limit"></canvas>
+        <p>
+          Gaps: no supported band.
+        </p>
+      </div>
+      <p class="hint">
+        These are sampled echo limits; operational minimum/maximum usable
+        frequency needs validation against interference, ground paths, and the
+        observing schedule. Band envelopes can contain unsupported gaps.
+      </p>
+    </section>
+    <details id="station-health" class="card diagnostic" open>
+      <summary>Receiver health</summary>
+      <dl id="health-data"></dl>
+    </details>
+    <section id="propagation-view" class="network-view" hidden aria-label="Propagation map for every monitored radio link">
+      <article class="card network-card">
+        <div class="network-heading">
+          <h2>Propagation map</h2>
+          <span id="network-status" role="status">Loading network paths…</span>
+        </div>
+        <div class="figure-panel" id="network-panel">
+          <div class="panel-toolbar" id="network-toolbar" aria-label="Propagation map controls">
+            <button id="network-options" class="mobile-map-control" aria-label="Map menu" aria-expanded="false">☰</button>
+            <button id="network-attention" class="mobile-map-control" aria-label="Needs attention" hidden>!</button>
+            <select id="network-region" class="mobile-map-control" aria-label="Map region"><option value="norway">Norway</option><option value="world">World</option></select>
+            <button id="network-norway" aria-pressed="false">Norway</button>
+            <button id="network-world" aria-pressed="true">World</button>
+            <select id="network-projection" aria-label="Map projection"><option value="3d">3D globe</option><option value="2d">2D map</option></select>
+            <span class="panel-name" id="network-navigation-hint">Drag to rotate · Ctrl/Cmd + wheel to zoom</span>
+            <button id="network-zoom-in" aria-label="Zoom in on full propagation map">+</button>
+            <button id="network-zoom-out" aria-label="Zoom out of full propagation map">−</button>
+            <button id="network-reset" aria-label="Reset map view"><span class="map-reset-label">Reset view</span><span class="mobile-map-control" aria-hidden="true">↺</span></button>
+          </div>
+          <canvas id="network-path-map" aria-label="All monitored radio paths colored by maximum usable frequency. Legend: dark gray no band, light gray stale or unverified."></canvas>
+          <canvas id="network-globe" class="network-globe" tabindex="0" hidden aria-label="3D propagation globe. Drag to rotate; pinch or Ctrl/Cmd wheel to zoom. Click a radio path for its 48-hour history."></canvas>
+        </div>
+      </article>
+    </section>
+    <footer>
+      <div id="status" role="status"></div>
+      <span id="clock"></span>
+    </footer>
+    <dialog id="help">
+      <div class="dialog-head">
+        <h2>Quick help</h2>
+        <button data-close aria-label="Close help">×</button>
+      </div>
+      <p>Sounders: <strong>Digisonde</strong>, <strong>LFM (chirp)</strong> and <strong>PRN (coded)</strong>. Availability varies by receiver.</p>
+      <p>Choose a UTC day and time; green calendar days have archived data. Now follows today’s live data. The map uses the last observation at or before the selected time; RTIs and spectra show the full day.</p>
+      <p>Drag station tabs to rearrange them. To reorder plots, open ⚙ and use the compact Arrange plots list; both orders are saved in this browser.</p>
+      <p>
+        Drag inside a plot to pan; pinch with two fingers or Ctrl/⌘ + scroll to zoom. On a phone, ☰ opens the map’s date, receiver and settings controls. Double-click to
+        reset. Click a colorbar to adjust its limits.
+      </p>
+      <p>
+        Choose a receiver tab or the all-station Propagation tab. Each receiver tab reports CPU use and remaining headroom. ⚙ selects products and layout.
+      </p>
+      <p>Click a radio link for its last 48 hours: time versus range coloured by frequency, and time versus frequency coloured by range. Drag to pan, Ctrl/Cmd + wheel to zoom; click either colorbar to adjust its limits. Latest ionogram opens the individual sounding.</p>
+      <p>PRN ionograms show sparse echoes above 8 dB that also pass the transmitter-code check. Blank cells are rejected or unmeasured. Automatic band estimates still require 13 dB.</p>
+      <p>Cyprus, Australia and the ROTHR transmitter sites at New Kent (Virginia), Premont (Texas) and Vieques (Puerto Rico) use sweep detections in expected range gates. Site associations and operational usable frequencies remain unverified. Overlapping ROTHR gates are marked as unresolved candidates and do not supply quantitative frequency limits. W2NAF Australia and Cyprus measurements are excluded from quantitative use because of cross-modulation; their diagnostic plots require an explicit opt-in. W2NAF–ROTHR measurements retain a limited-reliability flag.</p>
+      <p>
+        RTI views share a time axis. Regular soundings fill their normal display
+        interval; longer outages stay white. Shaded sweep bands show expected
+        transmitter ranges.
+      </p>
+      <p><a href="https://github.com/jvierine/chirpsounder2/tree/codex/rust-prn-ringbuffer/ionogui" target="_blank" rel="noopener noreferrer">Source code on GitHub</a></p>
+    </dialog>
+    <dialog id="settings">
+      <div class="dialog-head">
+        <h2>Settings</h2>
+        <button data-close aria-label="Close settings">×</button>
+      </div>
+      <div class="settings-controls">
+        <label
+          >Plots
+          <select id="product-kind">
+            <option value="">All products</option>
+            <option value="spectrum">Full-band spectrum</option>
+            <option value="rti">RTIs</option>
+            <option value="detections">Detected sweeps</option>
+            <option value="digisonde">Digisonde ionograms</option>
+            <option value="lfm">LFM (chirp) ionograms</option>
+            <option value="prn">PRN (coded) ionograms</option>
+          </select></label
+        ><label
+          >Layout
+          <select id="columns">
+            <option value="1">One column</option>
+            <option value="2">Two columns</option>
+            <option value="auto">Fit as many columns as possible</option>
+          </select></label
+        ><button id="restore">Restore plots</button>
+      </div>
+      <form id="figure-config" class="settings-controls">
+        <label>Receiver plot width (px)<input id="figure-width" type="number" min="320" max="2400" step="1" placeholder="Auto" /></label>
+        <label>Receiver subplot height (px)<input id="figure-height" type="number" min="240" max="1600" step="1" placeholder="Auto" /></label>
+        <label>Plot font size (px)<input id="figure-font" type="number" min="10" max="32" step="1" placeholder="Auto" /></label>
+        <button type="submit">Apply sizes</button><button type="button" id="figure-defaults">Default sizes</button>
+      </form>
+      <p class="hint">
+        Click a colorbar to adjust its limits. Spectrum defaults use plasma and
+        finite-data 5th–95th percentiles.
+      </p>
+      <section class="arrange-plots" aria-labelledby="arrange-title">
+        <h3 id="arrange-title">Arrange plots</h3>
+        <p class="hint">All plot positions are shown here. Drag a compact row or use its arrow buttons; there is no need to scroll between full-size plots.</p>
+        <ol id="plot-order-settings" aria-label="Plot order"></ol>
+      </section>
+      <h3 class="visibility-title">Plot visibility and view</h3>
+      <div id="plot-settings"></div>
+    </dialog>
+    <template id="card"
+      ><article class="card">
+        <div class="card-head" draggable="true" title="Drag to rearrange">
+          <span class="grip" aria-hidden="true">⠿</span>
+          <div class="heading">
+            <h2></h2>
+            <div class="subtitle"></div>
+          </div>
+        </div>
+        <div class="plot">
+          <canvas class="field"></canvas><canvas class="axes"></canvas>
+        </div>
+        <div class="plot-progress" hidden>
+          <span></span><progress max="1" value="0"></progress>
+        </div>
+        <p class="coverage"></p></article
+    ></template>
+    <dialog id="attention">
+      <div class="dialog-head"><h2>Needs attention</h2><button data-close aria-label="Close attention">×</button></div>
+      <p id="attention-context"></p>
+      <ul id="attention-list"></ul>
+      <button id="attention-retry">Retry now</button>
+      <button id="attention-health">Show receiver health</button>
+    </dialog>
+    <script type="module" src="app.js?v=20261108-globe"></script>
+  </body>
+</html>

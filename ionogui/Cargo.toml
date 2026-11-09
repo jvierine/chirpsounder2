@@ -1,0 +1,14 @@
+[workspace]
+members = ["crates/iono-server"]
+resolver = "2"
+[workspace.dependencies]
+iono-core = { git = "https://github.com/jvierine/chirpsounder2", rev = "589b0b722199abb9ec6ddbaa3a0bfedd2ccf8c90", default-features = false }
+iono-browser = { git = "https://github.com/jvierine/chirpsounder2", rev = "589b0b722199abb9ec6ddbaa3a0bfedd2ccf8c90", default-features = false }
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+hdf5 = { package = "hdf5-metno", version = "0.12" }
+chrono = { version = "0.4", features = ["serde"] }
+[profile.release]
+lto = "thin"
+codegen-units = 1

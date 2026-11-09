@@ -1,0 +1,338 @@
+{
+  "TGO": [
+    {
+      "name": "NIC",
+      "path": "short",
+      "label": "Cyprus",
+      "center_km": 4630.793216648866,
+      "min_km": 3936.1742341515364,
+      "max_km": 5325.412199146196,
+      "distance_km": 3933.485688207271
+    },
+    {
+      "name": "JORN",
+      "path": "short",
+      "label": "JORN short",
+      "center_km": 15430.60904847894,
+      "min_km": 13116.0176912071,
+      "max_km": 17745.20040575078,
+      "distance_km": 13107.058988143943
+    },
+    {
+      "name": "JORN",
+      "path": "long",
+      "label": "JORN long",
+      "center_km": 31695.966988904995,
+      "min_km": 26941.571940569243,
+      "max_km": 36450.362037240746,
+      "distance_km": 26923.169895927902
+    },
+    {
+      "name": "ROTHR1",
+      "path": "short",
+      "label": "ROTHR New Kent, Virginia",
+      "center_km": 7476.037404378992,
+      "min_km": 6354.631793722143,
+      "max_km": 8597.44301503584,
+      "distance_km": 6350.291355895971
+    },
+    {
+      "name": "ROTHR2",
+      "path": "short",
+      "label": "ROTHR Vieques, Puerto Rico",
+      "center_km": 9312.679910839757,
+      "min_km": 7915.777924213794,
+      "max_km": 10709.581897465721,
+      "distance_km": 7910.371168473866
+    },
+    {
+      "name": "ROTHR3",
+      "path": "short",
+      "label": "ROTHR Premont, Texas",
+      "center_km": 9549.80023500061,
+      "min_km": 8117.330199750519,
+      "max_km": 10982.270270250701,
+      "distance_km": 8111.78577669184
+    }
+  ],
+  "DOB": [
+    {
+      "name": "NIC",
+      "path": "short",
+      "label": "Cyprus",
+      "center_km": 4045.0575590017684,
+      "min_km": 3438.298925151503,
+      "max_km": 4651.816192852034,
+      "distance_km": 3435.9504456176996
+    },
+    {
+      "name": "JORN",
+      "path": "short",
+      "label": "JORN short",
+      "center_km": 16103.40271918813,
+      "min_km": 13687.892311309912,
+      "max_km": 18518.91312706635,
+      "distance_km": 13678.54299769472
+    },
+    {
+      "name": "JORN",
+      "path": "long",
+      "label": "JORN long",
+      "center_km": 31023.173318195808,
+      "min_km": 26369.69732046644,
+      "max_km": 35676.64931592518,
+      "distance_km": 26351.685886377127
+    },
+    {
+      "name": "ROTHR1",
+      "path": "short",
+      "label": "ROTHR New Kent, Virginia",
+      "center_km": 7290.052747782302,
+      "min_km": 6196.544835614956,
+      "max_km": 8383.560659949646,
+      "distance_km": 6192.312376761456
+    },
+    {
+      "name": "ROTHR2",
+      "path": "short",
+      "label": "ROTHR Vieques, Puerto Rico",
+      "center_km": 8755.895327741004,
+      "min_km": 7442.511028579853,
+      "max_km": 10069.279626902155,
+      "distance_km": 7437.427530835411
+    },
+    {
+      "name": "ROTHR3",
+      "path": "short",
+      "label": "ROTHR Premont, Texas",
+      "center_km": 9610.996748061629,
+      "min_km": 8169.347235852385,
+      "max_km": 11052.646260270873,
+      "distance_km": 8163.7672833219085
+    }
+  ],
+  "KHO": [
+    {
+      "name": "NIC",
+      "path": "short",
+      "label": "Cyprus",
+      "center_km": 5707.543573314336,
+      "min_km": 4851.412037317185,
+      "max_km": 6563.675109311486,
+      "distance_km": 4848.098351646535
+    },
+    {
+      "name": "JORN",
+      "path": "short",
+      "label": "JORN short",
+      "center_km": 15341.863784245823,
+      "min_km": 13040.58421660895,
+      "max_km": 17643.143351882696,
+      "distance_km": 13031.677037271656
+    },
+    {
+      "name": "JORN",
+      "path": "long",
+      "label": "JORN long",
+      "center_km": 31784.712253138114,
+      "min_km": 27017.005415167398,
+      "max_km": 36552.41909110883,
+      "distance_km": 26998.55184680019
+    },
+    {
+      "name": "ROTHR1",
+      "path": "short",
+      "label": "ROTHR New Kent, Virginia",
+      "center_km": 7067.310502018311,
+      "min_km": 6007.213926715564,
+      "max_km": 8127.407077321058,
+      "distance_km": 6003.110787556002
+    },
+    {
+      "name": "ROTHR2",
+      "path": "short",
+      "label": "ROTHR Vieques, Puerto Rico",
+      "center_km": 9237.446961674768,
+      "min_km": 7851.829917423553,
+      "max_km": 10623.064005925984,
+      "distance_km": 7846.4668404295535
+    },
+    {
+      "name": "ROTHR3",
+      "path": "short",
+      "label": "ROTHR Premont, Texas",
+      "center_km": 8875.86096291117,
+      "min_km": 7544.481818474495,
+      "max_km": 10207.240107347847,
+      "distance_km": 7539.328671081104
+    }
+  ],
+  "W2NAF": [
+    {
+      "name": "NIC",
+      "path": "short",
+      "label": "Cyprus",
+      "center_km": 10416.881978108828,
+      "min_km": 8854.349681392503,
+      "max_km": 11979.414274825152,
+      "distance_km": 8848.301848011939
+    },
+    {
+      "name": "JORN",
+      "path": "short",
+      "label": "JORN short",
+      "center_km": 20349.145051524923,
+      "min_km": 17296.773293796185,
+      "max_km": 23401.516809253662,
+      "distance_km": 17284.958987080685
+    },
+    {
+      "name": "JORN",
+      "path": "long",
+      "label": "JORN long",
+      "center_km": 26777.430985859013,
+      "min_km": 22760.816337980163,
+      "max_km": 30794.045633737864,
+      "distance_km": 22745.26989699116
+    },
+    {
+      "name": "ROTHR1",
+      "path": "short",
+      "label": "ROTHR New Kent, Virginia",
+      "center_km": 514.0004101605642,
+      "min_km": 414.00041016056423,
+      "max_km": 614.0004101605642,
+      "distance_km": 436.6019302762903
+    },
+    {
+      "name": "ROTHR2",
+      "path": "short",
+      "label": "ROTHR Vieques, Puerto Rico",
+      "center_km": 3245.1314088547097,
+      "min_km": 2758.361697526503,
+      "max_km": 3731.901120182916,
+      "distance_km": 2756.4776391201553
+    },
+    {
+      "name": "ROTHR3",
+      "path": "short",
+      "label": "ROTHR Premont, Texas",
+      "center_km": 3013.449418749229,
+      "min_km": 2561.4320059368447,
+      "max_km": 3465.4668315616136,
+      "distance_km": 2559.68245746124
+    }
+  ],
+  "DMB": [
+    {
+      "name": "NIC",
+      "path": "short",
+      "label": "Cyprus",
+      "center_km": 4045.0575590017684,
+      "min_km": 3438.298925151503,
+      "max_km": 4651.816192852034,
+      "distance_km": 3435.9504456176996
+    },
+    {
+      "name": "JORN",
+      "path": "short",
+      "label": "JORN short",
+      "center_km": 16103.40271918813,
+      "min_km": 13687.892311309912,
+      "max_km": 18518.91312706635,
+      "distance_km": 13678.54299769472
+    },
+    {
+      "name": "JORN",
+      "path": "long",
+      "label": "JORN long",
+      "center_km": 31023.173318195808,
+      "min_km": 26369.69732046644,
+      "max_km": 35676.64931592518,
+      "distance_km": 26351.685886377127
+    },
+    {
+      "name": "ROTHR1",
+      "path": "short",
+      "label": "ROTHR New Kent, Virginia",
+      "center_km": 7290.052747782302,
+      "min_km": 6196.544835614956,
+      "max_km": 8383.560659949646,
+      "distance_km": 6192.312376761456
+    },
+    {
+      "name": "ROTHR2",
+      "path": "short",
+      "label": "ROTHR Vieques, Puerto Rico",
+      "center_km": 8755.895327741004,
+      "min_km": 7442.511028579853,
+      "max_km": 10069.279626902155,
+      "distance_km": 7437.427530835411
+    },
+    {
+      "name": "ROTHR3",
+      "path": "short",
+      "label": "ROTHR Premont, Texas",
+      "center_km": 9610.996748061629,
+      "min_km": 8169.347235852385,
+      "max_km": 11052.646260270873,
+      "distance_km": 8163.7672833219085
+    }
+  ],
+  "KREA": [
+    {
+      "name": "NIC",
+      "path": "short",
+      "label": "Cyprus",
+      "center_km": 6165.440690194279,
+      "min_km": 5240.624586665137,
+      "max_km": 7090.256793723422,
+      "distance_km": 5237.045055084535
+    },
+    {
+      "name": "JORN",
+      "path": "short",
+      "label": "JORN short",
+      "center_km": 7564.252644314036,
+      "min_km": 6429.61474766693,
+      "max_km": 8698.890540961142,
+      "distance_km": 6425.223093836404
+    },
+    {
+      "name": "JORN",
+      "path": "long",
+      "label": "JORN long",
+      "center_km": 39562.323393069906,
+      "min_km": 33627.97488410942,
+      "max_km": 45496.67190203039,
+      "distance_km": 33605.005790235446
+    },
+    {
+      "name": "ROTHR1",
+      "path": "short",
+      "label": "ROTHR New Kent, Virginia",
+      "center_km": 16300.008945468648,
+      "min_km": 13855.007603648352,
+      "max_km": 18745.010287288944,
+      "distance_km": 13845.544144389518
+    },
+    {
+      "name": "ROTHR2",
+      "path": "short",
+      "label": "ROTHR Vieques, Puerto Rico",
+      "center_km": 17481.16215234144,
+      "min_km": 14858.987829490223,
+      "max_km": 20103.336475192657,
+      "distance_km": 14848.838616297815
+    },
+    {
+      "name": "ROTHR3",
+      "path": "short",
+      "label": "ROTHR Premont, Texas",
+      "center_km": 18180.77674275883,
+      "min_km": 15453.660231345006,
+      "max_km": 20907.893254172654,
+      "distance_km": 15443.104835910892
+    }
+  ]
+}
