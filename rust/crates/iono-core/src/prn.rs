@@ -1,6 +1,10 @@
 //! Periodic pseudorandom-code receiver. Voltage, correlation and FFT arithmetic
 //! are complex64 (f32 pairs); oscillator epochs remain f64/integer sample counts.
 //! Code generation matches NumPy RandomState(seed), not the newer default_rng.
+//!
+//! Processing order: channelize a carrier, correlate each code period, solve its
+//! finite range window, then transform successive solved profiles for Doppler.
+//! Control-code identity checks are separate from the displayed SNR threshold.
 use crate::{dsp::fir_taps, median, simd};
 use anyhow::{ensure, Result};
 use num_complex::Complex32 as Z;
@@ -71,6 +75,8 @@ pub fn code(seed: u32, n: usize, pulse: isize, ipp: usize) -> Result<Vec<Z>> {
 /// A 10x mixer/boxcar followed by a centered 191-tap FIR and 25x decimation.
 /// Call with 1000 input samples of real overlap on either side and discard
 /// four output samples on each side. No synthetic padding across file gaps.
+/// Mix a carrier to baseband and FIR-decimate 25 MHz voltage to 100 kHz.
+/// Explicit relative sample phase keeps consecutive reads coherent.
 pub struct Channelizer {
     taps: Vec<Z>,
     phase: Vec<Z>,
@@ -330,6 +336,8 @@ impl Decoder {
         }
         Ok(output)
     }
+    // Slow-time FFT follows range decoding, independently at each lag. Guard
+    // periods stay zero so switching transients do not become accepted echoes.
     fn finish_profiles(&self, profiles: &[Vec<Z>]) -> Result<(Vec<f32>, f32)> {
         let nt = profiles.len();
         ensure!(nt >= 4, "at least four complete periods required");

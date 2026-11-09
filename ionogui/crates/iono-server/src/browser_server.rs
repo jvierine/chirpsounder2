@@ -1,4 +1,9 @@
 //! Thin catalogue/transport host. HTTP never enumerates the scientific archive.
+//!
+//! Ingestion consumes completed receiver bundles/inbox tickets. `bundles` holds
+//! bulk metadata, `latest_bundles` the priority lane, and `sources` exact archive
+//! paths for rehydration. HTTP serves prepared arrays; it neither decodes
+//! sounders nor constructs RTIs from individual scientific observations.
 mod path_quality;
 use anyhow::{ensure, Context, Result};
 use axum::{
@@ -238,6 +243,9 @@ fn import_source(app: &App, path: &Path, staged: Option<&Path>) -> Result<()> {
     );
     Ok(())
 }
+/// Busy days vary greatly in size, so evict by bytes rather than day count.
+/// Preserve each receiver's newest row, even above the target budget. Prune
+/// before insertion too: cleanup only after success cannot recover a full DB.
 fn prune_metadata(db: &Connection) -> Result<()> {
     for table in ["bundles", "latest_bundles"] {
         let mut q = db.prepare(&format!("SELECT rowid,station,length(CAST(metadata AS BLOB))+length(CAST(limits AS BLOB)) FROM {table} ORDER BY generated DESC"))?;

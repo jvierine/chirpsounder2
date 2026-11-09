@@ -1,4 +1,8 @@
 //! HDF5 product semantics shared by the receiver and indexed archive service.
+//!
+//! The `dsp` feature adds receiver algorithms. The GUI disables it: reading a
+//! prepared product must not start a decoder. Voltages use complex64 (f32 pairs);
+//! UTC epochs and sample indices retain double/integer timing precision.
 use anyhow::{bail, ensure, Context, Result};
 use hdf5::File;
 use serde::{Deserialize, Serialize};
@@ -21,6 +25,8 @@ pub const C: f64 = 299_792_458.;
 pub mod lfm_geolocation;
 pub mod processing_health;
 #[derive(Clone, Debug, Serialize, Deserialize)]
+/// Row-major field: `values[y * nx + x]`, with cell centres in `x` and `y`.
+/// Axis labels specify units. Non-finite cells mean unavailable, not zero signal.
 pub struct Grid {
     pub id: String,
     pub station: String,

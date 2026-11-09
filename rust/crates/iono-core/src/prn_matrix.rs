@@ -2,6 +2,11 @@
 //! A[t,r] = code[(t-r) mod N], as in ionosonde/prc_lib.py.
 //! Construct a Cholesky factor once, then cache its inverse for production
 //! multiplication; retain factor and full-operator variants for comparison.
+//!
+//! The inverse depends on the code and selected lag window, not received data.
+//! Reuse it across matching carriers/periods; do not invert per observation.
+//! FFT correlations supply the RHS and BLAS applies the cached matrix to
+//! complex64 profiles. A changed lag window requires a different operator.
 use anyhow::{ensure, Result};
 use libloading::Library;
 use num_complex::Complex32 as Z;

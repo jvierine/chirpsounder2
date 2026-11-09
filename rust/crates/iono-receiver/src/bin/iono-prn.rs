@@ -1,4 +1,9 @@
 //! Independent receiver-local PRN worker. Existing UHD acquisition is untouched.
+//!
+//! Config selects the transmitter schedule/code and receiver range gate. Each
+//! dwell is read from DigitalRF and passed through a reusable decoder bank.
+//! Sparse HDF5 records completion and code checks as well as accepted cells,
+//! distinguishing a non-detection from missing voltage.
 use anyhow::{ensure, Context, Result};
 use hdf5::File;
 use iono_core::{
@@ -63,6 +68,8 @@ fn matched_estimator() -> String {
 fn default_solver() -> String {
     "cached-inverse".into()
 }
+/// Convert one-way range to 100 kHz code lags (R = c * delay). The configured
+/// shift is not estimated by forcing an echo to the great-circle distance.
 fn first_lag(c: &Config) -> usize {
     if c.range_min_km == 0. {
         0
@@ -219,6 +226,8 @@ fn make_decoders(c: &Config, index: usize, first: usize, nr: usize) -> Result<Ve
         })
         .collect()
 }
+/// Decode one carrier dwell, sharing channelized samples with target/control
+/// codes. Return its range profile and the separate code-identity margin.
 fn column(
     c: &Config,
     r: &mut Reader,

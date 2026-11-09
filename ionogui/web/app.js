@@ -1,3 +1,7 @@
+// Dashboard orchestration: fetch prepared arrays, schedule visible plots and
+// bind controls. Station DSP/RTI preparation lives in rust/. Companion modules
+// own array bounds, geometry/hit testing and popup lifetimes. CPU usage,
+// publication freshness and supported echo bands are separate status signals.
 import init, {
   HeatmapView,
   PlotViewport,
@@ -227,6 +231,7 @@ function save() {
   saveOrder([...root.children].map((e) => e.dataset.key));
   localStorage.setItem("iono2-hidden", JSON.stringify([...hidden]));
 }
+// DOM removal alone does not release WASM/WebGL buffers or event bindings.
 function release(c) {
   c.abort?.abort();
   c.resize?.disconnect();
@@ -1163,6 +1168,8 @@ async function drawNetworkMap(records, positions, gen) {
   });
 }
 
+// Generation/abort guards stop late replies for a previous date/view from
+// repainting the current map. Receivers can complete independently.
 async function loadNetworkPropagation() {
   clearTimeout(timer);
   networkAbort?.abort();

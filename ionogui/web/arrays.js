@@ -1,4 +1,7 @@
 // Bounds are independent of how many cards exist on the page.
+// HTTP chunks need not align to Float32 boundaries. readArray joins partial
+// elements and validates the final byte count before admitting an array to cache.
+// Retain NaNs as measurement gaps; browser transport must not interpolate them.
 export const MAX_CELLS = 1440 * 512;
 export class ArrayCache {
   constructor(limit = 12 * 1024 * 1024) {

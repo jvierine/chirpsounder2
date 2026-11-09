@@ -1,3 +1,6 @@
+//! Receiver-local index of retained observations and reduced profiles.
+//! Separate from the web server's transport catalogue. Incremental indexing
+//! avoids reopening every observation on each RTI/publication cycle.
 use anyhow::{ensure, Result};
 use chrono::{TimeZone, Utc};
 use iono_core::{read_products, Grid};

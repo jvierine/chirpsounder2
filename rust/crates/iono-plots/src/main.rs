@@ -1,4 +1,9 @@
 //! Receiver-local materialization and Rustplotlib compatibility products.
+//!
+//! Index retained HDF5, publish current ionograms through a priority lane, then
+//! periodically prepare bounded day/history arrays. `--browser-only` skips
+//! static figures; `--no-upload` delegates transport to a separate publisher.
+//! Neither option moves scientific reduction to the GUI server.
 mod assumed;
 mod browser;
 mod catalog;

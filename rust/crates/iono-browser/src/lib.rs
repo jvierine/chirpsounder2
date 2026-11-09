@@ -1,4 +1,9 @@
 //! Receiver-produced numeric display products. No images or server reductions.
+//!
+//! Station/server interchange contract: axes, product descriptions, evidence and
+//! compressed Float32 arrays. Shape/count limits protect ingestion and browser
+//! allocation. Missing cells must survive compression and display reduction;
+//! they must not become detections or filled-in long outages.
 use anyhow::{ensure, Result};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};

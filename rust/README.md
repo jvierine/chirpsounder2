@@ -65,6 +65,57 @@ binaries to other receivers. Optional static Rustplotlib figures need TeX
 and its normal native dependencies; `iono-plots --browser-only` produces
 numeric arrays without invoking TeX or generating images.
 
+## Code map and data flow
+
+Use this map to find the implementation, rather than treating the deployment
+examples as independent processing programs:
+
+| Location | Responsibility |
+| --- | --- |
+| Root `rx_uhd*.cpp` | UHD acquisition and GPS/sample timing; writes DigitalRF voltage |
+| `crates/iono-receiver/src/main.rs` | Dispatches chirp discovery, scheduled LFM/Digisonde reception and RF spectra |
+| `crates/iono-receiver/src/bin/iono-prn.rs` | Schedules PRN carrier dwells, reads the ring, manages decoder banks and sparse output |
+| `crates/iono-core/src/prn.rs` | Code generation, channelization, FFT correlations and pulse-to-pulse range-Doppler processing |
+| `crates/iono-core/src/prn_matrix.rs` | Finite-window least squares; caches the inverse normal matrix and applies BLAS |
+| `crates/iono-core/src/simd.rs` | Runtime CPU dispatch and complex64 inner kernels |
+| `crates/iono-core/src/digisonde_match.rs` and `pulsed.rs` | Digisonde complementary-code matching and pulse processing |
+| `crates/iono-core/src/receiver_timing.rs` | Explicit receiver timing corrections |
+| `crates/iono-receiver/src/bin/iono-delay.rs` | Geometry, measured-delay diagnostics and calibration proposals |
+| `crates/iono-plots/src/catalog.rs` | Incremental station-local observation/profile index |
+| `crates/iono-plots/src/browser.rs` and `link_history.rs` | Bounded daily and link-history display arrays |
+| `crates/iono-plots/src/assumed.rs` | Provisional source associations from sweep clusters and configured range gates |
+| `crates/iono-browser/src/lib.rs` | Shared HDF5 browser-bundle schema and payload limits |
+| `../ionogui/` | Thin archive service and browser interface; see its code map |
+
+The chain is **voltage → decoded scientific HDF5 → station-local display
+bundles → publication → browser rendering**. Scientific HDF5 and display arrays
+have different roles: display reduction bounds transport/rendering cost without
+replacing the retained scientific observation. `browser_latest` is the fast
+current-ionogram lane; `browser_day` carries bulk daily/history products. A
+fresh priority publication does not prove that bulk RTIs are current.
+
+PRN decoding solves each code period's range profile before the slow-time FFT.
+For cached-inverse least squares, FFT correlation computes `Aᴴz`, then the cached
+`(AᴴA)⁻¹` acts on that vector. The operator is specific to a code and lag window.
+This is distinct from plain matched filtering and from slow-time Doppler
+processing. Control codes check identity; sparse SNR thresholds select cells.
+
+Keep these conventions when adding a receiver or decoder:
+
+* Voltage samples are complex64 (`Complex32`); epochs/sample indexing retain
+  sufficient precision for UTC timing. Do not cast absolute epochs to f32.
+* Oblique virtual range is one-way `R = c τ`, not monostatic `c τ / 2`.
+* Receiver hardware correction is fixed. A propagation-window estimate must
+  not silently change it or force an echo onto the geometric distance.
+* Completion, code identity, thresholded absence and missing voltage are
+  different conditions. Preserve their diagnostics in products and logs.
+* A range-gated “Australia”/ROTHR association is a candidate source, not a
+  location proof or evidence that a transmitter shut down during an echo gap.
+
+`cargo doc --workspace --no-deps` generates Rust API documentation from source
+comments. The installation guides describe operations; this map describes the
+code. When changing behaviour, update the relevant source comment and tests.
+
 ## PRN reception
 
 See [the reviewed transmitter configurations](deploy/prn/README.md).

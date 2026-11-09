@@ -13,6 +13,42 @@ HDF5 bundles and serves their compressed arrays. Reception, signal processing,
 ionogram preparation and RTI preparation belong to the adjacent `../rust`
 workspace and run at receivers, not in this web service.
 
+## Code map
+
+| File/module | Responsibility |
+| --- | --- |
+| `crates/iono-server/src/browser_server.rs` | Inbox ingestion, SQLite metadata/cache lifecycle and HTTP endpoints |
+| `crates/iono-server/src/path_quality.rs` | Freshness and quality classification; does not re-decode observations |
+| `web/app.js` | Dashboard state, progressive plot scheduling, selection and resource disposal |
+| `web/arrays.js` | Bounded streaming Float32 downloads and byte-limited browser cache |
+| `web/health.js` | Distinguishes telemetry age, publication delay and explicit processing losses |
+| `web/groups.js`, `preferences.js`, `presentation.js` | Panel grouping/order, saved preferences and sizing controls |
+| `web/observation-time.js` | UTC calendar/time selection and live “Now” behaviour |
+| `web/map-links.js` | Great circles, hit testing, hover labels and path display conventions |
+| `web/propagation-globe.js`, `globe-camera.js` | HEIMDALL globe adapter and matching screen/hit-test projection |
+| `web/vendor/heimdall-globe.js` | Imported WebGL globe implementation; regenerate with the import script |
+| `web/link-history-popup.js`, `ionogram-popup.js` | Selected-link history and ionogram popup lifetimes/navigation |
+| `scripts/test_*.mjs` | Browser logic regression tests without requiring a live receiver |
+
+`/api/day` supplies prepared plot metadata; `/api/data/ID` streams its numeric
+payload. `/api/frequency-limits` supplies path assessments, `/api/health`
+receiver telemetry, and `/api/archive-days` indexed available dates. The browser
+draws with Rustplotlib/WASM; it does not decode raw voltage. Server ingestion
+reads complete HDF5 bundles prepared by `../rust/crates/iono-plots`.
+
+There are two separate SQLite indexes: the receiver's scientific/profile index
+and this server's disposable metadata/transport catalogue. In the server,
+`bundles` stores bulk publications, `latest_bundles` priority ionograms, `arrays`
+tracks compressed cache files, and `sources` remembers exact archive paths.
+Cache eviction removes rehydratable entries, not original scientific HDF5.
+Prune before insertion as well as afterwards: a full catalogue otherwise blocks
+the successful insertion that would have triggered cleanup.
+
+Map colors come from assessed evidence and quality flags. A missing detection
+does not establish transmitter silence; a generic source association is not a
+verified transmitter site. Keep those distinctions when modifying map labels.
+CPU use, data freshness and supported bands also remain separate signals.
+
 ## Build
 
 Install Rust, the HDF5 development libraries (`libhdf5-dev` on Debian/Ubuntu),
