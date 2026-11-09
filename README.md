@@ -19,6 +19,8 @@ HDF5; processing and display products are bounded to protect memory and bandwidt
 
 ## Build and configure
 
+**Installation guides:** [Receiver station](INSTALL-STATION.md) · [Web server](INSTALL-SERVER.md).
+
 Start with [the Rust workspace instructions](rust/README.md). Build against the
 receiver's Linux/glibc and HDF5 versions. Do not distribute a machine-specific
 build to a different CPU or operating-system release.

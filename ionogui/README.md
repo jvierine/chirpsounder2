@@ -1,5 +1,8 @@
 # IonoGUI
 
+Start with the [server installation guide](../INSTALL-SERVER.md), or the
+[receiver station guide](../INSTALL-STATION.md) for acquisition and processing.
+
 Public browser interface and thin Rust data service for receiver-prepared
 Digisonde, LFM/chirp and PRN ionosonde products. The live interface is at
 https://juha.no/iono/.

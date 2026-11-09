@@ -2,10 +2,13 @@
 
 Supported sounder families: **Digisonde**, **LFM/chirp**, and **PRN/coded**.
 
+Start with the [station installation guide](../INSTALL-STATION.md), or the
+[server installation guide](../INSTALL-SERVER.md) for the public web interface.
+
 This workspace belongs to **chirpsounder2**. It runs beside the receiver's
-DigitalRF voltage ring buffer. IonoGUI2 is a separate browser GUI and thin
-archive service; a station does not need the IonoGUI2 repository to build or
-run these programs.
+DigitalRF voltage ring buffer. The browser GUI and thin archive service are in
+[`../ionogui`](../ionogui/README.md); they run separately from station DSP.
+A station does not need a separate IonoGUI2 repository.
 
 For an existing receiver, `scripts/install-station-build.sh BUILD_DIR SOURCE_ROOT`
 installs a reviewed native build under `~/bin` and updates only running Rust
