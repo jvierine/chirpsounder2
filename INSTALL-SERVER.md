@@ -13,7 +13,7 @@ sudo apt-get update
 sudo apt-get install -y git curl ca-certificates build-essential pkg-config \
   libhdf5-dev nginx
 mkdir -p ~/src
-git clone --branch codex/rust-prn-ringbuffer --single-branch \
+git clone --branch main --single-branch \
   https://github.com/jvierine/chirpsounder2.git ~/src/chirpsounder2
 ```
 

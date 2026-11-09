@@ -16,7 +16,7 @@ sudo apt-get update
 sudo apt-get install -y git curl ca-certificates build-essential pkg-config \
   libhdf5-dev libopenblas-dev rsync
 mkdir -p ~/src ~/bin ~/.config/chirpsounder2 ~/.config/systemd/user
-git clone --branch codex/rust-prn-ringbuffer --single-branch \
+git clone --branch main --single-branch \
   https://github.com/jvierine/chirpsounder2.git ~/src/chirpsounder2
 ```
 
