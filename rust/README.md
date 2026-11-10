@@ -116,6 +116,41 @@ Keep these conventions when adding a receiver or decoder:
 comments. The installation guides describe operations; this map describes the
 code. When changing behaviour, update the relevant source comment and tests.
 
+### Experimental overlapping channelizer tree
+
+`iono-core/src/channel_tree.rs` is an opt-in experiment, not the channelizer
+used by running receiver workers. It accepts simultaneous channel requests for
+one contiguous voltage frame and computes only the shared branches needed.
+Each decimate-by-two stage offers overlapping centres at `-Fs/4`, `0`, `+Fs/4`.
+The full requested bandwidth must fit within the selected child's flat passband;
+requests never rely on a filter transition or a critically sampled boundary.
+
+Binary decimation alone cannot produce 100 ksample/s from 25 MHz. The tree
+finishes with a fractional FIR at exactly 100 ksample/s, retaining a common
+integer frame origin and marking unsupported edges/gaps as NaN. Real read
+overlap must cover the accumulated filter support. The prototype rejects the
+extreme ADC edges outside its guarded coverage; use the direct path there.
+
+```sh
+cd rust
+bash scripts/benchmark-overlap-tree.sh /tmp/iono-overlap-tree-benchmark
+nice -n19 /tmp/iono-overlap-tree-benchmark --validate-only
+nice -n19 /tmp/iono-overlap-tree-benchmark
+```
+
+The runner tests split-boundary tones, a 40 dB stronger interferer, a coded
+delay and a chirp. Paired timings compare 1–32 clustered/spread channels with
+the current direct channelizer, including intermediate buffers, mixing,
+filtering and final resampling. Both methods receive the same in-memory input;
+no duplicate disk reads are assumed. Setup is reported separately. Overlap,
+additional filtering and intermediate memory traffic can outweigh sharing at
+small channel counts. Different filters also require response/alias tests;
+timing alone is insufficient to select a production channelizer.
+
+Sharing across the existing independent station workers would require a common
+frontend or explicit frame/cache transport, with timing-origin and gap metadata.
+Building a separate tree inside every worker does not provide shared savings.
+
 ### Reproduce CPU optimization measurements
 
 The non-FMA AVX FIR path includes a handwritten four-accumulator loop, with
