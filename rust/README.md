@@ -116,6 +116,32 @@ Keep these conventions when adding a receiver or decoder:
 comments. The installation guides describe operations; this map describes the
 code. When changing behaviour, update the relevant source comment and tests.
 
+### Reproduce CPU optimization measurements
+
+The non-FMA AVX FIR path includes a handwritten four-accumulator loop, with
+unaligned loads and bounded tails. PRN channelization also moves each chunk's
+common phase rotation after the ten-sample sum, removing a redundant full-rate
+pass and two scratch buffers. Existing FMA/SSE/scalar dispatch remains available.
+
+On Linux, compare against the exact pre-change implementation:
+
+```sh
+cd rust
+cargo test --release --locked -p iono-core simd::tests
+cargo test --release --locked -p iono-core benchmark_avx_assembly_paired -- --ignored --nocapture
+bash scripts/benchmark-channelizer-asm.sh /tmp/iono-channelizer-benchmark
+nice -n19 /tmp/iono-channelizer-benchmark
+```
+
+The standalone runner extracts production channelizer code and SIMD code from
+baseline `3a1e3d0` and the current working tree; it requires Git history, Rust and
+static C runtime support on the Linux build host. It compares numerical output,
+then alternates baseline/candidate trial order and reports thread CPU and wall
+times. It deliberately excludes HDF5 and FFT/least-squares processing: these are
+kernel/channelizer measurements, not a whole-receiver throughput claim. See the
+benchmark source for shapes and timing boundaries. Do not interrupt acquisition
+or change host security settings to run benchmarks.
+
 ## PRN reception
 
 See [the reviewed transmitter configurations](deploy/prn/README.md).

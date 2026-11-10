@@ -108,20 +108,17 @@ impl Channelizer {
     pub fn process(&self, raw: &[Z], relative_sample: i64) -> Vec<Z> {
         let mut stage = Vec::with_capacity(raw.len() / 10);
         let mut mixed = vec![Z::default(); 4000];
-        let mut oscillator = mixed.clone();
-        let mut rotation = mixed.clone();
         for (b, chunk) in raw.chunks(4000).enumerate() {
             let phase = (-TAU * self.offset * (relative_sample + b as i64 * 4000) as f64 / 25e6)
                 .rem_euclid(TAU);
-            rotation[..chunk.len()].fill(Z::new(phase.cos() as f32, phase.sin() as f32));
-            simd::multiply(
-                &self.phase[..chunk.len()],
-                &rotation[..chunk.len()],
-                &mut oscillator[..chunk.len()],
-            );
-            simd::multiply(chunk, &oscillator[..chunk.len()], &mut mixed[..chunk.len()]);
+            // The chunk phase is common to each ten-sample boxcar. By linearity,
+            // rotate the sum instead of rotating all ten oscillator samples.
+            // This removes a full-rate SIMD pass and two 4000-complex buffers;
+            // absolute chunk phase still comes from the original sample epoch.
+            let rotation = Z::new(phase.cos() as f32, phase.sin() as f32);
+            simd::multiply(chunk, &self.phase[..chunk.len()], &mut mixed[..chunk.len()]);
             for v in mixed[..chunk.len()].chunks_exact(10) {
-                stage.push(v.iter().copied().sum::<Z>() * 0.1);
+                stage.push(v.iter().copied().sum::<Z>() * rotation * 0.1);
             }
         }
         let mut out = vec![Z::default(); raw.len() / 250];
@@ -547,19 +544,22 @@ mod tests {
     }
     #[test]
     fn channelizer_preserves_tone_phase_across_chunks() {
-        let offset = 4_350_000.;
-        let ch = Channelizer::new(offset, 100000.).unwrap();
-        for start in [0i64, 1234567, -1000] {
-            let v: Vec<_> = (0..27000)
-                .map(|i| {
-                    let p = TAU * offset * (start + i) as f64 / 25e6;
-                    Z::new(p.cos() as f32, p.sin() as f32)
-                })
-                .collect();
-            let out = ch.process(&v, start);
-            assert!(out[4..out.len() - 4]
-                .iter()
-                .all(|z| (*z - Z::new(1., 0.)).norm() < 3e-5));
+        // Off-grid and negative offsets exercise nontrivial chunk rotations,
+        // not only phases that happen to be integer multiples of 2*pi.
+        for offset in [4_350_000., 1_712_345.67, -11_499_999.25] {
+            let ch = Channelizer::new(offset, 100000.).unwrap();
+            for start in [0i64, 1234567, -1000] {
+                let v: Vec<_> = (0..27000)
+                    .map(|i| {
+                        let p = TAU * offset * (start + i) as f64 / 25e6;
+                        Z::new(p.cos() as f32, p.sin() as f32)
+                    })
+                    .collect();
+                let out = ch.process(&v, start);
+                assert!(out[4..out.len() - 4]
+                    .iter()
+                    .all(|z| (*z - Z::new(1., 0.)).norm() < 3e-5));
+            }
         }
     }
 }
