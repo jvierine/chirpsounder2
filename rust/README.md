@@ -116,6 +116,60 @@ Keep these conventions when adding a receiver or decoder:
 comments. The installation guides describe operations; this map describes the
 code. When changing behaviour, update the relevant source comment and tests.
 
+### Experimental oversampled PFB
+
+`iono-core/src/pfb.rs` provides a separate shared FFT/polyphase frontend for
+benchmarking. It is not selected by production workers. SIMD polyphase kernels
+use AVX/FMA, non-FMA AVX or SSE with a scalar fallback; RustFFT selects its CPU
+backend. The same input frame feeds all requested narrow subbands.
+
+For `M` coarse bins and `D=M/2` decimation, spacing is `25 MHz/M` and each bin's
+sample rate is twice that spacing. The flat half-passband is
+`spacing/2 + 60 kHz`. Thus any supported signal up to 100 kHz wide fits in its
+nearest bin, even exactly between bin centres, with 10 kHz of extra margin.
+Each narrow request reads exactly one bin; channels are never stitched.
+Prototype passband and alias rejection are checked before timing. Final
+extraction produces 100 ksample/s with a fractional FIR scaled to the existing
+direct channelizer's physical filter support, not a newly claimed flat final
+100 kHz decoding response.
+
+```sh
+cd rust
+bash scripts/benchmark-pfb.sh /tmp/iono-pfb-benchmark
+nice -n19 /tmp/iono-pfb-benchmark --validate-only
+PFB_TRIALS=7 nice -n19 /tmp/iono-pfb-benchmark
+# Restrict a follow-up sweep, e.g. around a measured optimum:
+PFB_SIZES=24,28,32,36,40 PFB_TRIALS=7 nice -n19 /tmp/iono-pfb-benchmark
+```
+
+The default sweep covers 14 even FFT sizes from 8 to 192, clustered and spread
+layouts, and 1–32 simultaneous narrow channels. It alternates direct/PFB order
+and measures full processing, including scratch/intermediate allocation, FFT,
+bin retention, residual mixing and final narrow-band resampling. Plan setup is
+reported separately. Both methods receive the same in-memory voltage, so no
+duplicate disk-read saving is assumed. Filter-boundary/40 dB interferer tests,
+analytically pulse-shaped coded delays, arbitrary frame origins and SIMD parity
+checks precede the benchmark. Missing voltage and unsupported filter edges stay
+NaN. Real overlap and a common integer sample origin are required when connecting
+this to a streaming frontend.
+
+`confirm-pfb-widths.sh /tmp/iono-pfb-benchmark` rotates a shortlisted set through
+all test-order positions on a busy host; `PFB_CONFIRM_SIZES` and
+`PFB_CONFIRM_ROUNDS` control that confirmation. Exact 1 MHz/500 ksample/s coarse
+streams (50/100 bins) are included in the width search. Final resampling uses an
+integer phase accumulator rather than dividing for every output sample.
+
+The experimental output time refers to the centred FIR grid. The old direct
+ten-sample boxcar has an effective centre 4.5 raw samples later (0.18 us at
+25 MHz). A production integration must handle that DSP timing convention
+explicitly, separately from fixed receiver hardware calibration; the integer
+coded-delay tests are not a sub-microsecond delay calibration.
+
+Choose a width from the measured channel count, distribution and processor,
+including setup/transport amortization. Small loads may still favour direct
+channelization. A benchmark does not connect independent station processes to a
+shared frontend or authorize a production rollout.
+
 ### Experimental overlapping channelizer tree
 
 `iono-core/src/channel_tree.rs` is an opt-in experiment, not the channelizer

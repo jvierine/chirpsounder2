@@ -16,6 +16,8 @@ pub mod prn;
 #[cfg(feature = "dsp")]
 pub mod channel_tree;
 #[cfg(feature = "dsp")]
+pub mod pfb;
+#[cfg(feature = "dsp")]
 pub mod prn_matrix;
 #[cfg(feature = "dsp")]
 pub mod pulsed;
