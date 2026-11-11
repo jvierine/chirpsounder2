@@ -53,6 +53,16 @@ the receiver's Uppsala JSON as `~/.config/iono-prn/Uppsala.json`, then use
 and published path timestamps. Roll back this addition with
 `systemctl --user disable --now iono-prn@Uppsala`.
 
+TGO's existing HTTP bulk publisher sends history about every five minutes.
+The separate `iono-latest-http.timer` publishes its already prepared latest
+ionograms once per minute at 16 KiB/s, without restarting acquisition or the
+plot worker. Install `scripts/iono-latest-http-publish.sh` in `~/bin/` and the
+matching service/timer from `deploy/` in `~/.config/systemd/user/`, then reload
+the user manager and enable the timer. This is for TGO only: do not combine it
+with a priority rsync publisher, which already sends the same small lane.
+Failed uploads keep the previous sent marker so the next timer run retries;
+unchanged files are skipped. Disable the timer to roll back this addition.
+
 Map coordinates are in `web/paths.json` (compiled into the thin server's
 station catalogue). Kiruna's supplied INI has zero latitude/longitude
 placeholders; the map uses the existing IRF site position 67.840741 N,

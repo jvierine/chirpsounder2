@@ -1,0 +1,10 @@
+[Unit]
+Description=Publish TGO current ionograms without waiting for bulk history
+
+[Service]
+Type=oneshot
+ExecStart=%h/bin/iono-latest-http-publish.sh TGO /data0
+Nice=19
+IOSchedulingClass=idle
+MemoryMax=64M
+NoNewPrivileges=yes

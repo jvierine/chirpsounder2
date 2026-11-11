@@ -1,0 +1,11 @@
+[Unit]
+Description=Publish new TGO ionograms once per minute
+
+[Timer]
+OnBootSec=15
+OnUnitActiveSec=60
+AccuracySec=5
+Unit=iono-latest-http.service
+
+[Install]
+WantedBy=timers.target
