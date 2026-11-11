@@ -11,8 +11,8 @@ Nice=0
 CPUWeight=1000
 IOSchedulingClass=best-effort
 IOSchedulingPriority=2
-MemoryMax=768M
-LimitAS=2147483648
+MemoryMax=1536M
+LimitAS=3221225472
 LimitCORE=0
 NoNewPrivileges=yes
 

@@ -1,5 +1,6 @@
 {
   "data_dir": "/dev/shm/hf25",
   "channel": "ch0",
-  "tiles": 64
+  "tiles": 64,
+  "raw_frames": 32
 }

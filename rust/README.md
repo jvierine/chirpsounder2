@@ -124,7 +124,10 @@ through a receiver-local `iono-pfb` daemon. LFM reception and global chirp searc
 never use it. The daemon computes 32 overlapping coarse channels per voltage
 tile and retains them in a bounded LRU cache; only requested 100 ksample/s
 complex64 streams cross its private Unix socket. At 64 tiles the coarse cache
-uses approximately 270 MB, independent of recording duration. Invalid/missing
+uses approximately 270 MB, independent of recording duration. A separate bounded
+32-frame raw-voltage cache adds at most 640 MB, avoiding repeated small HDF5
+reads/decompression. Requests enter a FIFO so backfill cannot monopolize the
+engine. Invalid/missing
 samples remain errors. A gap elsewhere in a tile does not invalidate a valid
 shorter requested interval. Decoder matrices, pulse ordering and hardware delay
 calibration are unchanged. The narrow FIR explicitly retains the direct
