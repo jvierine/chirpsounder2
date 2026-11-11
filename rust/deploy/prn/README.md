@@ -31,14 +31,27 @@ The JSON files retain exact irregular frequency tables and source hashes.
 | --- | --- | --- |
 | DOB | `DOB-Kiruna.json`, `DOB-Uppsala.json` | `~/.config/iono-prn/Kiruna.json`, `~/.config/iono-prn/Uppsala.json` |
 | DOB (Italian reception trial) | `DOB-Montelibretti.json` | `~/.config/iono-prn/Montelibretti.json` |
-| TGO | `TGO-Kiruna.json`, `TGO-Montelibretti.json` | `~/.config/iono-prn/{Kiruna,Montelibretti}.json` |
-| KHO | `KHO-Kiruna.json`, `KHO-Montelibretti.json` | `~/.config/iono-prn/{Kiruna,Montelibretti}.json` |
+| TGO | `TGO-Kiruna.json`, `TGO-Uppsala.json`, `TGO-Montelibretti.json` | `~/.config/iono-prn/{Kiruna,Uppsala,Montelibretti}.json` |
+| KHO | `KHO-Kiruna.json`, `KHO-Uppsala.json`, `KHO-Montelibretti.json` | `~/.config/iono-prn/{Kiruna,Uppsala,Montelibretti}.json` |
 
 `iono-prn@Kiruna` and `iono-prn@Uppsala` explicitly name these installed files.
 No automatic INI discovery occurs. The old seed-1 `irf_prn.ini`,
 `irf_prn2.ini` and `irf_prn_cw.ini` are not active in this pipeline; existing
 source experiments are preserved. Only Martin's `irf_prn_kiruna_2min.ini`
 and `irf_prn3_uppsala.ini` supply the currently enabled Swedish programs.
+
+Uppsala is configured on all three Nordic receivers. Its transmitter code,
+irregular frequency table and four-minute schedule are identical at each site.
+The TGO range gate is 1000–2000 km and KHO is 1900–2900 km, covering plausible
+oblique paths around the approximately 1098 km and 2041 km ground distances.
+These gates are not clock calibrations. Each receiver retains its existing
+sample shift and KHO's measured 10.5-second writer grace. The Uppsala unit
+shares the existing CPU/memory-limited PRN slice; acquisition is not restarted.
+For an existing installation with current binaries and unit files, install only
+the receiver's Uppsala JSON as `~/.config/iono-prn/Uppsala.json`, then use
+`systemctl --user enable --now iono-prn@Uppsala` and verify new HDF5 products
+and published path timestamps. Roll back this addition with
+`systemctl --user disable --now iono-prn@Uppsala`.
 
 Map coordinates are in `web/paths.json` (compiled into the thin server's
 station catalogue). Kiruna's supplied INI has zero latitude/longitude
