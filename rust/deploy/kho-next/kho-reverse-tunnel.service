@@ -1,0 +1,11 @@
+[Unit]
+Description=New KHO receiver SSH access through juha.no
+StartLimitIntervalSec=0
+
+[Service]
+ExecStart=/usr/bin/ssh -NT -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=%h/.ssh/known_hosts_juha_tunnel -o ExitOnForwardFailure=yes -o ConnectTimeout=15 -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -i %h/.ssh/juha_kho_tunnel_ed25519 -R 127.0.0.1:5559:127.0.0.1:22 kho-new-tunnel@juha.no
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

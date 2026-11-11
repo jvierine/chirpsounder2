@@ -26,7 +26,7 @@ Science products stay in `/data0` on the new SSD. Raw voltage is only retained
 in the 90-second RAM ring. Disk health is included in browser publications;
 scientific HDF5 files are not silently deleted to make space. Priority bundles
 use capped HTTP uploads, and full browser history retains its five-minute
-publication cadence. No private keys or new reverse tunnels are installed.
+publication cadence. The dedicated reverse-tunnel private key stays on the receiver.
 
 ## Install or reproduce
 
@@ -69,3 +69,26 @@ ignored); the cable state-machine tests passed; an existing KHO Uppsala HDF5
 ionogram produced a priority bundle and 16 browser products with uploads
 disabled. Live RF throughput and reference/PPS lock remain checks for the
 physical handover. Access credentials are kept only in Juha's private notes.
+
+## Remote access
+
+Juha explicitly authorized a reverse SSH tunnel for the new KHO PC on
+11 November 2026. The enabled user service `kho-reverse-tunnel.service`
+starts at boot through user lingering and reconnects automatically. It is
+independent of the USRP cable and the acquisition target.
+
+Connect from Juha's Mac with `ssh kho-new`, or explicitly:
+
+```sh
+ssh -J juha-no -p 5559 administrator@127.0.0.1
+```
+
+The old PC remains on port 5558. The new listener is bound to juha.no's
+loopback address only. Its dedicated `kho-new-tunnel` account allows remote
+forwarding only to port 5559, with no shell/session access. Its dedicated
+Ed25519 private key is generated and retained on the receiver. The juha.no
+host key is pinned using the existing authenticated management connection.
+
+Install the unit in `~/.config/systemd/user/` after provisioning the key and
+server restrictions, then run `systemctl --user enable --now kho-reverse-tunnel`.
+Inspect `journalctl --user -u kho-reverse-tunnel` to diagnose connectivity.
