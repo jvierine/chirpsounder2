@@ -39,5 +39,16 @@ class FrequencyProgramTests(unittest.TestCase):
             self.assertEqual(irf["period_s"], 60)
 
 
+    def test_huairou_fifty_khz_code_clock_keeps_the_original_code_period(self):
+        source = Path(__file__).parents[1] / "deploy/prn/DOB-Huairou.json"
+        result = json.loads(source.read_text())
+        self.assertEqual(result["codes"][0]["sample_rate_hz"], 50000)
+        self.assertEqual(result["codes"][0]["length"], 10000)
+        self.assertEqual(result["codes"][0]["pulse_length"], -1)
+        self.assertEqual(len(result["frequencies_hz"]), 120)
+        self.assertEqual(result["period_s"], 720)
+        self.assertEqual(result["dwell_s"], 6)
+
+
 if __name__ == "__main__":
     unittest.main()

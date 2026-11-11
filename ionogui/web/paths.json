@@ -168,5 +168,12 @@
     "association_quality": "GIRO-program association; shared Millstone waveform and pulse-period ambiguity; timing uncalibrated",
     "position_quality": "GIRO approximate station coordinate",
     "source_label": "Pituffik (Thule; provisional)"
+  },
+  "Huairou": {
+    "name": "Huairou",
+    "lat": 40.800588,
+    "lon": 116.597136,
+    "quantitative_eligible": false,
+    "association_quality": "Supplied transmitter configuration; DOB commissioning; UTC sounding phase and reception require verification"
   }
 }

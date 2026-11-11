@@ -17,7 +17,9 @@ def convert(source, station, transmitter, output_dir="/data0", start_offset_s=0,
     parser.read(source)
     raw = parser["config"]
     get = lambda key: json.loads(raw[key])
-    assert get("sample_rate") / get("dec") == 100000
+    code_rate = int(get("sample_rate") / get("dec"))
+    if code_rate not in (50000, 100000):
+        raise ValueError("supported native code clocks are 50 and 100 ksample/s")
     assert all(t == "prn" for t in get("code_type"))
     rows = get("freqs")
     if frequency_program == "ingv-generated":
@@ -43,7 +45,7 @@ def convert(source, station, transmitter, output_dir="/data0", start_offset_s=0,
         "frequencies_hz": [row[0] * 1e6 for row in rows],
         "code_indices": [row[1] for row in rows],
         "codes": [dict(seed=get("station_id"), length=get("code_len"),
-                       pulse_length=pulse, ipp=ipp, bandwidth_hz=bw,
+                       pulse_length=pulse, ipp=ipp, bandwidth_hz=bw, sample_rate_hz=code_rate,
                        control_seeds=[seed for seed in (1, 2, 3, 4) if seed != get("station_id")])
                   for pulse, ipp, bw in zip(get("pulse_length"), get("ipp"), get("bw"), strict=True)],
         "dwell_s": dwell, "period_s": 86400 / math.floor(1440 / minutes),

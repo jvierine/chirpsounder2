@@ -20,6 +20,9 @@ use std::{
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
+fn default_code_rate() -> u32 {
+    100000
+}
 #[derive(Deserialize, Serialize, PartialEq)]
 struct Code {
     seed: u32,
@@ -27,6 +30,8 @@ struct Code {
     pulse_length: isize,
     ipp: usize,
     bandwidth_hz: f64,
+    #[serde(default = "default_code_rate")]
+    sample_rate_hz: u32,
     #[serde(default)]
     control_seeds: Vec<u32>,
 }
@@ -70,11 +75,49 @@ fn default_solver() -> String {
 }
 /// Convert one-way range to 100 kHz code lags (R = c * delay). The configured
 /// shift is not estimated by forcing an echo to the great-circle distance.
+fn code_rate(c: &Config) -> f64 {
+    c.codes[0].sample_rate_hz as f64
+}
+fn read_padding(code: &Code) -> usize {
+    if code.sample_rate_hz == 100000 {
+        1000
+    } else {
+        20000
+    }
+}
+/// Native 50 ksample/s codes are not new random 20k-sample codes. Preserve
+/// their 10k-chip waveform and 0.2 s period. A centred anti-alias FIR converts
+/// the common 100 ksample/s frontend; real input guards preserve UTC/range.
+fn native_period(
+    channel: &Channelizer,
+    raw: &[num_complex::Complex32],
+    relative: i64,
+    code: &Code,
+) -> Vec<num_complex::Complex32> {
+    let z = channel.process(raw, relative);
+    if code.sample_rate_hz == 100000 {
+        return z[4..4 + code.length].to_vec();
+    }
+    static TAPS: std::sync::OnceLock<Vec<num_complex::Complex32>> = std::sync::OnceLock::new();
+    let h = TAPS.get_or_init(|| {
+        iono_core::dsp::fir_taps(127, 0.225, 8.6)
+            .into_iter()
+            .map(|h| num_complex::Complex32::new(h, h))
+            .collect()
+    });
+    let first = read_padding(code) / 250;
+    (0..code.length)
+        .map(|i| {
+            let at = first + 2 * i - h.len() / 2;
+            simd::weighted_sum(&z[at..at + h.len()], h)
+        })
+        .collect()
+}
 fn first_lag(c: &Config) -> usize {
     if c.range_min_km == 0. {
         0
     } else {
-        ((c.range_min_km * 1000. / C * 100000.).ceil() as i64 + c.range_shift_samples).max(0)
+        ((c.range_min_km * 1000. / C * code_rate(c)).ceil() as i64 + c.range_shift_samples).max(0)
             as usize
     }
 }
@@ -172,22 +215,29 @@ fn validate(c: &Config) -> Result<()> {
             && c.range_max_km > 100.
             // Long oblique paths are limited by the actual code period, not
             // an arbitrary regional 10,000 km ceiling.
-            && c.codes.iter().all(|code| c.range_max_km <= code.length as f64 * C / 100_000_000.)
+            && c.codes.iter().all(|code| c.range_max_km <= code.length as f64 * C / (code.sample_rate_hz as f64*1000.))
             && c.range_shift_samples.abs() < 1000,
         "invalid range geometry"
+    );
+    ensure!(
+        c.codes
+            .iter()
+            .all(|code| [50000, 100000].contains(&code.sample_rate_hz)
+                && code.sample_rate_hz == c.codes[0].sample_rate_hz),
+        "one supported native code clock required per sounder"
     );
     for code in &c.codes {
         ensure!(
             code.control_seeds.len() <= 4 && !code.control_seeds.contains(&code.seed),
             "invalid comparison codes"
         );
-        let periods = c.dwell_s * 100000. / code.length as f64;
+        let periods = c.dwell_s * code.sample_rate_hz as f64 / code.length as f64;
         ensure!(
             periods >= 4. && periods <= 256. && (periods - periods.round()).abs() < 1e-6,
             "dwell must contain 4..256 complete code periods"
         );
         ensure!(
-            code.length <= 20000 && code.bandwidth_hz <= 100000.,
+            code.length <= 20000 && code.bandwidth_hz <= code.sample_rate_hz as f64,
             "unsupported waveform"
         );
         prn::code(code.seed, code.length, code.pulse_length, code.ipp)?;
@@ -250,8 +300,9 @@ fn column(
         d.reset();
     }
     let base = epoch_sample(epoch + f as f64 * c.dwell_s)?;
-    let n = code.length * 250;
-    let periods = (c.dwell_s * 100000. / code.length as f64).round() as usize;
+    let n = code.length * (25_000_000 / code.sample_rate_hz as usize);
+    let padding = read_padding(code);
+    let periods = (c.dwell_s * code.sample_rate_hz as f64 / code.length as f64).round() as usize;
     for p in 0..periods {
         // The Doppler estimator discards these transition periods. Do not read
         // padding into a future, still-open recorder file just to discard it.
@@ -263,12 +314,12 @@ fn column(
         }
         let start = base
             .checked_add((p * n) as u64)
-            .and_then(|n| n.checked_sub(1000))
+            .and_then(|n| n.checked_sub(padding as u64))
             .context("read index overflow")?;
         let mut raw = None;
         let mut last = None;
         for _ in 0..3 {
-            match r.read_complex32(start, n + 2000, &c.channel, 0) {
+            match r.read_complex32(start, n + 2 * padding, &c.channel, 0) {
                 Ok(v) => {
                     raw = Some(v);
                     break;
@@ -278,8 +329,8 @@ fn column(
             thread::sleep(Duration::from_millis(150));
         }
         let raw = raw.ok_or_else(|| anyhow::anyhow!("missing voltage at {start}: {:?}", last))?;
-        let z = channel.process(&raw, p as i64 * n as i64 - 1000);
-        Decoder::push_shared(&z[4..4 + code.length], decoders)?;
+        let z = native_period(&channel, &raw, p as i64 * n as i64 - padding as i64, code);
+        Decoder::push_shared(&z, decoders)?;
     }
     let (snr, peak) = decoders[0].finish_with_score()?;
     let mut control_peak = 0f32;
@@ -407,6 +458,7 @@ fn save(
             .with_data(&values)
             .create("SNR_sparse_values")?;
         scalar(&h, "snr_threshold_db", c.snr_threshold_db as f64)?;
+        scalar(&h, "code_sample_rate_hz", code_rate(c))?;
         let peaks: Vec<_> = snr
             .chunks_exact(nr)
             .map(|v| {
@@ -433,7 +485,9 @@ fn save(
             .with_data(&c.frequencies_hz)
             .create("freqs")?;
         let ranges: Vec<_> = (0..nr)
-            .map(|r| (r as i64 + first_lag(c) as i64 - c.range_shift_samples) as f64 * C / 100000.)
+            .map(|r| {
+                (r as i64 + first_lag(c) as i64 - c.range_shift_samples) as f64 * C / code_rate(c)
+            })
             .collect();
         h.new_dataset_builder()
             .with_data(&ranges)
@@ -454,7 +508,7 @@ fn save(
         scalar(&h, "t0", epoch)?;
         scalar(&h, "range_offset_applied", 1.)?;
         scalar(&h, "range_shift_samples", c.range_shift_samples as f64)?;
-        scalar(&h, "output_sample_rate_hz", 100000.)?;
+        scalar(&h, "output_sample_rate_hz", code_rate(c))?;
         scalar(&h, "last_observation", now())?;
         text(&h, "station_name", &c.station)?;
         text(&h, "txname", &c.transmitter)?;
@@ -528,8 +582,9 @@ fn main() -> Result<()> {
         })
         .transpose()?;
     let first = first_lag(&c);
-    let end = ((c.range_max_km * 1000. / C * 100000.).ceil() as i64 + c.range_shift_samples + 1)
-        .max(2) as usize;
+    let end =
+        ((c.range_max_km * 1000. / C * code_rate(&c)).ceil() as i64 + c.range_shift_samples + 1)
+            .max(2) as usize;
     ensure!(end > first + 1, "empty range window");
     let nr = end - first;
     ensure!(
@@ -715,5 +770,104 @@ mod tests {
             .iter()
             .all(|v| v.is_nan()));
         fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn huairou_native_clock_and_delay_geometry_are_consistent() {
+        let c: Config =
+            serde_json::from_slice(include_bytes!("../../../../deploy/prn/DOB-Huairou.json"))
+                .unwrap();
+        validate(&c).unwrap();
+        assert_eq!(code_rate(&c), 50000.);
+        assert_eq!(c.dwell_s, 6.);
+        assert_eq!(c.period_s, 720.);
+        assert_eq!(c.frequencies_hz.len(), 120);
+        assert_eq!(c.codes[0].length, 10000);
+        assert_eq!(c.codes[0].pulse_length, -1);
+        assert_eq!(c.dwell_s * code_rate(&c) / c.codes[0].length as f64, 30.);
+        let first = first_lag(&c);
+        assert!((first as f64 * C / code_rate(&c) / 1000. - c.range_min_km).abs() < 6.);
+        assert_eq!(c.range_shift_samples, 0); // Never import the TX's local RX calibration.
+    }
+    #[test]
+    fn huairou_sparse_product_retains_native_range_spacing() {
+        let mut c: Config =
+            serde_json::from_slice(include_bytes!("../../../../deploy/prn/DOB-Huairou.json"))
+                .unwrap();
+        let root = std::env::temp_dir().join(format!("iono-huairou-native-{}", std::process::id()));
+        c.output_dir = root.to_str().unwrap().into();
+        let nr = ((c.range_max_km * 1000. / C * code_rate(&c)).ceil() as usize + 1) - first_lag(&c);
+        let mut snr = vec![f32::NAN; nr * c.frequencies_hz.len()];
+        snr[100] = 100.;
+        let mut complete = vec![0; c.frequencies_hz.len()];
+        complete[0] = 1;
+        let margins = vec![10.; c.frequencies_hz.len()];
+        let path = save(&c, 1700000000., nr, &snr, &complete, &margins).unwrap();
+        let h = File::open(&path).unwrap();
+        assert_eq!(
+            h.dataset("output_sample_rate_hz")
+                .unwrap()
+                .read_scalar::<f64>()
+                .unwrap(),
+            50000.
+        );
+        let ranges = h.dataset("ranges").unwrap().read_raw::<f64>().unwrap();
+        assert!(((ranges[1] - ranges[0]) - C / 50000.).abs() < 1e-6);
+        drop(h);
+        let g = iono_core::read_products(&path).unwrap();
+        assert!(g[0].values.iter().any(|v| v.is_finite()));
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn native_fifty_khz_rf_recovers_huairou_code_delay_and_doppler() {
+        use num_complex::Complex32 as Z;
+        let c: Config =
+            serde_json::from_slice(include_bytes!("../../../../deploy/prn/DOB-Huairou.json"))
+                .unwrap();
+        let code = &c.codes[0];
+        let reference = prn::code(10, 10000, -1, 1000).unwrap();
+        let negative = prn::code(1, 10000, -1, 1000).unwrap();
+        let padding = read_padding(code);
+        let offset = -7_123_456.67;
+        let lag = 1200usize;
+        let raw: Vec<_> = (0..5_000_000 + 2 * padding)
+            .map(|i| {
+                let t = i as i64 - padding as i64;
+                let j = (t.div_euclid(500) - lag as i64).rem_euclid(10000) as usize;
+                let a = std::f64::consts::TAU * offset * t as f64 / 25e6;
+                reference[j] * Z::new(a.cos() as f32, a.sin() as f32)
+            })
+            .collect();
+        let channel = Channelizer::new(offset, 50000.).unwrap();
+        let z = native_period(&channel, &raw, -(padding as i64), code);
+        assert_eq!(z.len(), 10000);
+        let mut target = Decoder::new_matrix(&reference, 1100, 200).unwrap();
+        let mut control = Decoder::new_window(&negative, 1100, 200).unwrap();
+        for p in 0..8 {
+            let v: Vec<_> = z
+                .iter()
+                .map(|v| *v * Z::from_polar(1., p as f32 * 0.4))
+                .collect();
+            target.push(&v).unwrap();
+            control.push(&v).unwrap();
+        }
+        let profiles = target.range_estimates().unwrap();
+        let power = target.finish_with_score().unwrap();
+        let ctl = control.finish_with_score().unwrap();
+        let peak = power
+            .0
+            .iter()
+            .enumerate()
+            .max_by(|a, b| a.1.total_cmp(b.1))
+            .unwrap()
+            .0;
+        assert!(
+            (peak + 1100).abs_diff(lag) <= 1,
+            "wrong native-rate delay {peak}"
+        );
+        assert!(10. * (power.1 / ctl.1).log10() > 6.);
+        assert!(
+            ((profiles[1][peak] * profiles[0][peak].conj()).arg() - 0.4).abs() < 1e-4,
+            "slow-time phase changed"
+        );
     }
 }
