@@ -447,21 +447,39 @@ fn digisonde(
         } else {
             0
         };
-        let raw = read_live(
-            &mut r,
-            c,
-            base.checked_sub(padding as u64)
-                .context("FIR overlap before sample zero")?,
-            raw_samples + 2 * padding,
-        )?;
+        let raw = if iono_receiver::frontend::enabled() {
+            wait(
+                ((base + raw_samples as u64 + padding as u64) as f64 / c.sample_rate).ceil()
+                    + c.writer_grace_s,
+            );
+            None
+        } else {
+            Some(read_live(
+                &mut r,
+                c,
+                base.checked_sub(padding as u64)
+                    .context("FIR overlap before sample zero")?,
+                raw_samples + 2 * padding,
+            )?)
+        };
         let cpu = iono_core::processing_health::Sample::capture();
         let processing = std::time::Instant::now();
         // Reuse oscillator and FIR coefficients for the whole frequency dwell.
         // The 30 kHz total FIR bandwidth matches the historical 0.006 cutoff.
         let mut carrier = freq;
         if let Some(decoder) = carrier_decoder.as_mut() {
-            let baseband =
-                Channelizer::new(freq - c.center_freq, 100e3)?.process(&raw[..4_002_000], -1000);
+            let baseband = match iono_receiver::frontend::remote(
+                base - 1000,
+                16008,
+                base,
+                freq - c.center_freq,
+                100e3,
+                &c.channel,
+            )? {
+                Some(z) => z,
+                None => Channelizer::new(freq - c.center_freq, 100e3)?
+                    .process(&raw.as_ref().unwrap()[..4_002_000], -1000),
+            };
             if let Some(m) =
                 decoder.seek_with_doppler(&baseband[4..16004], c.carrier_search_hz, 5000., 4)
             {
@@ -472,11 +490,29 @@ fn digisonde(
             }
         }
         actual_carriers[f] = carrier;
-        let channelizer = Channelizer::new(carrier - c.center_freq, 30000.)?;
+        let channelizer = if raw.is_some() {
+            Some(Channelizer::new(carrier - c.center_freq, 30000.)?)
+        } else {
+            None
+        };
         for (ppi, logical) in pulse_plan.iter().copied() {
-            let ipp_raw = &raw[ppi * ipp_samples..(ppi + 1) * ipp_samples + 2 * padding];
-            let mut baseband =
-                channelizer.process(ipp_raw, (ppi * ipp_samples) as i64 - padding as i64);
+            let relative = (ppi * ipp_samples) as i64 - padding as i64;
+            let mut baseband = match iono_receiver::frontend::remote(
+                base.checked_add_signed(relative)
+                    .context("invalid IPP sample")?,
+                (ipp_samples + 2 * padding) / 250,
+                base,
+                carrier - c.center_freq,
+                30000.,
+                &c.channel,
+            )? {
+                Some(z) => z,
+                None => channelizer.as_ref().unwrap().process(
+                    &raw.as_ref().unwrap()
+                        [ppi * ipp_samples..(ppi + 1) * ipp_samples + 2 * padding],
+                    relative,
+                ),
+            };
             if padding > 0 {
                 baseband = baseband[4..4 + decoding_nr].to_vec();
             }
@@ -821,10 +857,9 @@ fn main() -> Result<()> {
             _ => anyhow::bail!("unknown task {task}"),
         };
         if task != "spectrum"
-            && result
-                .as_ref()
-                .err()
-                .is_some_and(|e| e.is::<InputExpired>())
+            && result.as_ref().err().is_some_and(|e| {
+                e.is::<InputExpired>() || e.is::<iono_receiver::frontend::InputExpired>()
+            })
         {
             capacity.missed(1, 0);
         }

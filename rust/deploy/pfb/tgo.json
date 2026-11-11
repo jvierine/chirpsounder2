@@ -1,0 +1,5 @@
+{
+  "data_dir": "/dev/shm/hf25",
+  "channel": "ch0",
+  "tiles": 64
+}

@@ -100,12 +100,12 @@ impl Pfb {
             // This is not a claim of a newly flat 100 kHz final decoding passband.
             let n = ((1910. / hop as f64).round() as usize).max(15) | 1;
             filters.entry(r.bandwidth_hz.to_bits()).or_insert_with(|| {
-                (0..hop)
+                (0..2 * hop)
                     .map(|f| {
                         fractional(
                             n,
                             (r.bandwidth_hz / 2.).min(45_000.) / (FS / hop as f64),
-                            f as f64 / hop as f64,
+                            f as f64 / (2 * hop) as f64,
                         )
                     })
                     .collect()
@@ -195,64 +195,83 @@ impl Pfb {
     }
     pub fn process(&self, raw: &[Z], first_sample: i64) -> Vec<Output> {
         let coarse = self.coarse(raw, first_sample);
-        let d = self.hop as i64;
         let first_out = first_sample.div_euclid(250) + i64::from(first_sample.rem_euclid(250) != 0);
         let end = (first_sample + raw.len() as i64 - 1).div_euclid(250);
         self.narrow
             .iter()
-            .map(|n| {
-                let input = &coarse.bins[n.slot];
-                let mut mixed = vec![Z::default(); input.len()];
-                let mut osc = vec![Z::default(); 4000];
-                let mut rot = vec![Z::default(); 4000];
-                for (b, chunk) in input.chunks(4000).enumerate() {
-                    let angle =
-                        (-TAU * n.offset * (coarse.first_sample + b as i64 * 4000 * d) as f64 / FS)
-                            .rem_euclid(TAU);
-                    rot[..chunk.len()].fill(Z::new(angle.cos() as f32, angle.sin() as f32));
-                    simd::multiply(
-                        &n.phase[..chunk.len()],
-                        &rot[..chunk.len()],
-                        &mut osc[..chunk.len()],
-                    );
-                    simd::multiply(
-                        chunk,
-                        &osc[..chunk.len()],
-                        &mut mixed[b * 4000..b * 4000 + chunk.len()],
-                    );
-                }
-                let bank = &self.filters[&n.bandwidth];
-                let length = bank[0].len() as i64;
-                let mut values =
-                    vec![Z::new(f32::NAN, f32::NAN); (end - first_out + 1).max(0) as usize];
-                // An exact integer phase accumulator avoids a division and
-                // remainder for every output sample. If hop divides 250
-                // (e.g. 1 MHz -> 100 kHz), phase remains zero throughout.
-                let at = first_out * 250 - coarse.first_sample;
-                let mut lo = at.div_euclid(d) - length / 2;
-                let mut phase = at.rem_euclid(d);
-                let step = 250 / d;
-                let remainder = 250 % d;
-                for z in &mut values {
-                    if lo >= 0 && lo + length <= mixed.len() as i64 {
-                        *z = simd::weighted_sum(
-                            &mixed[lo as usize..(lo + length) as usize],
-                            &bank[phase as usize],
-                        );
-                    }
-                    lo += step;
-                    phase += remainder;
-                    if phase >= d {
-                        phase -= d;
-                        lo += 1;
-                    }
-                }
-                Output {
-                    first_sample: first_out * 250,
-                    values,
-                }
+            .enumerate()
+            .map(|(i, n)| {
+                self.extract_bin(
+                    coarse.first_sample,
+                    &coarse.bins[n.slot],
+                    i,
+                    first_out * 250,
+                    (end - first_out + 1).max(0) as usize,
+                    0,
+                )
             })
             .collect()
+    }
+    /// Narrow one retained bin on an arbitrary integer 25 MHz output origin.
+    /// `shift_half_samples=9` matches the legacy boxcar's +4.5 raw-sample centre.
+    /// Coarse voltage must use the same small integer phase origin as first_out;
+    /// the shared cache applies the exact coarse-bin origin rotation separately.
+    pub fn extract_bin(
+        &self,
+        coarse_first: i64,
+        input: &[Z],
+        request: usize,
+        first_out: i64,
+        count: usize,
+        shift_half_samples: i64,
+    ) -> Output {
+        let n = &self.narrow[request];
+        let d = self.hop as i64;
+        let mut mixed = vec![Z::default(); input.len()];
+        let mut osc = vec![Z::default(); 4000];
+        let mut rot = vec![Z::default(); 4000];
+        for (b, chunk) in input.chunks(4000).enumerate() {
+            let angle = (-TAU * n.offset * (coarse_first + b as i64 * 4000 * d) as f64 / FS)
+                .rem_euclid(TAU);
+            rot[..chunk.len()].fill(Z::new(angle.cos() as f32, angle.sin() as f32));
+            simd::multiply(
+                &n.phase[..chunk.len()],
+                &rot[..chunk.len()],
+                &mut osc[..chunk.len()],
+            );
+            simd::multiply(
+                chunk,
+                &osc[..chunk.len()],
+                &mut mixed[b * 4000..b * 4000 + chunk.len()],
+            );
+        }
+        let bank = &self.filters[&n.bandwidth];
+        let length = bank[0].len() as i64;
+        let mut values = vec![Z::new(f32::NAN, f32::NAN); count];
+        let stride = 2 * d;
+        let at = 2 * (first_out - coarse_first) + shift_half_samples;
+        let mut lo = at.div_euclid(stride) - length / 2;
+        let mut phase = at.rem_euclid(stride);
+        let step = 500 / stride;
+        let remainder = 500 % stride;
+        for z in &mut values {
+            if lo >= 0 && lo + length <= mixed.len() as i64 {
+                *z = simd::weighted_sum(
+                    &mixed[lo as usize..(lo + length) as usize],
+                    &bank[phase as usize],
+                );
+            }
+            lo += step;
+            phase += remainder;
+            if phase >= stride {
+                phase -= stride;
+                lo += 1;
+            }
+        }
+        Output {
+            first_sample: first_out,
+            values,
+        }
     }
 }
 fn select_poly() -> Poly {

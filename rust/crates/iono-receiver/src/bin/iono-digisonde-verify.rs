@@ -4,7 +4,7 @@
 //! false-alarm probabilities or propagation ranges.
 use anyhow::{ensure, Context, Result};
 use hdf5::File;
-use iono_core::{digisonde_match::CodeSearch, prn::Channelizer};
+use iono_core::digisonde_match::CodeSearch;
 use rdigital_rf::{CacheOptions, Reader};
 use serde::Deserialize;
 use std::{fs, path::Path};
@@ -359,13 +359,16 @@ fn main() -> Result<()> {
                 .map(|v| num_complex::Complex32::new(v[0], v[1]))
                 .collect::<Vec<_>>())
         } else {
-            r.as_mut()
-                .unwrap()
-                .read_complex32(samples[i] - 1000, 4_002_000, &c.channel, 0)
-                .and_then(|raw| {
-                    let z = Channelizer::new(carrier - 12.5e6, 100e3)?.process(&raw, -1000);
-                    Ok(z[4..16004].to_vec())
-                })
+            iono_receiver::frontend::read_window(
+                r.as_mut().unwrap(),
+                samples[i] - 1000,
+                4_002_000,
+                &c.channel,
+                -1000,
+                carrier - 12.5e6,
+                100e3,
+            )
+            .map(|z| z[4..16004].to_vec())
         };
         match baseband {
             Ok(z) => {

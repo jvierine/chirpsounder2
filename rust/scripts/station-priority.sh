@@ -6,7 +6,7 @@ if [[ ${1:-} == --install ]]; then
   while read -r unit _; do
     case "$unit" in
       chirpsounder_*.service) weight=2000; shares=20480; nice=0;;
-      iono-rust-digisonde.service) weight=1000; shares=10240; nice=0;;
+      iono-rust-digisonde.service|iono-pfb.service) weight=1000; shares=10240; nice=0;;
       iono-rust-lfm.service) weight=600; shares=6144; nice=2;;
       iono-rust-detect.service) weight=1; shares=2; nice=19;;
       iono-prn@*.service|iono-verso.service|iono-digisonde@*.service|iono-rust-juliusruh-*.service) weight=50; shares=512; nice=10;;
@@ -42,6 +42,7 @@ while read -r pid niceness args; do
     *' calc_ionograms.py '*|*'/calc_ionograms.py '*|*'/iono-receiver lfm '*) target=2;;
     *' detect_chirps.py '*|*'/detect_chirps.py '*|*'/iono-receiver detect '*) target=19;;
     *'/iono-prn '*|*'/iono-verso '*) target=10;;
+    *'/iono-pfb '*) target=0;;
     *' iono_housekeeping.py '*|*'/iono_housekeeping.py '*|*' station_monitor.py '*|*' -u station_monitor.py '*|*' plot_rf_spec.py '*|*' -u plot_rf_spec.py '*|*' plot_ionograms.py '*|*' plot_digisonde.py '*|*' plot_rtf.py '*|*' plot_detectionfiles.py '*|*' sync_iono_data.py '*) target=15;;
   esac
   [[ -n "$target" && "$niceness" -lt "$target" ]] || continue

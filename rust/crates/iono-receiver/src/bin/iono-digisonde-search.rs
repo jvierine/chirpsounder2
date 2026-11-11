@@ -476,6 +476,7 @@ fn main() -> Result<()> {
             .map(|p| (p[0], p[1]))
             .collect();
         let orders = c.verification_orders.clone();
+        let rf_channel = c.channel.clone();
         thread::spawn(move || {
             let mut search = PulseSearch::new(25e6, 12.5e6);
             let mut decoder = (verify_every > 0).then(|| {
@@ -487,7 +488,7 @@ fn main() -> Result<()> {
                     &orders,
                 )
             });
-            while let Ok((n, i, z)) = rx.recv() {
+            'jobs: while let Ok((n, i, z)) = rx.recv() {
                 let candidates = if stratified {
                     search.seek_stratified(&z[1000..4_001_000], 1.8, max_candidates, min_hz, max_hz)
                 } else {
@@ -497,8 +498,31 @@ fn main() -> Result<()> {
                 if verify_every > 0 && n % verify_every == 0 {
                     for j in verification_choices(&candidates, n / verify_every, verify_budget) {
                         let carrier = (candidates[j].frequency_hz / 10000.).round() * 10000.;
-                        let result = verify_frame(decoder.as_mut().unwrap(), &z, carrier)
-                            .expect("validated in-band carrier and overlap");
+                        let result = (|| -> Result<_> {
+                            match iono_receiver::frontend::remote(
+                                i - 1000,
+                                16008,
+                                i,
+                                carrier - 12.5e6,
+                                100e3,
+                                &rf_channel,
+                            )? {
+                                Some(base) => Ok(decoder.as_mut().unwrap().seek_with_doppler(
+                                    &base[4..16004],
+                                    30000.,
+                                    5000.,
+                                    5,
+                                )),
+                                None => verify_frame(decoder.as_mut().unwrap(), &z, carrier),
+                            }
+                        })();
+                        let result = match result {
+                            Ok(v) => v,
+                            Err(e) => {
+                                let _ = tx.send((i, Err(e)));
+                                continue 'jobs;
+                            }
+                        };
                         checked.push(Checked {
                             sample: i,
                             coarse_hz: carrier,

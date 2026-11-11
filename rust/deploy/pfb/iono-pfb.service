@@ -1,0 +1,20 @@
+[Unit]
+Description=Shared 32-channel coded-sounder PFB frontend
+After=chirpsounder_tgo.service
+StartLimitIntervalSec=0
+
+[Service]
+ExecStart=%h/bin/iono-pfb %h/.config/chirpsounder2/pfb.json %t/iono-pfb.sock
+Restart=always
+RestartSec=5
+Nice=0
+CPUWeight=1000
+IOSchedulingClass=best-effort
+IOSchedulingPriority=2
+MemoryMax=768M
+LimitAS=2147483648
+LimitCORE=0
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target

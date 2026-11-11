@@ -116,10 +116,42 @@ Keep these conventions when adding a receiver or decoder:
 comments. The installation guides describe operations; this map describes the
 code. When changing behaviour, update the relevant source comment and tests.
 
+### Shared PFB rollout branch
+
+The direct frontend remains the default. Setting `IONO_PFB_SOCKET` explicitly
+routes PRN, Digisonde and VERSO reception (including Digisonde code verification)
+through a receiver-local `iono-pfb` daemon. LFM reception and global chirp search
+never use it. The daemon computes 32 overlapping coarse channels per voltage
+tile and retains them in a bounded LRU cache; only requested 100 ksample/s
+complex64 streams cross its private Unix socket. At 64 tiles the coarse cache
+uses approximately 270 MB, independent of recording duration. Invalid/missing
+samples remain errors. A gap elsewhere in a tile does not invalidate a valid
+shorter requested interval. Decoder matrices, pulse ordering and hardware delay
+calibration are unchanged. The narrow FIR explicitly retains the direct
+boxcar's +4.5-input-sample centre convention.
+
+Before enabling this branch, run the core/receiver release tests on the target
+CPU. These include full-rate RF synthesis, all Digisonde modes/IPPs, the Kiruna,
+Uppsala and Montelibretti codes, the supplied VERSO waveform, cached-inverse and
+regularized decoding, and actual HDF5/socket/native-worker integration. Then
+run a bounded same-recorded-RF comparison with `iono-pfb-compare CONFIG PID
+OUTPUT.h5`. This comparison includes RF reads, socket transfers and daemon CPU;
+it does not measure complete decoder throughput. A 32-bin frontend does not
+imply 32 simultaneously active sounder carriers or guarantee the batch benchmark
+speedup on a station.
+
+The opt-in TGO installer is `scripts/install-shared-pfb.sh --enable RELEASE_BIN_DIR
+SOURCE_REVISION`. It preserves the previous binaries, writes a standalone
+rollback script, and restarts all existing coded-sounder services together. It
+does not restart acquisition, LFM reception or global chirp search. The rollback
+branch is `codex/tgo-pre-pfb-20261111`; the integration branch is
+`codex/shared-pfb-all-sounders`. Do not enable it until the target-host tests and
+same-RF checks pass and a live workload demonstrates useful total CPU savings.
+
 ### Experimental oversampled PFB
 
 `iono-core/src/pfb.rs` provides a separate shared FFT/polyphase frontend for
-benchmarking. It is not selected by production workers. SIMD polyphase kernels
+benchmarking. Production workers opt in only through the shared frontend. SIMD polyphase kernels
 use AVX/FMA, non-FMA AVX or SSE with a scalar fallback; RustFFT selects its CPU
 backend. The same input frame feeds all requested narrow subbands.
 

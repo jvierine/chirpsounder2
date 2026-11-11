@@ -4,8 +4,9 @@
 mod program;
 use anyhow::{ensure, Context, Result};
 use hdf5::File;
+#[cfg(test)]
+use iono_core::prn::Channelizer;
 use iono_core::{
-    prn::Channelizer,
     pulsed::{resample_code, PulseDecoder},
     simd, C,
 };
@@ -312,7 +313,6 @@ fn column(
     nr: usize,
 ) -> Result<(Vec<f32>, f32)> {
     let f = g.frequencies[slot];
-    let mixer = Channelizer::new(f - 12.5e6, 62500.)?;
     let mut target = if c.inverse_regularization > 0. {
         PulseDecoder::regularized(code, nr, c.inverse_regularization)?
     } else {
@@ -334,8 +334,15 @@ fn column(
             .checked_add_signed(relative)
             .context("pulse epoch overflow")?;
         let n = target.input_len() * 250 + 2000;
-        let raw = r.read_complex32(start, n, &c.channel, 0)?;
-        let z = mixer.process(&raw, relative);
+        let z = iono_receiver::frontend::read_window(
+            r,
+            start,
+            n,
+            &c.channel,
+            relative,
+            f - 12.5e6,
+            62500.,
+        )?;
         target.push(&z[4..4 + target.input_len()])?;
         check.push(&z[4 + guard..4 + guard + check.input_len()])?;
         if let Some(d) = identity.as_mut() {
@@ -384,22 +391,23 @@ fn compare_recent(c: &Config, p: &Program, path: &Path) -> Result<()> {
     let guard = inverse.input_prefix();
     let slot = g.frequencies.len() / 2;
     let frequency = g.frequencies[slot];
-    let mixer = Channelizer::new(frequency - 12.5e6, 62500.)?;
     let cycle_sample = epoch_sample(cycle)?;
     let shift = (c.range_min_km * 1000. / C * 25e6).round() as i64;
     let started = Instant::now();
     for pulse in 0..g.duration_samples / g.ipp_samples {
         let native = g.start_samples + slot as u64 * BAUD_SAMPLES + pulse * g.ipp_samples;
         let relative = (native * 400) as i64 + shift - 1000 - (guard * 250) as i64;
-        let raw = r.read_complex32(
+        let z = iono_receiver::frontend::read_window(
+            &mut r,
             cycle_sample
                 .checked_add_signed(relative)
                 .context("invalid comparison epoch")?,
             inverse.input_len() * 250 + 2000,
             &c.channel,
-            0,
+            relative,
+            frequency - 12.5e6,
+            62500.,
         )?;
-        let z = mixer.process(&raw, relative);
         inverse.push(&z[4..4 + inverse.input_len()])?;
         matched.push(&z[4 + guard..4 + guard + matched.input_len()])?;
         check.push(&z[4 + guard..4 + guard + check.input_len()])?;

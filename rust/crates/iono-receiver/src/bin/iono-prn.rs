@@ -7,7 +7,7 @@
 use anyhow::{ensure, Context, Result};
 use hdf5::File;
 use iono_core::{
-    prn::{self, Channelizer, Decoder},
+    prn::{self, Decoder},
     simd, C,
 };
 use rdigital_rf::{CacheOptions, Reader};
@@ -242,7 +242,6 @@ fn column(
         frequency - code.bandwidth_hz / 2. > 0. && frequency + code.bandwidth_hz / 2. < 25e6,
         "frequency outside recorded RF band"
     );
-    let channel = Channelizer::new(frequency - 12.5e6, code.bandwidth_hz)?;
     let decoders = bank
         .get_mut(&c.code_indices[f])
         .context("missing cached decoder bank")?;
@@ -265,20 +264,28 @@ fn column(
             .checked_add((p * n) as u64)
             .and_then(|n| n.checked_sub(1000))
             .context("read index overflow")?;
-        let mut raw = None;
+        let mut baseband = None;
         let mut last = None;
         for _ in 0..3 {
-            match r.read_complex32(start, n + 2000, &c.channel, 0) {
+            match iono_receiver::frontend::read_window(
+                r,
+                start,
+                n + 2000,
+                &c.channel,
+                p as i64 * n as i64 - 1000,
+                frequency - 12.5e6,
+                code.bandwidth_hz,
+            ) {
                 Ok(v) => {
-                    raw = Some(v);
+                    baseband = Some(v);
                     break;
                 }
                 Err(e) => last = Some(e),
             }
             thread::sleep(Duration::from_millis(150));
         }
-        let raw = raw.ok_or_else(|| anyhow::anyhow!("missing voltage at {start}: {:?}", last))?;
-        let z = channel.process(&raw, p as i64 * n as i64 - 1000);
+        let z =
+            baseband.ok_or_else(|| anyhow::anyhow!("missing voltage at {start}: {:?}", last))?;
         Decoder::push_shared(&z[4..4 + code.length], decoders)?;
     }
     let (snr, peak) = decoders[0].finish_with_score()?;
