@@ -1,0 +1,6 @@
+[Unit]
+Description=KHO acquisition and processing while the USRP cable is attached
+Wants=iono-kho-acquisition.service iono-kho-ring-clean.service iono-kho-latest.service
+Wants=iono-rust-detect.service iono-rust-digisonde.service iono-rust-lfm.service iono-rust-spectrum.service
+Wants=iono-prn@Kiruna.service iono-prn@Uppsala.service iono-prn@Montelibretti.service
+Wants=iono-verso.service iono-digisonde@thule.service iono-browser-arrays.service

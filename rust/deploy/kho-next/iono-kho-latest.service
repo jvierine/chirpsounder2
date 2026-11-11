@@ -1,0 +1,12 @@
+[Unit]
+Description=KHO priority current-ionogram HTTP publication
+PartOf=iono-kho.target
+After=iono-kho-acquisition.service
+[Service]
+ExecStartPre=%h/bin/kho-wait-ring.sh
+ExecStart=%h/bin/kho-publish-latest.sh
+TimeoutStartSec=infinity
+Restart=always
+RestartSec=15
+Nice=19
+MemoryMax=64M

@@ -1,0 +1,8 @@
+[Unit]
+Description=Keep 90 seconds of KHO voltage in RAM
+PartOf=iono-kho.target
+[Service]
+ExecStart=%h/bin/kho-ring-clean.sh
+Restart=always
+RestartSec=2
+MemoryMax=64M

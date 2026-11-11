@@ -1,0 +1,13 @@
+{
+  "station": "KHO",
+  "data_dir": "/dev/shm/hf25",
+  "output_dir": "/data0",
+  "channel": "ch0",
+  "program_file": "/home/administrator/.config/chirpsounder2/verso/SGO_VERSO.h5",
+  "range_min_km": 0.0,
+  "range_max_km": 4500.0,
+  "snr_threshold_db": 8.0,
+  "sites": [],
+  "writer_grace_s": 4.5,
+  "inverse_regularization": 0.01
+}

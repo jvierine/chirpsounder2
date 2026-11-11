@@ -1,0 +1,20 @@
+[Unit]
+Description=KHO 25 MHz GPS/PPS-timed USRP acquisition
+PartOf=iono-kho.target
+Wants=iono-kho-ring-clean.service
+After=iono-kho-ring-clean.service
+StartLimitIntervalSec=0
+
+[Service]
+Environment=LD_LIBRARY_PATH=%h/.local/lib
+ExecStartPre=/usr/bin/mkdir -p /dev/shm/hf25
+ExecStartPre=%h/bin/kho-wait-usrp.sh
+ExecStart=%h/bin/rx_uhd_ext_gps --usrp_args=addr=192.168.10.2,recv_buff_size=500000000 --outdir=/dev/shm/hf25 --gps-lock-timeout=-1
+Restart=always
+RestartSec=10
+TimeoutStartSec=infinity
+TimeoutStopSec=15
+MemoryMax=12G
+LimitCORE=0
+LimitRTPRIO=50
+LimitMEMLOCK=256M
