@@ -346,3 +346,49 @@ fn native_prn_worker_writes_complete_sparse_ionogram_through_shared_frontend() {
         .unwrap()
         .is_empty());
 }
+#[test]
+fn thirty_two_simultaneous_clients_share_rf_and_all_make_progress() {
+    let f = Fixture::new(&[Z::new(1., 0.)], 0, 0., 8000);
+    let (done, answers) = std::sync::mpsc::channel();
+    let mut threads = vec![];
+    for client in 0..32 {
+        let socket = f.socket.clone();
+        let origin = f.origin;
+        let done = done.clone();
+        threads.push(std::thread::spawn(move || {
+            let offset = (client as f64 - 16.) * 700e3;
+            for frame in 0..4 {
+                let z = exchange(
+                    &socket,
+                    &Request {
+                        start: origin + frame * 250000,
+                        count: 1000,
+                        origin,
+                        offset_hz: offset,
+                        bandwidth_hz: 80000.,
+                        channel: "ch0".into(),
+                    },
+                )
+                .unwrap();
+                let expected = if client == 16 {
+                    Z::new(1., 0.)
+                } else {
+                    Z::default()
+                };
+                assert!(
+                    z.iter().all(|z| (*z - expected).norm() < 0.001),
+                    "wrong client/channel response"
+                );
+            }
+            done.send(client).unwrap();
+        }));
+    }
+    for _ in 0..32 {
+        answers
+            .recv_timeout(Duration::from_secs(30))
+            .expect("client stalled behind another sounder");
+    }
+    for thread in threads {
+        thread.join().unwrap();
+    }
+}

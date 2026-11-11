@@ -9,6 +9,7 @@ Restart=always
 RestartSec=5
 Nice=0
 CPUWeight=1000
+CPUShares=10240
 IOSchedulingClass=best-effort
 IOSchedulingPriority=2
 MemoryMax=1536M
