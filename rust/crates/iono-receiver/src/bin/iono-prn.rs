@@ -30,6 +30,8 @@ struct Code {
     pulse_length: isize,
     ipp: usize,
     bandwidth_hz: f64,
+    // Native code clock, not merely the RF filter bandwidth. Older configs
+    // default to 100 ksample/s; Huairou retains its original 50 ksample/s code.
     #[serde(default = "default_code_rate")]
     sample_rate_hz: u32,
     #[serde(default)]
@@ -535,6 +537,123 @@ fn save(
     fs::rename(&tmp, &path)?;
     Ok(path)
 }
+/// One shared recorded RF period, searched at each configured carrier. This is
+/// a commissioning diagnostic, not a frequency-band product or clock fit.
+fn probe_current(c: &Config, path: &Path) -> Result<()> {
+    ensure!(
+        c.codes.iter().all(|s| !s.control_seeds.is_empty()),
+        "probe requires independent control codes"
+    );
+    let rate = code_rate(c);
+    let padding = c.codes.iter().map(read_padding).max().unwrap();
+    let raw_count = c
+        .codes
+        .iter()
+        .map(|s| s.length * (25_000_000 / s.sample_rate_hz as usize))
+        .max()
+        .unwrap();
+    let epoch = now().floor() - 3.;
+    let base = epoch_sample(epoch)?;
+    let mut r = reader(c)?;
+    let raw = r.read_complex32(
+        base - padding as u64,
+        raw_count + 2 * padding,
+        &c.channel,
+        0,
+    )?;
+    let first = first_lag(c);
+    let end = ((c.range_max_km * 1000. / C * rate).ceil() as i64 + c.range_shift_samples + 1).max(2)
+        as usize;
+    ensure!(end > first, "empty probe range window");
+    let nr = end - first;
+    let mut bank = BTreeMap::new();
+    for (i, code) in c.codes.iter().enumerate() {
+        let decoders = std::iter::once(code.seed)
+            .chain(code.control_seeds.iter().copied())
+            .map(|seed| {
+                Decoder::new_window(
+                    &prn::code(seed, code.length, code.pulse_length, code.ipp)?,
+                    first,
+                    nr,
+                )
+            })
+            .collect::<Result<Vec<_>>>()?;
+        bank.insert(i, decoders);
+    }
+    let (mut peak_range, mut margins, mut snrs) = (vec![], vec![], vec![]);
+    for (i, &frequency) in c.frequencies_hz.iter().enumerate() {
+        let code = &c.codes[c.code_indices[i]];
+        ensure!(
+            frequency - code.bandwidth_hz / 2. > 0. && frequency + code.bandwidth_hz / 2. < 25e6,
+            "probe carrier outside recorded RF band"
+        );
+        let pad = read_padding(code);
+        let n = code.length * (25_000_000 / code.sample_rate_hz as usize);
+        let offset = padding - pad;
+        let channel = Channelizer::new(frequency - 12.5e6, code.bandwidth_hz)?;
+        let z = native_period(
+            &channel,
+            &raw[offset..offset + n + 2 * pad],
+            -(pad as i64),
+            code,
+        );
+        let decoders = bank.get_mut(&c.code_indices[i]).unwrap();
+        for d in decoders.iter_mut() {
+            d.reset();
+        }
+        Decoder::push_shared(&z, decoders)?;
+        let profiles = decoders
+            .iter()
+            .map(|d| d.range_estimates())
+            .collect::<Result<Vec<_>>>()?;
+        let power: Vec<_> = profiles[0][0].iter().map(|v| v.norm_sqr()).collect();
+        let (at, &peak) = power
+            .iter()
+            .enumerate()
+            .max_by(|a, b| a.1.total_cmp(b.1))
+            .unwrap();
+        let control = profiles
+            .iter()
+            .skip(1)
+            .flat_map(|p| p[0].iter())
+            .map(|v| v.norm_sqr())
+            .fold(1e-30, f32::max);
+        margins.push(10. * (peak / control).log10());
+        let floor = iono_core::median(&power) / std::f32::consts::LN_2;
+        snrs.push(10. * ((peak - floor) / floor).max(1e-30).log10());
+        peak_range
+            .push((first as i64 + at as i64 - c.range_shift_samples) as f64 * C / rate / 1000.);
+    }
+    let h = File::create_excl(path)?;
+    scalar(&h, "snapshot_unix", epoch)?;
+    scalar(&h, "code_sample_rate_hz", rate)?;
+    for (key, values) in [
+        ("frequencies_hz", &c.frequencies_hz),
+        ("peak_virtual_range_km", &peak_range),
+    ] {
+        h.new_dataset_builder().with_data(values).create(key)?;
+    }
+    h.new_dataset_builder()
+        .with_data(&margins)
+        .create("code_identity_margin_db")?;
+    h.new_dataset_builder()
+        .with_data(&snrs)
+        .create("apparent_peak_snr_db")?;
+    text(&h,"interpretation","Single recorded code period shared across carrier hypotheses. Matched-code score against independent control seeds; apparent SNR is a delay-median diagnostic. A carrier match does not independently verify transmitter location or schedule. No receiver delay adjustment.")?;
+    let mut order: Vec<_> = (0..margins.len()).collect();
+    order.sort_by(|&a, &b| margins[b].total_cmp(&margins[a]));
+    for i in order.into_iter().take(5) {
+        println!(
+            "{:.3} MHz: code margin {:.1} dB, apparent peak {:.1} dB, range {:.0} km",
+            c.frequencies_hz[i] / 1e6,
+            margins[i],
+            snrs[i],
+            peak_range[i]
+        );
+    }
+    Ok(())
+}
+
 fn main() -> Result<()> {
     let args: Vec<_> = std::env::args().collect();
     let c: Config = serde_json::from_slice(&fs::read(
@@ -547,6 +666,9 @@ fn main() -> Result<()> {
         c.writer_grace_s.is_finite() && (0.25..=15.).contains(&c.writer_grace_s),
         "writer grace must be 0.25--15 seconds"
     );
+    if let Some(i) = args.iter().position(|s| s == "--probe-current") {
+        return probe_current(&c, Path::new(args.get(i + 1).context("probe HDF5 path")?));
+    }
     if args.iter().any(|s| s == "--ring-status") {
         let inspect = |indices: &[u64]| -> Result<Vec<bool>> {
             let mut r = reader(&c)?;

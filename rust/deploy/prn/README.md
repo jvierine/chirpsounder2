@@ -191,3 +191,12 @@ receiver user's local prefix and selects one BLAS thread per worker. It does
 not replace system libraries. DOB must receive a prefetched package under
 its 16 KiB/s cap. W2NAF has the library ready but no long-code PRN workers;
 Finnish VERSO uses its separate aperiodic-code inverse receiver.
+
+Huairou commissioning starts on DOB with `DOB-Huairou.json`: seed 10, a
+continuous 10,000-sample code at its native 50 ksample/s clock, 6 seconds per
+carrier and a 720-second cycle. This requires the native-rate receiver; the
+older 100 ksample/s-only binary cannot decode this configuration correctly.
+`install-huairou-dob.sh` installs a separate binary and starts only that worker.
+The 6,700–10,400 km gate follows the supplied coordinates; fixed receiver timing
+is retained. `--probe-current OUTPUT.h5` searches a single recorded RF period
+across the supplied frequency table for code identity and delay diagnostics.
