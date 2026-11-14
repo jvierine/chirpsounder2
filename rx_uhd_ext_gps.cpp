@@ -46,10 +46,12 @@ using namespace uhd::usrp;
 using namespace std;
 
 std::atomic<bool> shutdown_requested(false);
+std::atomic<bool> fatal_error(false);
 std::mutex shutdown_log_mutex;
 
 void request_shutdown(const std::string& reason)
 {
+    fatal_error.store(true);
     bool expected = false;
     if (shutdown_requested.compare_exchange_strong(expected, true)) {
         std::lock_guard<std::mutex> lock(shutdown_log_mutex);
@@ -405,7 +407,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     usrp.reset();
 
-    if (shutdown_requested.load()) {
+    if (fatal_error.load()) {
         return EXIT_FAILURE;
     }
 
