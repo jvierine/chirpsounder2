@@ -82,16 +82,24 @@ pub struct Channelizer {
     phase: Vec<Z>,
     offset: f64,
     bandwidth: f64,
+    sample_rate: f64,
+    first_decimation: usize,
 }
 impl Channelizer {
     pub fn new(offset: f64, bandwidth: f64) -> Result<Self> {
+        Self::with_rate(offset, bandwidth, 25_000_000)
+    }
+    pub fn with_rate(offset: f64, bandwidth: f64, sample_rate: u64) -> Result<Self> {
+        ensure!(sample_rate == 25_000_000 || sample_rate == 50_000_000, "unsupported input rate");
+        let first_decimation = (sample_rate / 2_500_000) as usize;
+        let sample_rate = sample_rate as f64;
         ensure!(
             offset.is_finite() && bandwidth.is_finite() && bandwidth > 0. && bandwidth <= 100000.,
             "invalid passband"
         );
         let phase = (0..4000)
             .map(|i| {
-                let p = -TAU * offset * i as f64 / 25e6;
+                let p = -TAU * offset * i as f64 / sample_rate;
                 Z::new(p.cos() as f32, p.sin() as f32)
             })
             .collect();
@@ -103,13 +111,15 @@ impl Channelizer {
             phase,
             offset,
             bandwidth,
+            sample_rate,
+            first_decimation,
         })
     }
     pub fn process(&self, raw: &[Z], relative_sample: i64) -> Vec<Z> {
-        let mut stage = Vec::with_capacity(raw.len() / 10);
+        let mut stage = Vec::with_capacity(raw.len() / self.first_decimation);
         let mut mixed = vec![Z::default(); 4000];
         for (b, chunk) in raw.chunks(4000).enumerate() {
-            let phase = (-TAU * self.offset * (relative_sample + b as i64 * 4000) as f64 / 25e6)
+            let phase = (-TAU * self.offset * (relative_sample + b as i64 * 4000) as f64 / self.sample_rate)
                 .rem_euclid(TAU);
             // The chunk phase is common to each ten-sample boxcar. By linearity,
             // rotate the sum instead of rotating all ten oscillator samples.
@@ -117,11 +127,11 @@ impl Channelizer {
             // absolute chunk phase still comes from the original sample epoch.
             let rotation = Z::new(phase.cos() as f32, phase.sin() as f32);
             simd::multiply(chunk, &self.phase[..chunk.len()], &mut mixed[..chunk.len()]);
-            for v in mixed[..chunk.len()].chunks_exact(10) {
-                stage.push(v.iter().copied().sum::<Z>() * rotation * 0.1);
+            for v in mixed[..chunk.len()].chunks_exact(self.first_decimation) {
+                stage.push(v.iter().copied().sum::<Z>() * rotation / self.first_decimation as f32);
             }
         }
-        let mut out = vec![Z::default(); raw.len() / 250];
+        let mut out = vec![Z::default(); raw.len() / (self.first_decimation * 25)];
         for (i, z) in out.iter_mut().enumerate() {
             let center = i as isize * 25;
             if center >= 95 && center as usize + 96 <= stage.len() {
@@ -544,22 +554,23 @@ mod tests {
     }
     #[test]
     fn channelizer_preserves_tone_phase_across_chunks() {
-        // Off-grid and negative offsets exercise nontrivial chunk rotations,
-        // not only phases that happen to be integer multiples of 2*pi.
-        for offset in [4_350_000., 1_712_345.67, -11_499_999.25] {
-            let ch = Channelizer::new(offset, 100000.).unwrap();
-            for start in [0i64, 1234567, -1000] {
-                let v: Vec<_> = (0..27000)
-                    .map(|i| {
-                        let p = TAU * offset * (start + i) as f64 / 25e6;
-                        Z::new(p.cos() as f32, p.sin() as f32)
-                    })
-                    .collect();
-                let out = ch.process(&v, start);
-                assert!(out[4..out.len() - 4]
-                    .iter()
-                    .all(|z| (*z - Z::new(1., 0.)).norm() < 3e-5));
+        for rate in [25_000_000u64,50_000_000] {
+            for offset in [4_350_000., 1_712_345.67, -11_499_999.25, 5_000_000.] {
+                let ch = Channelizer::with_rate(offset, 100000.,rate).unwrap();
+                for start in [0i64, 1234567, -2000] {
+                    let v: Vec<_> = (0..(27000*(rate/25_000_000) as i64))
+                        .map(|i| {
+                            let p = TAU * offset * (start + i) as f64 / rate as f64;
+                            Z::new(p.cos() as f32, p.sin() as f32)
+                        }).collect();
+                    let out = ch.process(&v, start);
+                    assert!(out[4..out.len() - 4].iter().all(|z| (*z-Z::new(1.,0.)).norm()<3e-5));
+                    if rate==25_000_000 {
+                        assert_eq!(out,Channelizer::new(offset,100000.).unwrap().process(&v,start));
+                    }
+                }
             }
         }
+        assert!(Channelizer::with_rate(0.,100000.,30_000_000).is_err());
     }
 }

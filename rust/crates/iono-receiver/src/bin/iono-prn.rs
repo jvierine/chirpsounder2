@@ -37,6 +37,10 @@ struct Config {
     data_dir: String,
     output_dir: String,
     channel: String,
+    #[serde(default = "input_rate")]
+    sample_rate: u64,
+    #[serde(default = "input_center")]
+    center_freq: f64,
     frequencies_hz: Vec<f64>,
     code_indices: Vec<usize>,
     codes: Vec<Code>,
@@ -62,6 +66,8 @@ struct Config {
     #[serde(default = "writer_grace")]
     writer_grace_s: f64,
 }
+fn input_rate() -> u64 {25_000_000}
+fn input_center() -> f64 {12.5e6}
 fn matched_estimator() -> String {
     "matched-filter".into()
 }
@@ -95,13 +101,13 @@ fn wait(t: f64) {
         thread::sleep(Duration::from_secs_f64((t - now()).max(0.)));
     }
 }
-fn epoch_sample(t: f64) -> Result<u64> {
+fn epoch_sample(t: f64, rate: u64) -> Result<u64> {
     ensure!(t.is_finite() && t > 0., "invalid epoch");
     (t.floor() as u64)
-        .checked_mul(25_000_000)
-        .and_then(|n| n.checked_add((t.fract() * 25e6).round() as u64))
+        .checked_mul(rate)
+        .and_then(|n| n.checked_add((t.fract() * rate as f64).round() as u64))
         .context("epoch overflow")
-        .and_then(|i| iono_core::receiver_timing::corrected_sample_index(i, 25_000_000))
+        .and_then(|i| iono_core::receiver_timing::corrected_sample_index(i, rate))
 }
 fn text(h: &File, n: &str, s: &str) -> Result<()> {
     h.new_dataset::<hdf5::types::VarLenUnicode>()
@@ -114,6 +120,8 @@ fn scalar(h: &File, n: &str, v: f64) -> Result<()> {
     Ok(())
 }
 fn validate(c: &Config) -> Result<()> {
+    ensure!((c.sample_rate==25_000_000 || c.sample_rate==50_000_000) && c.center_freq.is_finite(), "unsupported capture rate/center");
+
     ensure!(
         c.snr_threshold_db.is_finite() && (0. ..=60.).contains(&c.snr_threshold_db),
         "invalid SNR threshold"
@@ -197,8 +205,9 @@ fn validate(c: &Config) -> Result<()> {
 fn reader(c: &Config) -> Result<Reader> {
     let mut r = Reader::open([&c.data_dir])?;
     ensure!(
-        r.properties(&c.channel)?.sample_rate_numerator == 25_000_000,
-        "ring buffer must be 25 MHz"
+        r.properties(&c.channel)?.sample_rate_numerator == c.sample_rate
+            && r.properties(&c.channel)?.sample_rate_denominator == 1,
+        "ring buffer rate does not match configuration"
     );
     r.set_cache_options(CacheOptions {
         minimum_bytes: 1024 * 1024,
@@ -239,18 +248,21 @@ fn column(
     let frequency = c.frequencies_hz[f];
     // Do not label aliases outside the actual digitized RF band as measurements.
     ensure!(
-        frequency - code.bandwidth_hz / 2. > 0. && frequency + code.bandwidth_hz / 2. < 25e6,
+        frequency - code.bandwidth_hz / 2. > c.center_freq - c.sample_rate as f64 / 2.
+            && frequency + code.bandwidth_hz / 2. < c.center_freq + c.sample_rate as f64 / 2.,
         "frequency outside recorded RF band"
     );
-    let channel = Channelizer::new(frequency - 12.5e6, code.bandwidth_hz)?;
+    let channel = Channelizer::with_rate(frequency - c.center_freq, code.bandwidth_hz, c.sample_rate)?;
     let decoders = bank
         .get_mut(&c.code_indices[f])
         .context("missing cached decoder bank")?;
     for d in decoders.iter_mut() {
         d.reset();
     }
-    let base = epoch_sample(epoch + f as f64 * c.dwell_s)?;
-    let n = code.length * 250;
+    let base = epoch_sample(epoch + f as f64 * c.dwell_s, c.sample_rate)?;
+    let factor=(c.sample_rate/100_000) as usize;
+    let padding=4*factor;
+    let n = code.length * factor;
     let periods = (c.dwell_s * 100000. / code.length as f64).round() as usize;
     for p in 0..periods {
         // The Doppler estimator discards these transition periods. Do not read
@@ -263,12 +275,12 @@ fn column(
         }
         let start = base
             .checked_add((p * n) as u64)
-            .and_then(|n| n.checked_sub(1000))
+            .and_then(|n| n.checked_sub(padding as u64))
             .context("read index overflow")?;
         let mut raw = None;
         let mut last = None;
         for _ in 0..3 {
-            match r.read_complex32(start, n + 2000, &c.channel, 0) {
+            match r.read_complex32(start, n + 2*padding, &c.channel, 0) {
                 Ok(v) => {
                     raw = Some(v);
                     break;
@@ -278,7 +290,7 @@ fn column(
             thread::sleep(Duration::from_millis(150));
         }
         let raw = raw.ok_or_else(|| anyhow::anyhow!("missing voltage at {start}: {:?}", last))?;
-        let z = channel.process(&raw, p as i64 * n as i64 - 1000);
+        let z = channel.process(&raw, p as i64 * n as i64 - padding as i64);
         Decoder::push_shared(&z[4..4 + code.length], decoders)?;
     }
     let (snr, peak) = decoders[0].finish_with_score()?;
@@ -455,6 +467,8 @@ fn save(
         scalar(&h, "range_offset_applied", 1.)?;
         scalar(&h, "range_shift_samples", c.range_shift_samples as f64)?;
         scalar(&h, "output_sample_rate_hz", 100000.)?;
+        scalar(&h, "input_sample_rate_hz", c.sample_rate as f64)?;
+        scalar(&h, "input_center_frequency_hz", c.center_freq)?;
         scalar(&h, "last_observation", now())?;
         text(&h, "station_name", &c.station)?;
         text(&h, "txname", &c.transmitter)?;
@@ -505,14 +519,14 @@ fn main() -> Result<()> {
         let clock = now();
         let second = clock.floor() as u64;
         let indices: Vec<_> = (1..=8)
-            .map(|lag| (second - lag) * 25_000_000 + 2_500_000)
+            .map(|lag| (second - lag) * c.sample_rate + c.sample_rate/10)
             .collect();
         let initial = inspect(&indices)?;
         thread::sleep(Duration::from_secs(3));
         let retried = inspect(&indices)?;
         println!(
             "{}",
-            serde_json::json!({"station":c.station,"clock_unix":clock,"newest_sample_age_s":clock-bounds.1 as f64/25e6,"sample_lags_s":[1,2,3,4,5,6,7,8],"present_initial":initial,"present_after_3s_fresh_reader":retried})
+            serde_json::json!({"station":c.station,"clock_unix":clock,"newest_sample_age_s":clock-bounds.1 as f64/c.sample_rate as f64,"sample_lags_s":[1,2,3,4,5,6,7,8],"present_initial":initial,"present_after_3s_fresh_reader":retried})
         );
         return Ok(());
     }
