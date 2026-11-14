@@ -18,7 +18,7 @@ struct Mode {
 };
 struct Counters {
  uint64_t received_samples=0, rail_samples=0, rail_components=0, near_rail_samples=0;
- uint64_t uhd_overflow_events=0, missing_samples=0, backward_packets=0, conversion_clips=0;
+ uint64_t uhd_overflow_events=0, missing_samples=0, backward_packets=0, conversion_clips=0, startup_missing_samples=0;
  int32_t maximum_abs_component=0; double sum_power=0.;
  template<class T>void add(const std::complex<T>* p,size_t n) {
   constexpr int32_t lo=std::numeric_limits<T>::lowest(),hi=std::numeric_limits<T>::max();
@@ -41,6 +41,7 @@ struct Counters {
 class Low25 {
  std::complex<int32_t> ring[33]{};double taps[33]{};uint64_t next=0,seen=0;
 public:
+ uint64_t conversion_clips=0;
  Low25(){double sum=0.;for(int k=0;k<33;k++){
   const int m=k-16;const double x=m==0?.5:std::sin(3.141592653589793*.5*m)/(3.141592653589793*m);
   taps[k]=x*(.54-.46*std::cos(2*3.141592653589793*k/32));sum+=taps[k];
@@ -48,7 +49,7 @@ public:
  void reset(uint64_t index){next=index;seen=0;}
  void process(uint64_t index,const std::complex<int8_t>* in,size_t n,
               std::vector<std::complex<int16_t>>& out,uint64_t& first) {
-  if(index!=next)reset(index);out.clear();
+  if(index!=next)reset(index);out.clear();conversion_clips=0;
   for(size_t j=0;j<n;j++){
    uint64_t t=index+j;int32_t a=in[j].real(),b=in[j].imag();std::complex<int32_t> z;
    switch(t&3){case 0:z={a,b};break;case 1:z={-b,a};break;case 2:z={-a,-b};break;default:z={b,-a};}
@@ -58,7 +59,12 @@ public:
    for(int k=0;k<33;k++){const auto v=ring[(t-uint64_t(k))%33];re+=taps[k]*v.real();im+=taps[k]*v.imag();}
    if(out.empty())first=(t-16)/2;
    // Wide intermediates and i16 output avoid -(-128) and sum overflow.
-   out.emplace_back(int16_t(std::lround(re*128.)),int16_t(std::lround(im*128.)));
+   auto narrow=[&](double value){
+    const int64_t wide=std::llround(value*128.);
+    if(wide < -32768 || wide > 32767)++conversion_clips;
+    return int16_t(std::clamp<int64_t>(wide,-32768,32767));
+   };
+   out.emplace_back(narrow(re),narrow(im));
   }next=index+n;
  }
 };

@@ -755,8 +755,9 @@ fn main() -> Result<()> {
         .map(|s| s.parse::<f64>())
         .transpose()?;
     ensure!(
-        (c.sample_rate - 25e6).abs() < 1.,
-        "only the validated 25 MHz input configuration is supported"
+        (c.sample_rate - 25e6).abs() < 1.
+            || ((c.sample_rate - 50e6).abs() < 1. && ["detect", "detect-bench", "spectrum"].contains(&task)),
+        "50 MHz input is supported only by spectrum/global detection; sounders use the 25 MHz compatibility view"
     );
     if task == "check-config" {
         validate_digisonde(&c)?;

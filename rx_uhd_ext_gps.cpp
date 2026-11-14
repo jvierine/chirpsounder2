@@ -179,7 +179,7 @@ void record_channel(size_t chan,const std::string& outdir,multi_usrp::sptr usrp,
 {
     const auto mode=options.mode;
     const std::string uuid=random_uuid_v4();
-    recorder::Health health(options.stats_dir,uuid,chan,mode.rate,sizeof(T)*8);
+    recorder::Health health(options.stats_dir,uuid,chan,mode.rate,sizeof(T)*8,options.peak);
     uhd::stream_args_t args(mode.eight_bit?"sc8":"sc16",mode.eight_bit?"sc8":"sc16");
     args.channels={chan};
     if(mode.eight_bit)args.args["peak"]=std::to_string(options.peak);
@@ -221,12 +221,16 @@ void record_channel(size_t chan,const std::string& outdir,multi_usrp::sptr usrp,
             if(index<expected){++health.counters().backward_packets;continue;}
             health.observe(index,data.data(),n);
             auto& c=health.counters();c.uhd_overflow_events+=pending_overflows;pending_overflows=0;
-            if(index>expected){c.missing_samples+=index-expected;decimator.reset(index);}
+            if(index>expected){
+                if(expected==global_start && c.received_samples==n)c.startup_missing_samples+=index-expected;
+                else c.missing_samples+=index-expected;
+                decimator.reset(index);
+            }
             // Actual packet timestamps/lengths define storage. Never fill a gap
             // by writing another copy of the most recently received samples.
             if(!write_digital_rf_or_request_shutdown(raw,index-global_start,data.data(),n,chan))break;
             if constexpr(std::is_same_v<T,int8_t>){
-                if(low){uint64_t first=0;decimator.process(index,data.data(),n,reduced,first);
+                if(low){uint64_t first=0;decimator.process(index,data.data(),n,reduced,first);c.conversion_clips+=decimator.conversion_clips;
                     if(!reduced.empty()&&!write_digital_rf_or_request_shutdown(low,first-global_start/2,reduced.data(),reduced.size(),chan))break;}
             }
             expected=index+n;

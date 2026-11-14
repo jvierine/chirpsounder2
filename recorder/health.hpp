@@ -8,14 +8,14 @@
 #include <sstream>
 namespace recorder {
 class Health {
- std::string dir,uuid;size_t channel;uint64_t rate,hour=UINT64_MAX,last_report=0,first=0,last=0;int bits;Counters c;
+ std::string dir,uuid;size_t channel;uint64_t rate,hour=UINT64_MAX,last_report=0,first=0,last=0;int bits;double peak;Counters c;
  template<class T>void scalar(hid_t h,const char* name,hid_t type,T value){
   hid_t s=H5Screate(H5S_SCALAR),d=H5Dcreate2(h,name,type,s,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT);
   if(d<0||H5Dwrite(d,type,H5S_ALL,H5S_ALL,H5P_DEFAULT,&value)<0)throw std::runtime_error("recorder health write failed");
   H5Dclose(d);H5Sclose(s);
  }
 public:
- Health(std::string path,std::string id,size_t ch,uint64_t sr,int width):dir(path),uuid(id),channel(ch),rate(sr),bits(width){std::filesystem::create_directories(dir);}
+ Health(std::string path,std::string id,size_t ch,uint64_t sr,int width,double scale=1.):dir(path),uuid(id),channel(ch),rate(sr),bits(width),peak(scale){std::filesystem::create_directories(dir);}
  Counters& counters(){return c;}
  void flush(bool complete=false){if(hour==UINT64_MAX)return;
   std::time_t epoch=hour*3600;std::tm tm{};gmtime_r(&epoch,&tm);std::ostringstream name;
@@ -26,8 +26,10 @@ public:
   scalar(h,"complete",H5T_NATIVE_INT,int(complete));scalar(h,"sample_rate_hz",H5T_NATIVE_UINT64,rate);
   scalar(h,"component_bits",H5T_NATIVE_INT,bits);scalar(h,"first_sample",H5T_NATIVE_UINT64,first);scalar(h,"last_sample_exclusive",H5T_NATIVE_UINT64,last);
 #define COUNT(field) scalar(h,#field,H5T_NATIVE_UINT64,c.field)
-  COUNT(received_samples);COUNT(rail_samples);COUNT(rail_components);COUNT(near_rail_samples);COUNT(uhd_overflow_events);COUNT(missing_samples);COUNT(backward_packets);COUNT(conversion_clips);
+  COUNT(received_samples);COUNT(rail_samples);COUNT(rail_components);COUNT(near_rail_samples);COUNT(uhd_overflow_events);COUNT(missing_samples);COUNT(backward_packets);COUNT(conversion_clips);COUNT(startup_missing_samples);
 #undef COUNT
+  scalar(h,"wire_peak_fraction",H5T_NATIVE_DOUBLE,peak);
+  scalar(h,"center_frequency_hz",H5T_NATIVE_DOUBLE,double(rate)/2.);
   scalar(h,"maximum_abs_component",H5T_NATIVE_INT32,c.maximum_abs_component);
   scalar(h,"mean_complex_power",H5T_NATIVE_DOUBLE,c.received_samples?c.sum_power/c.received_samples:0.);
   scalar(h,"rail_sample_fraction",H5T_NATIVE_DOUBLE,c.received_samples?double(c.rail_samples)/c.received_samples:0.);
