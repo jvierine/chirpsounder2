@@ -32,6 +32,10 @@
 #include <algorithm>
 #include <unistd.h>
 #include <digital_rf.h>
+#include "recorder/health.hpp"
+#include <csignal>
+#include <cmath>
+#include <type_traits>
 
 #define NO_WRITE_DRF 1
 
@@ -58,7 +62,7 @@ void request_shutdown(const std::string& reason)
 // streamers and Digital RF writers can be cleaned up before the process exits.
 bool write_digital_rf_or_request_shutdown(Digital_rf_write_object* data_object,
                                           uint64_t sample_index,
-                                          short* data,
+                                          void* data,
                                           uint64_t vector_length,
                                           size_t chan)
 {
@@ -161,169 +165,88 @@ bool wait_for_gps_lock(multi_usrp::sptr usrp, int timeout_sec)
     return true;
 }
 
-void streaming_by_channel(size_t chan,double rate,std::string subdev,std::string outdir, multi_usrp::sptr usrp, uhd::time_spec_t time_last_pps, std::chrono::steady_clock::time_point end_time)
+
+struct RecorderOptions {
+    recorder::Mode mode;
+    std::string stats_dir,compat_dir;
+    double peak=1.;
+};
+
+template<class T>
+void record_channel(size_t chan,const std::string& outdir,multi_usrp::sptr usrp,
+                    uhd::time_spec_t pps,std::chrono::steady_clock::time_point end_time,
+                    const RecorderOptions& options)
 {
-    Digital_rf_write_object * data_object = NULL;
-    uint64_t vector_leading_edge_index = 0;
-    uint64_t global_start_index;
-    int result;
-    std::vector<size_t> channel_number;
-    channel_number.push_back(chan);
-    uint64_t sample_rate_numerator = 25000000;
-    uint64_t sample_rate_denominator = 1;
-    uint64_t subdir_cadence = 3600;
-    uint64_t millseconds_per_file = 1000; 
-    int compression_level = 0;
-    int checksum = 0;
-    int is_complex = 1;
-    int is_continuous = 1;
-    int num_subchannels = 1;
-    int marching_periods = 1;
-    std::string uuid = random_uuid_v4();
-    uint64_t vector_length = 363;
-
-    usrp->set_rx_rate(rate,chan);
-    usrp->set_rx_freq(12.5e6,chan);
-    usrp->set_rx_subdev_spec(subdev,chan);
-
-    // Each thread owns one UHD receive streamer and one Digital RF writer.
-    uhd::stream_args_t stream_args("sc16", "sc16");
-    stream_args.channels             = channel_number;
-    uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
-
-    // Start all channel streamers on the same future USRP timestamp.
-    double tstart=time_last_pps.get_real_secs()+2.0;
-    uhd::time_spec_t ts_t0=uhd::time_spec_t(tstart);
-    printf("Streaming start at %f\n",time_last_pps.get_real_secs()+2.0);
-
-    // Digital RF sample indices are absolute Unix-time sample numbers.
-    global_start_index = (uint64_t)((uint64_t)tstart * (long double)sample_rate_numerator/sample_rate_denominator);
-    printf("%lu",global_start_index);
-
-    std::string ch_dir = outdir+"/ch"+std::to_string(chan);
-    std::cout << "Writing complex short to multiple files and subdirectories in " << ch_dir << std::endl;
-    std::string mkdir_cmd = "mkdir -p "+ch_dir;
-    std::cout << mkdir_cmd << std::endl;
-    result = system(mkdir_cmd.c_str());
-    if (result != 0) {
-      request_shutdown(str(boost::format(
-          "Failed to create output directory %1% for channel %2%. Stopping recorder.")
-          % ch_dir % chan));
-      return;
-    }
-
-    data_object = digital_rf_create_write_hdf5((char *)ch_dir.c_str(),
-					       H5T_NATIVE_SHORT,
-					       subdir_cadence,
-					       millseconds_per_file,
-					       global_start_index,
-					       sample_rate_numerator,
-					       sample_rate_denominator,
-					       (char *)uuid.c_str(),
-					       compression_level,
-					       checksum,
-					       is_complex,
-					       num_subchannels,
-					       is_continuous,
-					       marching_periods);
-
-    if (!data_object){
-      request_shutdown(str(boost::format(
-          "No Digital RF writer created for channel %1%. Stopping recorder.")
-          % chan));
-      return;
-    }
-
-    uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS);
-    stream_cmd.stream_now = false;
-    stream_cmd.time_spec  = ts_t0;
-
-    rx_stream->issue_stream_cmd(stream_cmd);
-
+    const auto mode=options.mode;
+    const std::string uuid=random_uuid_v4();
+    recorder::Health health(options.stats_dir,uuid,chan,mode.rate,sizeof(T)*8);
+    uhd::stream_args_t args(mode.eight_bit?"sc8":"sc16",mode.eight_bit?"sc8":"sc16");
+    args.channels={chan};
+    if(mode.eight_bit)args.args["peak"]=std::to_string(options.peak);
+    auto stream=usrp->get_rx_stream(args);
+    const double start=pps.get_real_secs()+2.;
+    const uint64_t global_start=uint64_t(uhd::time_spec_t(start).to_ticks(double(mode.rate)));
+    auto writer=[&](const std::string& root,hid_t type,uint64_t rate,uint64_t first){
+        const auto path=root+"/ch"+std::to_string(chan);
+        std::filesystem::create_directories(path);
+        auto* w=digital_rf_create_write_hdf5(const_cast<char*>(path.c_str()),type,
+            3600,1000,first,rate,1,const_cast<char*>(uuid.c_str()),0,0,1,1,0,1);
+        if(!w)throw std::runtime_error("Could not create Digital RF writer: "+path);
+        return w;
+    };
+    auto* raw=writer(outdir,mode.eight_bit?H5T_NATIVE_INT8:H5T_NATIVE_INT16,mode.rate,global_start);
+    Digital_rf_write_object* low=nullptr;
+    if(!options.compat_dir.empty())low=writer(options.compat_dir,H5T_NATIVE_INT16,25000000,global_start/2);
+    recorder::Low25 decimator;
+    std::vector<std::complex<int16_t>> reduced;
+    uhd::stream_cmd_t command(uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS);
+    command.stream_now=false;command.time_spec=uhd::time_spec_t(start);stream->issue_stream_cmd(command);
+    std::vector<std::complex<T>> data(65536);
     uhd::rx_metadata_t md;
-
-    std::vector<std::complex<short>> buff(rx_stream->get_max_num_samps());
-    std::vector<void*> buffs;
-    buffs.push_back(&buff.front());
-
-    // The first recv() blocks until the timed stream command starts.
-    double timeout = 3.0 + 0.1;
-
-    uint64_t packet_i=0;
-    uint64_t prev_tl=0;
-    uint64_t samp_diff=363;
-    int n_empty=0;
-    while (!shutdown_requested.load() && std::chrono::steady_clock::now() < end_time)
-    {
-      size_t num_rx_samps = rx_stream->recv(buffs, buff.size(), md, timeout, true);
-
-      if (shutdown_requested.load()) {
-        break;
-      }
-
-      if(num_rx_samps  == 363){
-        n_empty=0;
-        uint64_t tl=(uint64_t)md.time_spec.get_full_secs()*sample_rate_numerator;
-        tl=tl + (uint64_t)(md.time_spec.get_frac_secs()*((double)sample_rate_numerator));
-
-        if(prev_tl!=0)
-        {
-          samp_diff = tl-prev_tl;
-        }
-      
-        short *a = (short *)buff.data();
-      
-        if(samp_diff == 363)
-        {
-          if (!write_digital_rf_or_request_shutdown(
-                  data_object, vector_leading_edge_index + packet_i*363, a, vector_length, chan)) {
-            break;
-          }
-          packet_i+=1;
-        }
-        else
-        {
-          // Preserve the absolute Digital RF sample index across packet gaps.
-          int n_packets = samp_diff/363;
-          printf("samp_diff %ld number of packets %d\n",samp_diff,n_packets);
-          for(int pi = 0 ; pi < n_packets; pi++)
-          {
-            if (!write_digital_rf_or_request_shutdown(
-                    data_object, vector_leading_edge_index + packet_i*363, a, vector_length, chan)) {
-              break;
-            }
-            packet_i+=1;
-          }
-        
-        }
-        prev_tl=tl;
-      }
-      else
-      {
-        printf("got no data in recv %d\n",n_empty);
-        n_empty+=1;
-        if(n_empty > 10)
-        {
-          request_shutdown(str(boost::format(
-              "Channel %1% received no data for 10 consecutive recv calls. Stopping recorder.")
-              % chan));
-          break;
-        }
-      }
-
-      timeout = 0.1;
-    }
-
+    uint64_t expected=global_start,pending_overflows=0;
+    unsigned empty=0;
+    std::cout<<"CAPTURE mode="<<(mode.eight_bit?"50mhz":"25mhz")
+             <<" rate="<<mode.rate<<" center_hz="<<mode.center<<" bits="<<sizeof(T)*8
+             <<" start_unix="<<std::setprecision(16)<<start<<" uuid="<<uuid<<std::endl;
     try {
-      uhd::stream_cmd_t stop_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
-      rx_stream->issue_stream_cmd(stop_cmd);
-    } catch (const std::exception& ex) {
-      std::lock_guard<std::mutex> lock(shutdown_log_mutex);
-      std::cerr << "Failed to stop streamer for channel " << chan
-                << ": " << ex.what() << std::endl;
-    }
-    digital_rf_close_write_hdf5(data_object);
-    std::cout << "Channel " << chan << " finished 24h streaming.\n";
+        while(!shutdown_requested.load()&&std::chrono::steady_clock::now()<end_time){
+            const size_t n=stream->recv(data.data(),data.size(),md,empty?0.2:3.1,false);
+            if(md.error_code==uhd::rx_metadata_t::ERROR_CODE_OVERFLOW)++pending_overflows;
+            else if(md.error_code!=uhd::rx_metadata_t::ERROR_CODE_NONE&&md.error_code!=uhd::rx_metadata_t::ERROR_CODE_TIMEOUT)
+                throw std::runtime_error("UHD receive error: "+md.strerror());
+            if(!n){if(++empty>100)throw std::runtime_error("No samples for 100 receive calls");continue;}
+            empty=0;
+            if(!md.has_time_spec)throw std::runtime_error("Received samples without a timestamp");
+            const uint64_t index=uint64_t(md.time_spec.to_ticks(double(mode.rate)));
+            if(index<expected){++health.counters().backward_packets;continue;}
+            health.observe(index,data.data(),n);
+            auto& c=health.counters();c.uhd_overflow_events+=pending_overflows;pending_overflows=0;
+            if(index>expected){c.missing_samples+=index-expected;decimator.reset(index);}
+            // Actual packet timestamps/lengths define storage. Never fill a gap
+            // by writing another copy of the most recently received samples.
+            if(!write_digital_rf_or_request_shutdown(raw,index-global_start,data.data(),n,chan))break;
+            if constexpr(std::is_same_v<T,int8_t>){
+                if(low){uint64_t first=0;decimator.process(index,data.data(),n,reduced,first);
+                    if(!reduced.empty()&&!write_digital_rf_or_request_shutdown(low,first-global_start/2,reduced.data(),reduced.size(),chan))break;}
+            }
+            expected=index+n;
+        }
+        health.counters().uhd_overflow_events+=pending_overflows;
+        health.flush();
+    }catch(const std::exception& ex){request_shutdown(ex.what());}
+    uhd::stream_cmd_t stop(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
+    try{stream->issue_stream_cmd(stop);}catch(const std::exception& ex){request_shutdown(ex.what());}
+    digital_rf_close_write_hdf5(raw);if(low)digital_rf_close_write_hdf5(low);
+}
+
+void streaming_by_channel(size_t chan,double rate,std::string subdev,std::string outdir,
+                         multi_usrp::sptr usrp,uhd::time_spec_t pps,
+                         std::chrono::steady_clock::time_point end_time,RecorderOptions options)
+{
+    try{
+        if(options.mode.eight_bit)record_channel<int8_t>(chan,outdir,usrp,pps,end_time,options);
+        else record_channel<int16_t>(chan,outdir,usrp,pps,end_time,options);
+    }catch(const std::exception& ex){request_shutdown(ex.what());}
 }
 
 int UHD_SAFE_MAIN(int argc, char* argv[])
@@ -334,6 +257,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     double rate;
     std::string channel_list;
     int gps_lock_timeout_sec;
+    std::string mode_name,stats_dir,compat_dir;
+    double seconds,peak;
 
     po::options_description desc("Allowed options");
     // clang-format off
@@ -342,7 +267,12 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         ("usrp_args", po::value<std::string>(&usrp_args)->default_value("addr0=192.168.10.2,recv_buff_size=500000000"),"ettus device args")
         ("outdir", po::value<std::string>(&outdir)->default_value("/dev/shm/hf25"), "output directory")
         ("subdev", po::value<std::string>(&subdev)->default_value("A:A"), "subdevice")
-        ("rate", po::value<double>(&rate)->default_value(25e6), "rate of incoming samples")
+        ("mode", po::value<std::string>(&mode_name)->default_value("25mhz"), "25mhz: 0..25 MHz sc16; 50mhz: 0..50 MHz sc8")
+        ("rate", po::value<double>(&rate)->default_value(25e6), "compatibility alias: 25e6 or 50e6 only")
+        ("stats-dir", po::value<std::string>(&stats_dir)->default_value("/data0/recorder-health"), "persistent hourly HDF5 rail/overflow counters")
+        ("compat25-outdir", po::value<std::string>(&compat_dir)->default_value(""), "optional 0..25 MHz i16 compatibility ring for 50mhz mode")
+        ("peak", po::value<double>(&peak)->default_value(1.), "sc8 full-scale fraction, (0,1]; 1 preserves maximum ADC headroom")
+        ("seconds", po::value<double>(&seconds)->default_value(86400.), "bounded run duration in seconds")
         ("channels", po::value<std::string>(&channel_list)->default_value("0"), "which channel(s) to use (specify \"0\", \"1\", \"0,1\", etc)")
         ("gps-lock-timeout", po::value<int>(&gps_lock_timeout_sec)->default_value(-1), "seconds to wait for internal GPSDO lock before continuing; use -1 to wait indefinitely")
     ;
@@ -351,6 +281,20 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
     po::notify(vm);
+    if(vm.count("help")){std::cout<<desc<<std::endl;return EXIT_SUCCESS;}
+    if(!vm["rate"].defaulted()){
+        std::string implied=rate==25e6?"25mhz":rate==50e6?"50mhz":"invalid";
+        if(!vm["mode"].defaulted()&&mode_name!=implied)throw std::invalid_argument("rate conflicts with mode");
+        mode_name=implied;
+    }
+    const auto mode=recorder::Mode::parse(mode_name);rate=double(mode.rate);
+    if(!std::isfinite(seconds)||seconds<=0||!std::isfinite(peak)||peak<=0||peak>1)
+        throw std::invalid_argument("Invalid duration or sc8 peak");
+    if(!compat_dir.empty()&&(!mode.eight_bit||std::filesystem::weakly_canonical(compat_dir)==std::filesystem::weakly_canonical(outdir)))
+        throw std::invalid_argument("Compatibility output needs 50mhz mode and a separate directory");
+    const RecorderOptions options{mode,stats_dir,compat_dir,peak};
+    std::signal(SIGINT,[](int){shutdown_requested.store(true);});
+    std::signal(SIGTERM,[](int){shutdown_requested.store(true);});
 
     std::cout << boost::format("\nCreating the USRP device with: %s") % usrp_args
               << std::endl;
@@ -409,7 +353,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     // Quit after 24 hours to ensure the next service invocation starts from a
     // fresh synchronized PPS edge.
     auto start_time = std::chrono::steady_clock::now();
-    auto run_duration = std::chrono::hours(24);
+    auto run_duration = std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(seconds));
     auto end_time = start_time + run_duration;
 
     uhd::time_spec_t last_pps = usrp->get_time_last_pps();
@@ -441,11 +385,16 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     uhd::time_spec_t time_last_pps = usrp->get_time_last_pps();
     printf("USRP time now %1.4f USRP last pps %1.4f\n",usrp->get_time_now().get_real_secs(),time_last_pps.get_real_secs());
 
+    for(size_t mb=0;mb<usrp->get_num_mboards();++mb)usrp->set_rx_subdev_spec(subdev,mb);
+    for(const size_t ch:channel_nums){
+        usrp->set_rx_rate(rate,ch);usrp->set_rx_freq(mode.center,ch);
+        if(std::abs(usrp->get_rx_rate(ch)-rate)>.1||std::abs(usrp->get_rx_freq(ch)-mode.center)>1.)
+            throw std::runtime_error("USRP coerced the requested sample rate or centre frequency");
+    }
     std::vector<std::thread> threads;
-    for(size_t ch=0 ; ch < usrp->get_num_mboards(); ch++){
-      threads.push_back(std::thread(streaming_by_channel, std::stoi(channel_strings[ch]), rate, subdev, outdir, usrp, time_last_pps, end_time));
-    }  
-    
+    for(const size_t ch:channel_nums)
+        threads.emplace_back(streaming_by_channel,ch,rate,subdev,outdir,usrp,time_last_pps,end_time,options);
+
     for(auto& thread : threads){
         thread.join();
     }
