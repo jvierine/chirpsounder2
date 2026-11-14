@@ -39,8 +39,9 @@ universal stop-band or weak-signal calibration claim.
 channel and recording UUID, refreshed atomically about once a minute and on
 shutdown. UTC hour boundaries split the received sample and rail counts.
 Multiple partial recordings in the same hour have different UUIDs; aggregate
-counts rather than averaging their fractions. Closed full hours have
-`complete=1`; current/partial hours remain zero.
+counts rather than averaging their fractions. Finalized hour buckets have `complete=1`, even when the recording started
+partway through that hour. Use first/last sample indices and received/missing
+counts for actual coverage; the current hour bucket remains zero.
 
 Fields include received complex samples, rail-hit samples/components,
 near-rail samples, maximum component magnitude, mean complex power,

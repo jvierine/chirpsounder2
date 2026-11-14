@@ -5,7 +5,7 @@ set -euo pipefail
 base=/home/tgo/src/dob50-trial
 mkdir -p "$base/install-state" ~/.config/systemd/user
 for unit in iono-prn@Montelibretti iono-rust-detect; do
-    [[ ! -e "$HOME/.config/systemd/user/$unit.service.d/zz-dob50.conf" ]] || { echo 'Existing DOB50 overlay: inspect before reinstalling'; exit 1; }
+    [[ ! -e "$HOME/.config/systemd/user/$unit.service.d/zzzz-dob50.conf" ]] || { echo 'Existing DOB50 overlay: inspect before reinstalling'; exit 1; }
 done
 systemctl --user list-units 'iono-*' --type=service --state=active --no-legend --plain | awk '{print $1}' > "$base/install-state/previously-active.txt"
 systemctl --user cat chirpsounder_dombas > "$base/install-state/old-acquisition-unit.txt"
@@ -47,13 +47,13 @@ RestartSec=2
 WantedBy=default.target
 UNIT
 mkdir -p ~/.config/systemd/user/iono-prn@Montelibretti.service.d ~/.config/systemd/user/iono-rust-detect.service.d
-cat > ~/.config/systemd/user/iono-prn@Montelibretti.service.d/zz-dob50.conf <<UNIT
+cat > ~/.config/systemd/user/iono-prn@Montelibretti.service.d/zzzz-dob50.conf <<UNIT
 [Service]
 ExecStart=
 ExecStart=$base/iono-prn %h/.config/chirpsounder2/Montelibretti50.json
 MemoryMax=2G
 UNIT
-cat > ~/.config/systemd/user/iono-rust-detect.service.d/zz-dob50.conf <<UNIT
+cat > ~/.config/systemd/user/iono-rust-detect.service.d/zzzz-dob50.conf <<UNIT
 [Service]
 ExecStart=
 ExecStart=$base/iono-receiver detect %h/.config/chirpsounder2/receiver50.json
