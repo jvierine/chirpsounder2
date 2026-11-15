@@ -281,7 +281,7 @@ fn sweeps(rows: &[[f64; 5]], station: &str, start: f64, upper_mhz: f64) -> Vec<P
     let mut products = vec![];
     for rate in [100000., 125000.] {
         let selected = crate::render::clustered(rows, rate);
-        if selected.is_empty() {
+        if selected.is_empty() && upper_mhz <= 25. {
             continue;
         }
         let mut frequency = vec![f32::NAN; NT * 512];
@@ -867,6 +867,13 @@ mod tests {
                 vec![f32::NAN; NT * 8],
             ),
         ]
+    }
+    #[test]
+    fn full_band_search_keeps_empty_rate_visible_without_inventing_detections() {
+        let p=sweeps(&[],"DOB",86400.,50.);
+        assert_eq!(p.len(),4);
+        assert!(p.iter().all(|p|p.occupied_minutes==0 && p.grid.values.iter().all(|v|v.is_nan())));
+        assert!(sweeps(&[],"TGO",86400.,25.).is_empty());
     }
     #[test]
     fn full_band_sweeps_preserve_high_frequency_detections_for_both_rates() {
