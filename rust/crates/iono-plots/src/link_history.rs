@@ -13,15 +13,17 @@ fn window_start(end: f64) -> f64 {
 const NY: usize = 256;
 struct Panels {
     gate: [f64; 2],
+    upper_mhz: f64,
     frequency: Vec<f32>,
     range: Vec<f32>,
     rsnr: Vec<f32>,
     fsnr: Vec<f32>,
 }
 impl Panels {
-    fn new(gate: [f64; 2]) -> Self {
+    fn new(gate: [f64; 2], upper_mhz: f64) -> Self {
         Self {
             gate,
+            upper_mhz,
             frequency: vec![f32::NAN; NX * NY],
             range: vec![f32::NAN; NX * NY],
             rsnr: vec![f32::NEG_INFINITY; NX * NY],
@@ -35,7 +37,7 @@ impl Panels {
             || t >= start + WINDOW
             || r < self.gate[0]
             || r > self.gate[1]
-            || !(0.0..25.).contains(&f)
+            || !(0.0..self.upper_mhz).contains(&f)
         {
             return;
         }
@@ -43,7 +45,7 @@ impl Panels {
         let yr = (((r - self.gate[0]) / (self.gate[1] - self.gate[0]) * NY as f64).floor()
             as usize)
             .min(NY - 1);
-        let yf = (f / 25. * NY as f64).floor() as usize;
+        let yf = (f / self.upper_mhz * NY as f64).floor() as usize;
         let k = yr * NX + x;
         if snr > self.rsnr[k] {
             self.rsnr[k] = snr;
@@ -66,7 +68,7 @@ impl Panels {
                 start,
                 NY,
                 self.gate,
-                [0., 25.],
+                [0., self.upper_mhz as f32],
                 "Frequency (MHz)",
                 self.frequency,
             ),
@@ -78,7 +80,7 @@ impl Panels {
                 "turbo",
                 start,
                 NY,
-                [0., 25.],
+                [0., self.upper_mhz],
                 [self.gate[0] as f32, self.gate[1] as f32],
                 "Virtual range (km)",
                 self.range,
@@ -96,6 +98,7 @@ impl Panels {
 }
 pub fn prepare(catalog: &Catalog, station: &str, end: f64) -> Result<Vec<Product>> {
     let start = window_start(end);
+    let upper_mhz = crate::browser::frequency_upper_mhz(station);
     let mut products = vec![];
     for tx in catalog.transmitters()? {
         let rows = catalog.profiles(&tx, start)?;
@@ -106,7 +109,7 @@ pub fn prepare(catalog: &Catalog, station: &str, end: f64) -> Result<Vec<Product
         let Some(gate) = gate.filter(|g| g[1] > g[0]) else {
             continue;
         };
-        let mut p = Panels::new(gate);
+        let mut p = Panels::new(gate, upper_mhz);
         for row in rows.iter().filter(|r| r.t < end) {
             for (i, &snr) in row.snr.iter().enumerate() {
                 if snr >= iono_core::db(20.) {
@@ -129,9 +132,9 @@ pub fn prepare(catalog: &Catalog, station: &str, end: f64) -> Result<Vec<Product
                 if snr >= iono_core::db(20.) {
                     let f = row.frequency[i] as f64;
                     let r = row.range[i] as f64;
-                    if r >= gate[0] && r <= gate[1] && (0.0..25.).contains(&f) {
+                    if r >= gate[0] && r <= gate[1] && (0.0..upper_mhz).contains(&f) {
                         let x = ((row.t - start) / 120.).floor() as usize;
-                        let y = (f / 25. * NY as f64).floor() as usize;
+                        let y = (f / upper_mhz * NY as f64).floor() as usize;
                         let k = y * NX + x;
                         if snr > p.fsnr[k] {
                             p.fsnr[k] = snr;
@@ -153,7 +156,7 @@ pub fn prepare(catalog: &Catalog, station: &str, end: f64) -> Result<Vec<Product
                 .iter()
                 .map(|g| g[1])
                 .fold(f64::NEG_INFINITY, f64::max);
-            (s.id.clone(), Panels::new([lo, hi]))
+            (s.id.clone(), Panels::new([lo, hi], upper_mhz))
         })
         .collect();
     let rows = catalog.detections(start)?;
@@ -183,6 +186,19 @@ pub fn prepare(catalog: &Catalog, station: &str, end: f64) -> Result<Vec<Product
 mod tests {
     use super::*;
     #[test]
+    fn full_band_history_retains_high_frequency_echoes() {
+        let start = 1793750400.;
+        let mut p = Panels::new([3438., 4652.], 50.);
+        p.point(start + 60., 4000., 42., 30., start);
+        p.point(start + 180., 4000., 50.1, 40., start);
+        let products = p.products("DOB", "Cyprus", start);
+        assert!(products[0].grid.values.contains(&42.));
+        assert_eq!(products[0].grid.high, 50.);
+        assert!(products[1].grid.values.contains(&4000.));
+        assert!((products[1].grid.y.last().unwrap() - (50. - 25. / NY as f64)).abs() < 1e-6);
+        assert_eq!(products[1].grid.values.iter().filter(|v| v.is_finite()).count(), 1);
+    }
+    #[test]
     fn stable_storage_still_covers_the_requested_sliding_48_hours() {
         let morning = 1793923200. + 9. * 3600.;
         let evening = 1793923200. + 21. * 3600.;
@@ -195,7 +211,7 @@ mod tests {
     }
     #[test]
     fn bounded_window_filters_ranges_and_uses_strongest_measured_frequency() {
-        let mut p = Panels::new([4000., 5000.]);
+        let mut p = Panels::new([4000., 5000.], 25.);
         let start = 1793750400.;
         p.point(start + 60., 4500., 8., 20., start);
         p.point(start + 61., 4500., 9., 30., start);

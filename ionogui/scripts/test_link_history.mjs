@@ -1,6 +1,16 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {linkQuality,remapRows} from "../web/link-history-popup.js";
+import {linkQuality,remapRows,frequencyDisplay} from "../web/link-history-popup.js";
+test("DOB displays 50 MHz without stretching legacy measurements",()=>{
+  const p={quantity:"range-frequency",ny:256,y:Array.from({length:256},(_,i)=>(i+.5)*25/256),high:4652};
+  const d=frequencyDisplay(p,"DOB");
+  assert.equal(d.ny,512);assert.equal(d.y0,0);assert.equal(d.y1,50);
+  assert.equal((d.y1-d.y0)/d.ny,25/256);
+  assert.equal(frequencyDisplay(p,"TGO").y1,25);
+  const full={...p,y:Array.from({length:256},(_,i)=>(i+.5)*50/256)};
+  assert.equal(frequencyDisplay(full,"DOB").ny,256);
+  assert.equal(frequencyDisplay({...p,quantity:"peak-frequency",high:25},"DOB").high,50);
+});
 test("W2NAF cross-modulation is excluded by default while US sources retain a warning",()=>{
   for(const transmitter of ["Australia","Cyprus","JORN","NIC"])assert.equal(linkQuality({receiver:"W2NAF",transmitter}).excluded,true);
   for(const transmitter of ["US","ROTHR1","ROTHR2","ROTHR3"]) {const q=linkQuality({receiver:"W2NAF",transmitter});assert.equal(q.excluded,false);assert.equal(q.limited,true);}

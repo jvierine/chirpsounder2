@@ -655,9 +655,7 @@ pub fn export(
         .collect::<Vec<_>>();
     // Default remains the legacy capture band. The receiver service can declare
     // a wider capture band independently of whether strong detections exist there.
-    let configured = std::env::var("IONO_SWEEP_MAX_MHZ").ok()
-        .and_then(|v| v.parse::<f64>().ok()).filter(|v| v.is_finite() && *v >= 25. && *v <= 50.)
-        .unwrap_or(25.);
+    let configured = frequency_upper_mhz(station);
     let observed = detections.iter().map(|p| p[2]).filter(|v| v.is_finite())
         .fold(25f64, f64::max);
     let upper = configured.max((observed / 25.).ceil() * 25.).min(50.);
@@ -1060,4 +1058,12 @@ mod tests {
             .all(|v| v.is_nan()));
         assert!(a[1].grid.values.iter().any(|&v| v == 7.));
     }
+}
+
+/// Capture bandwidth is independent of whether echoes reach its upper edge.
+pub(crate) fn frequency_upper_mhz(station: &str) -> f64 {
+    std::env::var("IONO_SWEEP_MAX_MHZ").ok()
+        .and_then(|v| v.parse::<f64>().ok())
+        .filter(|v| v.is_finite() && (25. ..=50.).contains(v))
+        .unwrap_or(if station == "DOB" { 50. } else { 25. })
 }

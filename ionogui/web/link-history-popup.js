@@ -18,6 +18,13 @@ export function remapRows(p,first,block,end) {
   }
   return result;
 }
+export function frequencyDisplay(p,station) {
+  const dy=p.y[1]-p.y[0], y0=p.y[0]-dy/2, nativeEnd=p.y.at(-1)+dy/2;
+  // Keep older 25 MHz arrays at their measured frequencies; the unmeasured
+  // upper half is blank until the receiver publishes full-band arrays.
+  const y1=station==="DOB" && p.quantity==="range-frequency" ? Math.max(50,nativeEnd) : nativeEnd;
+  return {y0,y1,ny:Math.round((y1-y0)/dy),high:station==="DOB" && p.quantity==="peak-frequency" ? Math.max(50,p.high) : p.high};
+}
 export function linkHistoryPopup({HeatmapView,PlotViewport,cache,json,fontSize,stamp,openIonogram}) {
   let session;
   function close() {
@@ -56,14 +63,14 @@ export function linkHistoryPopup({HeatmapView,PlotViewport,cache,json,fontSize,s
           container.className="plot";field.className="field";axes.className="axes";container.append(field,axes);el.append(container);
           const renderer=new HeatmapView(field,axes),viewport=new PlotViewport(),panel={renderer,viewport};s.panels.push(panel);
           renderer.set_font_size(fontSize());renderer.set_palette("turbo");renderer.set_markers(false);renderer.set_reduction("nearest");renderer.set_x_labels_visible(index===1);
-          renderer.set_labels("Time (UTC)",p.ylabel,p.color_label,true);renderer.set_scale(p.low,p.high);
-          const dy=p.y[1]-p.y[0],y0=p.y[0]-dy/2,y1=p.y.at(-1)+dy/2;
-          renderer.set_data(1440,p.ny,new Float32Array(1440*p.ny).fill(NaN),end-172800,end,y0,y1);
+          const display=frequencyDisplay(p,row.receiver);
+          renderer.set_labels("Time (UTC)",p.ylabel,p.color_label,true);renderer.set_scale(p.low,display.high);
+          renderer.set_data(1440,display.ny,new Float32Array(1440*display.ny).fill(NaN),end-172800,end,display.y0,display.y1);
           const resize=()=>{if(!current())return;const r=container.getBoundingClientRect();renderer.resize(r.width,r.height,Math.min(1.5,devicePixelRatio||1));const [l,t,w,h]=renderer.plot_rect();Object.assign(field.style,{left:`${l}px`,top:`${t}px`,width:`${w}px`,height:`${h}px`});};
           resize();panel.resize=new ResizeObserver(resize);panel.resize.observe(container);
           const redraw=()=>{const [x0,y0,x1,y1]=viewport.bounds();for(const other of s.panels){const b=other.viewport.bounds();other.viewport.set_bounds(x0,other===panel?y0:b[1],x1,other===panel?y1:b[3]);other.renderer.set_view(...other.viewport.bounds());}};
           panel.unbind=bindPlotNavigation(field,viewport,redraw);field.ondblclick=()=>{for(const other of s.panels){other.viewport.reset();other.renderer.set_view(...other.viewport.bounds());}};
-          panel.uncolor=bindColorbarEditor(axes,renderer,{automaticLimits:()=>[p.low,p.high]});
+          panel.uncolor=bindColorbarEditor(axes,renderer,{automaticLimits:()=>[p.low,display.high]});
           const rows=(first,block)=>{if(!current())return;const mapped=remapRows(p,first,block,end);renderer.update_rows(first,mapped);if(index===0)for(let i=0;i<mapped.length;i++)if(Number.isFinite(mapped[i])){const time=end-172800+(i%1440+.5)*120;coverageStart=Math.min(coverageStart,time);coverageEnd=Math.max(coverageEnd,time);observed++;}};
           const cached=cache.get(p.id);
           if(cached)rows(0,cached);

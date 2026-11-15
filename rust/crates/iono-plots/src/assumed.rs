@@ -44,7 +44,7 @@ pub fn envelopes(rows: &[[f64; 5]], station: &str, start: f64) -> Vec<Value> {
     let mut windows = BTreeMap::<(i64, i64), (f64, Vec<Vec<f64>>, Vec<bool>)>::new();
     for rate in [100000., 125000.] {
         for p in crate::render::clustered(rows, rate) {
-            if !(start..start + 86400.).contains(&p[1]) || !(0.0..=25.).contains(&p[2]) {
+            if !(start..start + 86400.).contains(&p[1]) || !(0.0..=crate::browser::frequency_upper_mhz(station)).contains(&p[2]) {
                 continue;
             }
             let delay = p[0].rem_euclid(1.);
