@@ -134,3 +134,18 @@ and widens it directly into complex-f32. Its tests retain -128/+127 exactly and
 preserve indexed gaps. Existing `bounds` and `read_complex32` semantics remain
 unchanged. No raw-binary backend is deployed; a comparable backend is an option
 if the measured direct-read performance still fails to keep up.
+
+## Live follow-up, 2026-11-15 UTC
+
+At peak=0.03125 the 00 UTC bucket reached 21,000,028,160 received samples,
+541 rail samples (2.58e-8 fraction), zero UHD overruns and zero post-start
+missing samples. This is a measured clipping indicator, not a calibrated ADC
+clipping count. Recorder CPU was about 85% of one core; the RAM rings remained
+at 81% usage. The direct reader is deployed. A 40-million-sample archived i8
+read took 1.175409 s under live station load; live Montelibretti columns took
+2.5–2.9 s, versus about 9 s before the reader change. The 30 MHz column was
+processed, but no transmitter identification or echo at that frequency was
+established. Native-50 decoding still skips columns and is not cadence-complete.
+A raw backend remains unimplemented; its API should retain bounds/vector reads,
+integer sample indices and explicit gaps. The healthy 50 MHz acquisition is
+retained independently of that decoder performance limitation.
