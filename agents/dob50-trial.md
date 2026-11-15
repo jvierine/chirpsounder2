@@ -149,3 +149,15 @@ established. Native-50 decoding still skips columns and is not cadence-complete.
 A raw backend remains unimplemented; its API should retain bounds/vector reads,
 integer sample indices and explicit gaps. The healthy 50 MHz acquisition is
 retained independently of that decoder performance limitation.
+
+## Public sweep plots
+
+`iono-plots` used to discard >25 MHz rows while building its browser arrays,
+even though native detection searched the full capture band. The full-band
+worker accepts `IONO_SWEEP_MAX_MHZ=50` through the DOB-only service overlay
+installed by `publish-detections.sh`. It extends both the frequency/range axis
+and the peak-frequency color scale; other receivers default to 25 MHz. Bins
+above 25 MHz retain actual clustered detection rows, not filled data. A test
+covers 40–44 MHz clusters at both 100 and 125 kHz/s. This does not change the
+separate spectrum or LFM workers. Only rates with accepted clusters produce
+cards, as before; an absent card is not proof that its rate was not searched.
