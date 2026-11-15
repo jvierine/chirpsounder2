@@ -146,9 +146,43 @@ read took 1.175409 s under live station load; live Montelibretti columns took
 2.5–2.9 s, versus about 9 s before the reader change. The 30 MHz column was
 processed, but no transmitter identification or echo at that frequency was
 established. Native-50 decoding still skips columns and is not cadence-complete.
-A raw backend remains unimplemented; its API should retain bounds/vector reads,
-integer sample indices and explicit gaps. The healthy 50 MHz acquisition is
+A raw backend is now implemented in `rdigital_rf`, but is not connected to the
+C++ recorder. The recorder still writes HDF5. The healthy 50 MHz acquisition is
 retained independently of that decoder performance limitation.
+
+## Typed-reader rollout, 2026-11-15
+
+The receiver dependency now pins `rdigital_rf` main commit
+`677dff53d1fd98453670470b49300e9302bf3cd0`. PRN, VERSO and the generic receiver
+built on work-laptop; 14 receiver tests and seven relevant core tests passed.
+The source pin is on chirpsounder2 main (`f837c5d`). These builds are **not yet
+installed as running DOB consumers**: the reverse tunnel repeatedly stalled
+during transfer. The dedicated stale forwarding session was reset and briefly
+reconnected, then became unresponsive again. Acquisition was not restarted;
+its last inspected PID was 1953931. Do not report the latest reader as deployed.
+
+Verified artifacts are staged on juha.no in `/tmp/dob-reader-677dff5/`, with
+`SHA256SUMS` and `update-reader.sh`. Once DOB access is stable, transfer that
+directory at a total maximum of 16 KiB/s, verify checksums on DOB, and run
+`bash update-reader.sh STAGED_DIRECTORY`. This updates only the native-50 PRN,
+detector and spectrum consumers, backs up their old binaries and checks that
+acquisition's PID remains unchanged. Other DOB workers still need an explicit
+review and update; no other station is in scope.
+
+The staged `dob-reader-comparison-bin` compares old `2528df6` and new `677dff5`
+`read_complex32` calls, alternating order and checking every returned component
+bitwise. Its arguments are ROOT START LENGTH REPORT.h5. A bounded archived
+fixture exists at `/data0/recorder-health/dob50-probe/hf50`; use start
+89733140650100007 and length 2504000. Sources are retained on work-laptop in
+`/tmp/dob-reader-comparison/`. The on-station comparison remains pending.
+
+Before attributing the remaining PRN delay to I/O, inspect the live
+`iono-prn.slice` CPU quota and its cgroup throttling counters. The repository's
+slice configuration caps all PRN instances together at 150%; the observed four
+PRN processes each used about 37.6% CPU. Live Montelibretti dwell wall times
+were 2.6–2.9 s at 02:19–02:22 UTC. This suggests a shared CPU cap, but the live
+quota has not yet been confirmed or modified. Preserve acquisition priority
+and keep global search below ionogram processing when correcting the budget.
 
 ## Public sweep plots
 
