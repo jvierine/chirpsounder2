@@ -186,6 +186,18 @@ and keep global search below ionogram processing when correcting the budget.
 
 ## Public sweep plots
 
+The 48-hour link-history path had a separate 25 MHz cutoff. Commit `fe756c5`
+extends DOB link arrays, assumed-source envelopes and frequency color scales to
+50 MHz, with a browser fallback that preserves old arrays at their original
+frequencies and leaves the upper band empty. The matching `iono-plots` binary
+(`0be5407181466182c07604a2cda70725a639a9de8b18de62a9b04e5e59a2747f`)
+was installed on DOB at 02:44 UTC on 2026-11-15; acquisition PID 1953931 stayed
+unchanged. The public bulk bundle generated at 02:44:10 was verified to contain
+0–50 MHz Cyprus link-history arrays and both 100/125 kHz/s sweep products. The
+live Cyprus popup was visually inspected. Five JavaScript tests and all 25
+iono-plots tests passed. The old exporter is retained as
+`/home/tgo/src/dob50-trial/iono-plots.before-fe756c5`.
+
 `iono-plots` used to discard >25 MHz rows while building its browser arrays,
 even though native detection searched the full capture band. The full-band
 worker accepts `IONO_SWEEP_MAX_MHZ=50` through the DOB-only service overlay
