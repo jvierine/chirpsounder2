@@ -13,4 +13,4 @@ hdf5.workspace = true
 num-complex.workspace = true
 rustfft.workspace = true
 chrono.workspace = true
-rdigital_rf = { git = "https://github.com/jvierine/rdigital_rf", rev = "2528df685b63fbc75e1b9d88a8eadaef93f90c79" }
+rdigital_rf = { git = "https://github.com/jvierine/rdigital_rf", rev = "677dff53d1fd98453670470b49300e9302bf3cd0" }
