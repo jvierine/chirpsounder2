@@ -277,7 +277,7 @@ fn spectrum(rows: &[Profile], station: &str, start: f64) -> Vec<Product> {
         background,
     ]
 }
-fn sweeps(rows: &[[f64; 5]], station: &str, start: f64) -> Vec<Product> {
+fn sweeps(rows: &[[f64; 5]], station: &str, start: f64, upper_mhz: f64) -> Vec<Product> {
     let mut products = vec![];
     for rate in [100000., 125000.] {
         let selected = crate::render::clustered(rows, rate);
@@ -301,7 +301,7 @@ fn sweeps(rows: &[[f64; 5]], station: &str, start: f64) -> Vec<Product> {
                     frequency[k] = p[2] as f32;
                 }
             }
-            if let Some(y) = bin(p[2], [0., 25.], 256) {
+            if let Some(y) = bin(p[2], [0., upper_mhz], 256) {
                 let k = y * NT + x;
                 if !fsnr[k].is_finite() || p[1] as f32 > fsnr[k] {
                     fsnr[k] = p[1] as f32;
@@ -319,7 +319,7 @@ fn sweeps(rows: &[[f64; 5]], station: &str, start: f64) -> Vec<Product> {
             start,
             512,
             [-5000., 39000.],
-            [5., 25.],
+            [0., upper_mhz as f32],
             "Frequency (MHz)",
             frequency,
         ));
@@ -331,7 +331,7 @@ fn sweeps(rows: &[[f64; 5]], station: &str, start: f64) -> Vec<Product> {
             "rainbow",
             start,
             256,
-            [0., 25.],
+            [0., upper_mhz],
             [-5000., 39000.],
             "Virtual range (km)",
             ranges,
@@ -653,7 +653,15 @@ pub fn export(
         .into_iter()
         .filter(|p| p[0] < start + 86400.)
         .collect::<Vec<_>>();
-    products.extend(sweeps(&detections, station, start));
+    // Default remains the legacy capture band. The receiver service can declare
+    // a wider capture band independently of whether strong detections exist there.
+    let configured = std::env::var("IONO_SWEEP_MAX_MHZ").ok()
+        .and_then(|v| v.parse::<f64>().ok()).filter(|v| v.is_finite() && *v >= 25. && *v <= 50.)
+        .unwrap_or(25.);
+    let observed = detections.iter().map(|p| p[2]).filter(|v| v.is_finite())
+        .fold(25f64, f64::max);
+    let upper = configured.max((observed / 25.).ceil() * 25.).min(50.);
+    products.extend(sweeps(&detections, station, start, upper));
     let mut q = catalog.db.prepare(
         "SELECT payload FROM frequency_evidence WHERE time>=?1 AND time<?2 ORDER BY time",
     )?;
@@ -859,6 +867,21 @@ mod tests {
                 vec![f32::NAN; NT * 8],
             ),
         ]
+    }
+    #[test]
+    fn full_band_sweeps_preserve_high_frequency_detections_for_both_rates() {
+        let mut rows=vec![];
+        for rate in [100000.,125000.] {
+            for i in 0..5 { rows.push([86430.01+i as f64*0.0001,20.,40.+i as f64,rate,0.]); }
+        }
+        let products=sweeps(&rows,"DOB",86400.,50.);
+        assert_eq!(products.len(),4);
+        for p in products {
+            if p.quantity=="range-frequency" {
+                assert!(*p.grid.y.last().unwrap()>49.);
+                assert_eq!(p.grid.values.iter().filter(|x|x.is_finite()).count(),5);
+            } else { assert_eq!(p.grid.high,50.);assert!(p.grid.values.iter().any(|v|*v>=40.)); }
+        }
     }
     #[test]
     fn display_reduction_keeps_strong_echo_frequency_and_true_gaps() {
