@@ -159,5 +159,5 @@ installed by `publish-detections.sh`. It extends both the frequency/range axis
 and the peak-frequency color scale; other receivers default to 25 MHz. Bins
 above 25 MHz retain actual clustered detection rows, not filled data. A test
 covers 40–44 MHz clusters at both 100 and 125 kHz/s. This does not change the
-separate spectrum or LFM workers. Only rates with accepted clusters produce
-cards, as before; an absent card is not proof that its rate was not searched.
+separate spectrum or LFM workers. The full-band view keeps both rate cards visible, including empty arrays
+when no clusters pass acceptance. Other receivers retain the legacy behavior.
