@@ -101,3 +101,36 @@ wider receiver is allowed to record.
 - https://www.wia.org.au/members/protecting/about/documents/Region%20One%20Monitoring%20Manual.pdf
 - https://seapower.navy.gov.au/sites/default/files/2023-02/Managing_and_Protecting_the_Offshore_Estate.pdf
 - https://doi.org/10.1002/2015RS005881
+
+## N200 amplitude scale
+
+UHD's N2xx `peak` stream argument controls device scaling before sc8 packing.
+The recorder also accepts `--digital-gain-db G`, with nominal
+`peak = 10^(-G/20)`. Specify one of these controls, not both. Accepted peak
+fractions are 1/256 through 1; UHD internally clamps smaller N200 values, so
+the recorder rejects those rather than recording an inaccurate setting.
+This is digital quantizer scaling; analog gain depends on the daughterboard.
+It cannot repair clipping that has already happened in the ADC.
+
+The first sustained trial used `peak=0.125` (nominal +18.06 dB). A subsequent
+DOB-only amplitude trial uses `peak=0.03125` (nominal +30.10 dB), a further
+fourfold amplitude increase. Check measured mean power and rail counts before
+accepting it. `set-peak.sh FRACTION` changes the dedicated acquisition unit and
+restarts only that recorder; its hourly files identify each new recording UUID,
+peak fraction and nominal digital gain. A deliberate resynchronization gap is
+expected when changing the setting.
+
+References:
+- https://files.ettus.com/manual/page_configuration.html#stream_args
+- https://github.com/EttusResearch/uhd/blob/UHD-4.6/host/lib/usrp/cores/rx_dsp_core_200.cpp
+
+## Signed-byte reader
+
+The first native-50 MHz PRN run was throughput-limited by the generic HDF5
+compound-i8 to complex-f64 conversion path (roughly nine seconds per one-second
+carrier dwell). The direct signed-byte path in `rdigital_rf` commit
+`2528df685b63fbc75e1b9d88a8eadaef93f90c79` reads the native i8 compound type
+and widens it directly into complex-f32. Its tests retain -128/+127 exactly and
+preserve indexed gaps. Existing `bounds` and `read_complex32` semantics remain
+unchanged. No raw-binary backend is deployed; a comparable backend is an option
+if the measured direct-read performance still fails to keep up.
