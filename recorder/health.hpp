@@ -29,6 +29,7 @@ public:
   COUNT(received_samples);COUNT(rail_samples);COUNT(rail_components);COUNT(near_rail_samples);COUNT(uhd_overflow_events);COUNT(missing_samples);COUNT(backward_packets);COUNT(conversion_clips);COUNT(startup_missing_samples);
 #undef COUNT
   scalar(h,"wire_peak_fraction",H5T_NATIVE_DOUBLE,peak);
+  scalar(h,"digital_gain_db",H5T_NATIVE_DOUBLE,-20.*std::log10(peak));
   scalar(h,"center_frequency_hz",H5T_NATIVE_DOUBLE,double(rate)/2.);
   scalar(h,"maximum_abs_component",H5T_NATIVE_INT32,c.maximum_abs_component);
   scalar(h,"mean_complex_power",H5T_NATIVE_DOUBLE,c.received_samples?c.sum_power/c.received_samples:0.);

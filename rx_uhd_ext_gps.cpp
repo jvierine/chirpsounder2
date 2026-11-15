@@ -264,7 +264,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     std::string channel_list;
     int gps_lock_timeout_sec;
     std::string mode_name,stats_dir,compat_dir;
-    double seconds,peak;
+    double seconds,peak,gain_db=0.;
 
     po::options_description desc("Allowed options");
     // clang-format off
@@ -277,7 +277,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         ("rate", po::value<double>(&rate)->default_value(25e6), "compatibility alias: 25e6 or 50e6 only")
         ("stats-dir", po::value<std::string>(&stats_dir)->default_value("/data0/recorder-health"), "persistent hourly HDF5 rail/overflow counters")
         ("compat25-outdir", po::value<std::string>(&compat_dir)->default_value(""), "optional 0..25 MHz i16 compatibility ring for 50mhz mode")
-        ("peak", po::value<double>(&peak)->default_value(1.), "sc8 full-scale fraction, (0,1]; 1 preserves maximum ADC headroom")
+        ("peak", po::value<double>(&peak)->default_value(1.), "sc8 expected peak fraction [1/256,1]; lower values increase gain before 8-bit quantization")
+        ("digital-gain-db", po::value<double>(&gain_db), "50mhz only: digital gain in dB, alternative to --peak (gain = -20 log10(peak))")
         ("seconds", po::value<double>(&seconds)->default_value(86400.), "bounded run duration in seconds")
         ("channels", po::value<std::string>(&channel_list)->default_value("0"), "which channel(s) to use (specify \"0\", \"1\", \"0,1\", etc)")
         ("gps-lock-timeout", po::value<int>(&gps_lock_timeout_sec)->default_value(-1), "seconds to wait for internal GPSDO lock before continuing; use -1 to wait indefinitely")
@@ -294,7 +295,12 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         mode_name=implied;
     }
     const auto mode=recorder::Mode::parse(mode_name);rate=double(mode.rate);
-    if(!std::isfinite(seconds)||seconds<=0||!std::isfinite(peak)||peak<=0||peak>1)
+    if(vm.count("digital-gain-db")){
+        if(!mode.eight_bit || !vm["peak"].defaulted() || !std::isfinite(gain_db))
+            throw std::invalid_argument("digital-gain-db requires 50mhz mode and cannot be combined with peak");
+        peak=std::pow(10.,-gain_db/20.);
+    }
+    if(!std::isfinite(seconds)||seconds<=0||!std::isfinite(peak)||peak<1./256.||peak>1)
         throw std::invalid_argument("Invalid duration or sc8 peak");
     if(!compat_dir.empty()&&(!mode.eight_bit||std::filesystem::weakly_canonical(compat_dir)==std::filesystem::weakly_canonical(outdir)))
         throw std::invalid_argument("Compatibility output needs 50mhz mode and a separate directory");
