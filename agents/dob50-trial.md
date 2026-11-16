@@ -150,7 +150,54 @@ A raw backend is now implemented in `rdigital_rf`, but is not connected to the
 C++ recorder. The recorder still writes HDF5. The healthy 50 MHz acquisition is
 retained independently of that decoder performance limitation.
 
-## Typed-reader rollout, 2026-11-15
+## Shared feeds and reader throughput, 2026-11-16
+
+Current deployment supersedes the pending rollout described below. The recorder
+derives `/dev/shm/hf25` once from `/dev/shm/hf50`. All inspected 25 MHz workers
+share hf25; Montelibretti, wideband detection and the full-band spectrum share
+hf50. Both rings still use HDF5. Acquisition was not restarted during this work.
+
+The PRN slice's inherited 150% cap throttled every period in a five-second
+sample. `unlimit-prn.sh` removes only that DOB quota, retaining CPU weights;
+the five-second post-change sample had zero quota throttling. Historical
+Huairou health was moved under `iono-processing/retired/` after stopping it.
+
+`rdigital_rf` main `8419ce10a53a9a3ce3b21b50e9e056f926f6994e` coalesces
+continuous packet-index entries and preserves the two-dimensional HDF5 slab
+for a single channel. Coalescing alone showed little wall-time improvement;
+the rank-preserving read produced the measured speedup on DOB's HDF5 stack.
+Three alternating archived Montelibretti comparisons agreed within rtol/atol
+2e-5, as did an Uppsala comparison over the same still-retained live samples.
+The final production binary repeated the archived comparison: 0.994 to 0.222 s
+per Montelibretti carrier; its read stage took 0.145 s. Tests: 31 reader tests,
+100 official DigitalRF 2.6.14 parity checks, and 14 receiver tests passed.
+
+At 06:28:44 UTC the new binaries were installed for 18 DOB services, including
+PRN, VERSO, LFM, spectra, search and standard Digisondes. Running process hashes
+were checked. Backup binaries and unit list are in
+`/home/tgo/src/dob50-trial/install-state/io-20261116T062844`; use its recorded
+units and `bin/`/`dob50-trial/` files for rollback. Acquisition PID 2265291
+stayed unchanged. Installed SHA256 values:
+
+- iono-prn: `8b283495b902d51056ca8e72bb69858ad0faa4b355fc4d2d27f7ffd69a5f358e`
+- iono-receiver: `45363864c623d00027be83c600bc3b66028bafc35ca82398d0026229d05a9e55`
+- iono-verso: `4ab560435013a0e30127a1b73786c376f2b40d8b58aebd8171ef376fe9cad8b0`
+
+Live post-update carrier times were Kiruna 0.092–0.096 s, Uppsala
+0.191–0.247 s and Montelibretti 0.196–0.236 s. All three PRN rolling
+15-minute loss counters were zero locally and in the public API. The PRN
+group used 0.53–0.70 CPU cores in five-second post-update samples, versus
+2.49 immediately after removing the quota. A settled machine sample used
+59.0% total CPU. These are observed windows, not fixed station capacity.
+
+The recorder's current-hour count was four UHD overflows / 450120 missing
+samples (9.0 ms at 50 MHz), unchanged between the 06:30 and 06:32 health
+updates. Their earlier timing was not established; do not claim a zero-loss
+hour. Rail fraction remained about 6.2e-8. Numerical timing, CPU and recorder
+snapshots, plus processed replay comparisons, are retained in HDF5 under
+`/data0/recorder-health/dob-performance/`. No RF files were copied off DOB.
+
+## Typed-reader rollout, 2026-11-15 (historical)
 
 The receiver dependency now pins `rdigital_rf` main commit
 `677dff53d1fd98453670470b49300e9302bf3cd0`. PRN, VERSO and the generic receiver
