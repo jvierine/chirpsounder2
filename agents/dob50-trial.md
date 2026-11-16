@@ -186,6 +186,12 @@ and keep global search below ionogram processing when correcting the budget.
 
 ## Public sweep plots
 
+Huairou was retired from DOB on 2026-11-16 at the user's request after
+unsuccessful reception and CPU contention. `iono-prn@Huairou.service` is stopped
+and boot-disabled; its configuration and historical products are retained.
+`retire-huairou.sh` reapplies this state, and the DOB rollback excludes Huairou
+from the saved list of formerly active services. Other receivers are unchanged.
+
 The 48-hour link-history path had a separate 25 MHz cutoff. Commit `fe756c5`
 extends DOB link arrays, assumed-source envelopes and frequency color scales to
 50 MHz, with a browser fallback that preserves old arrays at their original

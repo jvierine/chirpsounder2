@@ -13,5 +13,9 @@ systemctl --user daemon-reload
 systemctl --user restart iono-browser-arrays
 systemctl --user enable --now chirpsounder_dombas.service
 mapfile -t units < "$base/install-state/previously-active.txt"
-systemctl --user start "${units[@]}"
+for unit in "${units[@]}"; do
+    # Retired after unsuccessful reception; do not restore its CPU load.
+    [[ "$unit" == iono-prn@Huairou.service ]] && continue
+    systemctl --user start "$unit"
+done
 printf 'Rolled DOB back to its original 25 MHz recorder and profiles.\n'
