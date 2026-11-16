@@ -237,13 +237,21 @@ fn make_decoders(c: &Config, index: usize, first: usize, nr: usize) -> Result<Ve
 }
 /// Decode one carrier dwell, sharing channelized samples with target/control
 /// codes. Return its range profile and the separate code-identity margin.
+#[derive(Default, Clone, Copy)]
+struct DwellTiming {
+    read: f64,
+    channel: f64,
+    correlate: f64,
+    finish: f64,
+}
 fn column(
     c: &Config,
     r: &mut Reader,
     epoch: f64,
     f: usize,
     bank: &mut BTreeMap<usize, Vec<Decoder>>,
-) -> Result<(Vec<f32>, f32)> {
+) -> Result<(Vec<f32>, f32, DwellTiming)> {
+    let mut timing = DwellTiming::default();
     let code = &c.codes[c.code_indices[f]];
     let frequency = c.frequencies_hz[f];
     // Do not label aliases outside the actual digitized RF band as measurements.
@@ -277,6 +285,7 @@ fn column(
             .checked_add((p * n) as u64)
             .and_then(|n| n.checked_sub(padding as u64))
             .context("read index overflow")?;
+        let read_timer = Instant::now();
         let mut raw = None;
         let mut last = None;
         for _ in 0..3 {
@@ -290,9 +299,15 @@ fn column(
             thread::sleep(Duration::from_millis(150));
         }
         let raw = raw.ok_or_else(|| anyhow::anyhow!("missing voltage at {start}: {:?}", last))?;
+        timing.read += read_timer.elapsed().as_secs_f64();
+        let channel_timer = Instant::now();
         let z = channel.process(&raw, p as i64 * n as i64 - padding as i64);
+        timing.channel += channel_timer.elapsed().as_secs_f64();
+        let correlate_timer = Instant::now();
         Decoder::push_shared(&z[4..4 + code.length], decoders)?;
+        timing.correlate += correlate_timer.elapsed().as_secs_f64();
     }
+    let finish_timer = Instant::now();
     let (snr, peak) = decoders[0].finish_with_score()?;
     let mut control_peak = 0f32;
     for control in &decoders[1..] {
@@ -303,7 +318,8 @@ fn column(
     } else {
         f32::NAN
     };
-    Ok((snr, margin))
+    timing.finish = finish_timer.elapsed().as_secs_f64();
+    Ok((snr, margin, timing))
 }
 fn product_path(c: &Config, epoch: f64) -> Result<PathBuf> {
     let day = chrono::DateTime::from_timestamp(epoch as i64, 0)
@@ -610,8 +626,10 @@ fn main() -> Result<()> {
                 column(&c, r.as_mut().unwrap(), epoch, f, &mut bank)
             })();
             capacity.finished(cpu, timer.elapsed().as_secs_f64(), c.dwell_s);
+            let mut timing = DwellTiming::default();
             match result {
-                Ok((v, margin)) => {
+                Ok((v, margin, measured)) => {
+                    timing = measured;
                     snr[f * nr..(f + 1) * nr].copy_from_slice(&v);
                     completed[f] = 1;
                     margins[f] = margin;
@@ -623,10 +641,14 @@ fn main() -> Result<()> {
             }
             if completed[f] != 0 && (f % 8 == 0 || f + 1 == c.frequencies_hz.len()) {
                 eprintln!(
-                    "{} {:.2} MHz: {:.3}s compute; code margin {:.1} dB; {}/{} complete; {}",
+                    "{} {:.2} MHz: {:.3}s compute; read {:.3}s, channel {:.3}s, correlate {:.3}s, finish {:.3}s; code margin {:.1} dB; {}/{} complete; {}",
                     c.transmitter,
                     c.frequencies_hz[f] / 1e6,
                     timer.elapsed().as_secs_f64(),
+                    timing.read,
+                    timing.channel,
+                    timing.correlate,
+                    timing.finish,
                     margins[f],
                     completed.iter().filter(|&&v| v != 0).count(),
                     completed.len(),
